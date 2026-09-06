@@ -40,16 +40,16 @@ function esUrlPublica(url: string) {
   }
 }
 
-// Prioridad: secret STORE_URL (URL de producción en Vercel) -> back_urls enviadas por el cliente.
-// Nunca se usan URLs locales en las URLs de retorno de Mercado Pago.
+// Las URLs de retorno SIEMPRE apuntan a la raíz de la tienda (STORE_URL),
+// una ruta válida del frontend. Nunca se usan URLs locales ni subrutas inexistentes.
 function obtenerBackUrls(back: { success?: string; failure?: string; pending?: string } | undefined) {
   const store = (Deno.env.get('STORE_URL') ?? '').replace(/\/$/, '')
 
   if (store && esUrlPublica(store)) {
     return {
-      success: `${store}/checkout/success`,
-      failure: `${store}/checkout/failure`,
-      pending: `${store}/checkout/pending`,
+      success: `${store}/`,
+      failure: `${store}/`,
+      pending: `${store}/`,
     }
   }
 

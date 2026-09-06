@@ -28,7 +28,8 @@ Funciones para el pago con **Mercado Pago** (Checkout Pro) + webhook/IPN.
    supabase secrets set STORE_URL=https://ikigai-store-omega.vercel.app
    ```
 
-   > `STORE_URL` define las URLs de retorno de Mercado Pago (`.../checkout/success|failure|pending`).
+   > `STORE_URL` define la URL de producción de la tienda y también las URLs de retorno de Mercado Pago
+   > (success/failure/pending → apuntan a la raíz `STORE_URL/`, sin subrutas para evitar 404).
    > Si no está configurada, la función usa las `back_urls` enviadas por el cliente solo si son URLs públicas (nunca `localhost`).
 
    > `SUPABASE_URL` y `SUPABASE_SERVICE_ROLE_KEY` los inyecta la plataforma de Supabase automáticamente en producción.
