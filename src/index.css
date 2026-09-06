@@ -1,0 +1,26 @@
+@import "tailwindcss";
+@plugin "daisyui" {
+  themes: ikigai --default;
+}
+
+@utility no-scrollbar {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@theme {
+  --color-primary: #111111;
+  --color-primary-content: #ffffff;
+  --color-secondary: #333333;
+  --color-accent: #555555;
+  --color-base-100: #ffffff;
+  --color-base-200: #fafafa;
+  --color-base-300: #f0f0f0;
+  --color-neutral: #111111;
+  --color-info: #3b82f6;
+  --color-success: #22c55e;
+  --color-warning: #eab308;
+  --color-error: #ef4444;
+}
