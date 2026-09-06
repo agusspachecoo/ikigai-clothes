@@ -22,6 +22,14 @@ Funciones para el pago con **Mercado Pago** (Checkout Pro) + webhook/IPN.
    ```
 
    También podés configurarlo desde la web: **Supabase Dashboard → Edge Functions → Secrets**.
+   Además de `MERCADOPAGO_ACCESS_TOKEN`, configurá la URL de producción de la tienda:
+
+   ```bash
+   supabase secrets set STORE_URL=https://ikigai-store-omega.vercel.app
+   ```
+
+   > `STORE_URL` define las URLs de retorno de Mercado Pago (`.../checkout/success|failure|pending`).
+   > Si no está configurada, la función usa las `back_urls` enviadas por el cliente solo si son URLs públicas (nunca `localhost`).
 
    > `SUPABASE_URL` y `SUPABASE_SERVICE_ROLE_KEY` los inyecta la plataforma de Supabase automáticamente en producción.
 
@@ -39,6 +47,7 @@ Funciones para el pago con **Mercado Pago** (Checkout Pro) + webhook/IPN.
    MERCADOPAGO_ACCESS_TOKEN=APP_USR-xxxxxxxxxxxxxxxx
    SUPABASE_URL=https://TU-PROYECTO.supabase.co
    SUPABASE_SERVICE_ROLE_KEY=tu_service_role_key
+   STORE_URL=http://localhost:5173
    ```
    y ejecutá:
    ```bash

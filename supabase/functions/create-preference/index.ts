@@ -29,6 +29,42 @@ function getSupabaseAdmin() {
   return createClient(url, key)
 }
 
+const hostLocales = ['localhost', '127.0.0.1', '0.0.0.0']
+
+function esUrlPublica(url: string) {
+  try {
+    const u = new URL(url)
+    return (u.protocol === 'https:' || u.protocol === 'http:') && !hostLocales.includes(u.hostname)
+  } catch {
+    return false
+  }
+}
+
+// Prioridad: secret STORE_URL (URL de producción en Vercel) -> back_urls enviadas por el cliente.
+// Nunca se usan URLs locales en las URLs de retorno de Mercado Pago.
+function obtenerBackUrls(back: { success?: string; failure?: string; pending?: string } | undefined) {
+  const store = (Deno.env.get('STORE_URL') ?? '').replace(/\/$/, '')
+
+  if (store && esUrlPublica(store)) {
+    return {
+      success: `${store}/checkout/success`,
+      failure: `${store}/checkout/failure`,
+      pending: `${store}/checkout/pending`,
+    }
+  }
+
+  if (
+    back &&
+    esUrlPublica(back.success ?? '') &&
+    esUrlPublica(back.failure ?? '') &&
+    esUrlPublica(back.pending ?? '')
+  ) {
+    return { success: back.success, failure: back.failure, pending: back.pending }
+  }
+
+  return null
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
 
@@ -47,9 +83,18 @@ Deno.serve(async (req) => {
     if (!ordenId || !Array.isArray(items) || items.length === 0) {
       return json({ error: 'Faltan datos: ordenId e items son obligatorios.' }, { status: 400 })
     }
-    if (!urls?.back?.success || !urls?.back?.failure || !urls?.back?.pending) {
-      return json({ error: 'Faltan las URLs de retorno (back_urls).' }, { status: 400 })
+
+    const backUrls = obtenerBackUrls(urls?.back)
+    if (!backUrls) {
+      return json(
+        {
+          error:
+            'back_urls inválidas. Configurá la secret STORE_URL con la URL de producción en Vercel (ej: https://ikigai-store-omega.vercel.app).',
+        },
+        { status: 400 },
+      )
     }
+
     if (!urls?.notification) {
       return json({ error: 'Falta la URL de notificaciones (webhook).' }, { status: 400 })
     }
@@ -101,11 +146,7 @@ Deno.serve(async (req) => {
         },
       },
       external_reference: String(ordenId),
-      back_urls: {
-        success: urls.back.success,
-        failure: urls.back.failure,
-        pending: urls.back.pending,
-      },
+      back_urls: backUrls,
       auto_return: 'approved',
       notification_url: urls.notification,
     }
