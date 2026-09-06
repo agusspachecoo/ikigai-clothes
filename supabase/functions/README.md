@@ -6,7 +6,7 @@ Funciones para el pago con **Mercado Pago** (Checkout Pro) + webhook/IPN.
 | Función | Descripción |
 | --- | --- |
 | `create-preference` | Crea la preferencia de pago en Mercado Pago con los ítems del carrito y los datos del cliente. Devuelve `preference_id` e `init_point`. |
-| `mercadopago-webhook` | Recibe las notificaciones (IPN) de Mercado Pago, consulta el estado real del pago y actualiza la orden en Supabase a `pagado`. |
+| `mercadopago-webhook` | Recibe las notificaciones (IPN) de Mercado Pago, consulta el estado real del pago, actualiza la orden en Supabase a `pagado` y **descuenta el stock** de las prendas del pedido. |
 
 ## Dónde configurar los tokens de Mercado Pago
 
@@ -57,8 +57,9 @@ Funciones para el pago con **Mercado Pago** (Checkout Pro) + webhook/IPN.
    ```
 
 ## Migración de base de datos
-Aplicá `supabase/migrations/004_mercadopago.sql` (SQL Editor de Supabase). Agrega a `ordenes`:
-`mp_preference_id`, `mp_payment_id`, `mp_pago_detalle` y `updated_at`.
+Aplicá en el SQL Editor de Supabase:
+- `supabase/migrations/004_mercadopago.sql` — agrega a `ordenes`: `mp_preference_id`, `mp_payment_id`, `mp_pago_detalle` y `updated_at`.
+- `supabase/migrations/005_webhook_stock.sql` — agrega `stock_descontado` y la función `descontar_stock(p_orden_id)` (idempotente: descontar el stock una única vez por pedido y nunca negativo).
 
 ## Notas de seguridad
 - El webhook **nunca confía en el body**: consulta `GET /v1/payments/{id}` con el Access Token y valida el monto contra `ordenes.monto_total` antes de actualizar.

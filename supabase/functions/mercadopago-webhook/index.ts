@@ -98,6 +98,17 @@ Deno.serve(async (req) => {
         console.error('Supabase update error:', error)
         return json({ ok: false, error: error.message }, { status: 500 })
       }
+
+      // Pago aprobado: descontar stock de las prendas (idempotente, ver migración 005)
+      if (estadoPago === 'approved') {
+        const { error: errorStock } = await supabase.rpc('descontar_stock', {
+          p_orden_id: ordenId,
+        })
+        if (errorStock) {
+          console.error('descontar_stock error:', errorStock)
+          return json({ ok: false, error: errorStock.message }, { status: 500 })
+        }
+      }
     }
 
     return json({ ok: true, status: estadoPago })
