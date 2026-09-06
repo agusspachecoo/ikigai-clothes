@@ -28,8 +28,11 @@ Funciones para el pago con **Mercado Pago** (Checkout Pro) + webhook/IPN.
 3. **Deploy de las funciones**:
    ```bash
    supabase functions deploy create-preference
-   supabase functions deploy mercadopago-webhook
+   supabase functions deploy mercadopago-webhook --no-verify-jwt
    ```
+   - `create-preference` verifica JWT (el frontend envía la anon key en `apikey`/`Authorization`).
+   - `mercadopago-webhook` se despliega con `--no-verify-jwt` porque Mercado Pago la invoca **sin** cabeceras de autorización. El webhook es seguro igualmente: re-consulta `GET /v1/payments/:id` en la API de MP y valida el monto antes de tocar la base.
+   > Si las Edge Functions están desplegadas con verificación JWT por defecto, toda invocación sin `Authorization` responde **401**. En el Dashboard (Edge Functions → editar función) podés activar/desactivar "Verify JWT" por función.
 
 4. **Desarrollo local** (opcional): creá un archivo `supabase/functions/.env`:
    ```

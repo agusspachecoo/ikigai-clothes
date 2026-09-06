@@ -7,7 +7,9 @@ interface ClientePago {
   dni: string
 }
 
-const FUNCTIONS_URL = `${String(import.meta.env.VITE_SUPABASE_URL).replace(/\/$/, '')}/functions/v1`
+const supabaseUrl = String(import.meta.env.VITE_SUPABASE_URL ?? '').replace(/\/$/, '')
+const supabaseAnonKey = String(import.meta.env.VITE_SUPABASE_ANON_KEY ?? '')
+const FUNCTIONS_URL = `${supabaseUrl}/functions/v1`
 
 export async function crearPreferenciaMP(ordenId: string, items: CartItem[], cliente: ClientePago) {
   const base = window.location.origin
@@ -32,10 +34,21 @@ export async function crearPreferenciaMP(ordenId: string, items: CartItem[], cli
     },
   }
 
+  if (!supabaseUrl || !supabaseAnonKey) {
+    return {
+      init_point: null,
+      error: 'Faltan VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY configurados.',
+    }
+  }
+
   try {
     const res = await fetch(`${FUNCTIONS_URL}/create-preference`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        apikey: supabaseAnonKey,
+        Authorization: `Bearer ${supabaseAnonKey}`,
+      },
       body: JSON.stringify(body),
     })
 
@@ -45,7 +58,11 @@ export async function crearPreferenciaMP(ordenId: string, items: CartItem[], cli
     }
 
     if (!res.ok) {
-      return { init_point: null, error: data.error ?? 'No se pudo iniciar el pago.' }
+      const detalle =
+        res.status === 401
+          ? 'No autorizado. Verificá la API Key de Supabase (VITE_SUPABASE_ANON_KEY).'
+          : data.error ?? 'No se pudo iniciar el pago.'
+      return { init_point: null, error: detalle }
     }
 
     return { init_point: data.init_point ?? null, error: null }
@@ -53,7 +70,7 @@ export async function crearPreferenciaMP(ordenId: string, items: CartItem[], cli
     return {
       init_point: null,
       error:
-        'No se pudo contactar la pasarela de pago. Verificá que las Edge Functions estén desplegadas.',
+        'No se pudo contactar la pasarela de pago. Verificá que las Edge Functions estén desplegadas y que el CORS sea correcto.',
     }
   }
 }
