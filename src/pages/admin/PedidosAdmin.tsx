@@ -193,7 +193,7 @@ function PedidoDetalle({
       <div className="modal-box max-w-2xl p-0 overflow-hidden rounded-3xl">
         <div className="flex items-center justify-between p-5 border-b border-base-300">
           <div>
-            <h2 className="text-lg font-bold">Pedido {orden.id.slice(0, 8).toUpperCase()}</h2>
+            <h2 className="text-lg font-bold text-gray-900">Pedido {orden.id.slice(0, 8).toUpperCase()}</h2>
             <p className="text-xs opacity-50">
               {new Date(orden.created_at).toLocaleString('es-AR')}
             </p>
@@ -208,7 +208,7 @@ function PedidoDetalle({
         <div className="p-5 space-y-5 max-h-[75vh] overflow-y-auto">
           {/* Cliente */}
           <section>
-            <h3 className="font-semibold text-sm mb-2">Cliente</h3>
+            <h3 className="font-semibold text-sm mb-2 text-gray-900">Cliente</h3>
             <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 text-sm bg-base-200 rounded-xl p-4">
               <div>
                 <dt className="opacity-50">Nombre</dt>
@@ -231,7 +231,7 @@ function PedidoDetalle({
 
           {/* Envío */}
           <section>
-            <h3 className="font-semibold text-sm mb-2">Entrega</h3>
+            <h3 className="font-semibold text-sm mb-2 text-gray-900">Entrega</h3>
             <div className="bg-base-200 rounded-xl p-4 text-sm">
               {esRetiro ? (
                 <p>Retiro en showroom (sin envío).</p>
@@ -247,7 +247,7 @@ function PedidoDetalle({
 
           {/* Método de pago */}
           <section>
-            <h3 className="font-semibold text-sm mb-2">Pago</h3>
+            <h3 className="font-semibold text-sm mb-2 text-gray-900">Pago</h3>
             <div className="bg-base-200 rounded-xl p-4 text-sm flex items-center justify-between">
               <span>{METODO_LABEL[orden.metodo_pago] ?? orden.metodo_pago}</span>
               <span className="font-bold text-primary">
@@ -268,7 +268,7 @@ function PedidoDetalle({
 
           {/* Items */}
           <section>
-            <h3 className="font-semibold text-sm mb-2">Ítems</h3>
+            <h3 className="font-semibold text-sm mb-2 text-gray-900">Ítems</h3>
             <ul className="space-y-2">
               {items.map((it, i) => (
                 <li key={i} className="flex items-center gap-3 bg-base-200 rounded-xl p-3">
@@ -288,7 +288,7 @@ function PedidoDetalle({
 
           {/* Estado */}
           <section>
-            <h3 className="font-semibold text-sm mb-2">Estado del pedido</h3>
+            <h3 className="font-semibold text-sm mb-2 text-gray-900">Estado del pedido</h3>
             <div className="flex flex-wrap items-center gap-2">
               <select
                 className="select select-bordered select-sm"

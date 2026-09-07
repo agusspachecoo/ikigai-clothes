@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router'
-import { getProductosAdmin, guardarProducto, eliminarProducto, setProductoActivo, getCategoriasAdmin } from '../../lib/adminApi'
+import { getProductosAdmin, guardarProducto, eliminarProducto, setProductoActivo, getCategoriasAdmin, subirImagen } from '../../lib/adminApi'
+import { comprimirImagen, blobToFile } from '../../lib/imageCompression'
 import { imagenProducto } from '../../lib/imagenes'
 import { CATEGORIAS_FALLBACK } from '../../lib/categorias'
 import type { ProductoConStock } from '../../types/database'
@@ -270,6 +271,7 @@ function ProductoFormModal({ producto, categorias, onCerrar, onGuardado }: FormP
   const [form, setForm] = useState<FormState>(() => crearForm(producto))
   const [guardando, setGuardando] = useState(false)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
+  const [subiendo, setSubiendo] = useState<number | null>(null)
 
   function setField<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((f) => ({ ...f, [key]: value }))
@@ -287,6 +289,23 @@ function ProductoFormModal({ producto, categorias, onCerrar, onGuardado }: FormP
 
   function removeImagen(i: number) {
     setField('imagenes', form.imagenes.filter((_, idx) => idx !== i))
+  }
+
+  async function handleFile(i: number, file: File | null) {
+    if (!file) return
+    setSubiendo(i)
+    setErrorMsg(null)
+    try {
+      const blob = await comprimirImagen(file)
+      const archivo = blobToFile(blob, file.name)
+      const { url, error } = await subirImagen(archivo, 'productos')
+      if (error) throw new Error(error)
+      if (url) setImagen(i, url)
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : 'Error al subir la imagen')
+    } finally {
+      setSubiendo(null)
+    }
   }
 
   function addTalleSugerido(t: string) {
@@ -343,7 +362,7 @@ function ProductoFormModal({ producto, categorias, onCerrar, onGuardado }: FormP
     <dialog className="modal modal-open" onClose={onCerrar}>
       <div className="modal-box max-w-3xl p-0 overflow-hidden rounded-3xl">
         <div className="flex items-center justify-between p-5 border-b border-base-300">
-          <h2 className="text-lg font-bold">
+          <h2 className="text-lg font-bold text-gray-900">
             {producto ? 'Editar producto' : 'Nuevo producto'}
           </h2>
           <button onClick={onCerrar} className="btn btn-ghost btn-circle btn-sm" aria-label="Cerrar">
@@ -422,7 +441,7 @@ function ProductoFormModal({ producto, categorias, onCerrar, onGuardado }: FormP
 
           {/* Imágenes */}
           <div>
-            <p className="font-semibold text-sm mb-2">Imágenes (frente, dorso, detalles)</p>
+            <p className="font-semibold text-sm mb-2 text-gray-900">Imágenes (frente, dorso, detalles)</p>
             <div className="space-y-2">
               {form.imagenes.map((img, i) => (
                 <div key={i} className="flex items-center gap-2">
@@ -436,10 +455,23 @@ function ProductoFormModal({ producto, categorias, onCerrar, onGuardado }: FormP
                     value={img}
                     onChange={(e) => setImagen(i, e.target.value)}
                   />
+                  {subiendo === i && (
+                    <span className="loading loading-spinner loading-sm text-primary shrink-0" />
+                  )}
+                  <label className="btn btn-outline btn-sm shrink-0">
+                    {subiendo === i ? 'Subiendo…' : 'Subir'}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      disabled={subiendo !== null}
+                      onChange={(e) => handleFile(i, e.target.files?.[0] ?? null)}
+                    />
+                  </label>
                   {form.imagenes.length > 1 && (
                     <button
                       type="button"
-                      className="btn btn-ghost btn-sm text-error"
+                      className="btn btn-ghost btn-sm text-error shrink-0"
                       onClick={() => removeImagen(i)}
                     >
                       Quitar
@@ -455,7 +487,7 @@ function ProductoFormModal({ producto, categorias, onCerrar, onGuardado }: FormP
 
           {/* Stock por talle */}
           <div>
-            <p className="font-semibold text-sm mb-2">Stock por talle</p>
+            <p className="font-semibold text-sm mb-2 text-gray-900">Stock por talle</p>
             <div className="space-y-2">
               {form.talles.map((t, i) => (
                 <div key={i} className="flex items-center gap-2">
@@ -509,7 +541,7 @@ function ProductoFormModal({ producto, categorias, onCerrar, onGuardado }: FormP
               checked={form.activo}
               onChange={(e) => setField('activo', e.target.checked)}
             />
-            <span className="text-sm font-medium">Visible en el catálogo</span>
+            <span className="text-sm font-medium text-gray-900">Visible en el catálogo</span>
           </label>
 
           {errorMsg && <div className="alert alert-error text-sm">{errorMsg}</div>}

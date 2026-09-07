@@ -74,14 +74,14 @@ function OutfitModalContent({ outfit, onClose }: { outfit: OutfitConItems; onClo
       <div className="p-6">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <h3 className="text-xl font-bold">{outfit.nombre}</h3>
+            <h3 className="text-xl font-bold text-gray-900">{outfit.nombre}</h3>
             <p className="text-primary font-bold text-2xl mt-1">
               $ {outfit.precio_combo.toLocaleString('es-AR')}
             </p>
           </div>
         </div>
 
-        {outfit.descripcion && <p className="text-sm opacity-60 mt-2">{outfit.descripcion}</p>}
+        {outfit.descripcion && <p className="text-sm opacity-60 mt-2 text-gray-700">{outfit.descripcion}</p>}
 
         <ul className="space-y-4 mt-5">
           {outfit.outfit_items.map((item, i) => {
@@ -107,7 +107,7 @@ function OutfitModalContent({ outfit, onClose }: { outfit: OutfitConItems; onClo
                   <Link
                     to={`/producto/${p.id}`}
                     onClick={onClose}
-                    className="text-sm font-semibold block hover:text-primary hover:underline transition-colors"
+                    className="text-sm font-semibold block text-gray-900 hover:text-primary hover:underline transition-colors"
                   >
                     {p.nombre}
                   </Link>
@@ -121,7 +121,7 @@ function OutfitModalContent({ outfit, onClose }: { outfit: OutfitConItems; onClo
                           className={`btn btn-xs min-w-10 px-3 border-2 rounded-lg font-semibold cursor-pointer ${
                             talles[p.id] === v.talle
                               ? 'btn-primary border-transparent'
-                              : 'bg-base-100 border-base-300 hover:border-primary hover:text-primary'
+                              : 'bg-base-100 border-base-300 text-gray-900 hover:border-primary hover:text-primary'
                           } ${
                             v.stock_disponible === 0
                               ? 'opacity-30 pointer-events-none'
@@ -133,10 +133,10 @@ function OutfitModalContent({ outfit, onClose }: { outfit: OutfitConItems; onClo
                       ))}
                     </div>
                   ) : (
-                    <p className="text-xs opacity-50 mt-1.5">Talle único</p>
+                    <p className="text-xs opacity-50 mt-1.5 text-gray-700">Talle único</p>
                   )}
                 </div>
-                <p className="text-sm font-bold whitespace-nowrap">
+                <p className="text-sm font-bold whitespace-nowrap text-gray-900">
                   $ {p.precio.toLocaleString('es-AR')}
                 </p>
               </li>

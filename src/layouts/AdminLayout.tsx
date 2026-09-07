@@ -9,6 +9,7 @@ const TABS = [
   { to: '/admin/categorias', label: 'Categorías' },
   { to: '/admin/pedidos', label: 'Pedidos' },
   { to: '/admin/resenas', label: 'Reseñas' },
+  { to: '/admin/comunidad', label: 'Comunidad' },
 ]
 
 export function AdminLayout() {

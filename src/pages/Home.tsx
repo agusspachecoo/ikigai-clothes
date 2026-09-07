@@ -3,6 +3,8 @@ import { useProductos } from '../hooks/useProductos'
 import { useOutfits } from '../hooks/useOutfits'
 import { ProductCard } from '../components/ProductCard'
 import { OutfitCarousel } from '../components/OutfitCarousel'
+import { CommunitySection } from '../components/CommunitySection'
+import logo from '../assets/logo-transparent.png'
 
 export function Home() {
   const { productos, loading } = useProductos({ limit: 8 })
@@ -19,9 +21,11 @@ export function Home() {
           <p className="text-xs font-semibold tracking-[0.25em] uppercase opacity-60">
             Ropa urbana &amp; deportiva
           </p>
-          <h1 className="mt-4 text-6xl md:text-8xl font-black tracking-tight text-primary">
-            IKIGAI
-          </h1>
+          <img
+            src={logo}
+            alt="Ikigai Clothes"
+            className="mt-4 w-72 md:w-96 max-w-md mx-auto"
+          />
           <p className="text-lg md:text-xl opacity-60 mt-6 max-w-md mx-auto">
             Prendas con estilo y actitud para que encuentres tu propia esencia.
           </p>
@@ -73,6 +77,9 @@ export function Home() {
 
       {/* Outfits estilo Moscú */}
       <OutfitCarousel outfits={outfits} />
+
+      {/* Nuestra Comunidad */}
+      <CommunitySection />
 
       {/* Beneficios */}
       <section className="py-12 md:py-16">

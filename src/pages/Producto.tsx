@@ -4,6 +4,9 @@ import { useProducto } from '../hooks/useProductos'
 import { useResenas } from '../hooks/useResenas'
 import { useCart } from '../context/cart'
 import { imagenProducto } from '../lib/imagenes'
+import { comprimirImagen, blobToFile } from '../lib/imageCompression'
+import { subirImagen } from '../lib/adminApi'
+import { parseResenaImagenes } from '../types/database'
 import type { VariacionStock } from '../types/database'
 
 export function Producto() {
@@ -12,7 +15,10 @@ export function Producto() {
   const { agregarItem, setCarritoAbierto } = useCart()
   const [imagenActiva, setImagenActiva] = useState(0)
   const [talleSeleccionado, setTalleSeleccionado] = useState<string | null>(null)
-  const [cp, setCp] = useState('')
+  const [fotoResena, setFotoResena] = useState<File | null>(null)
+  const [vistaPreviaResena, setVistaPreviaResena] = useState<string | null>(null)
+  const [subiendoResena, setSubiendoResena] = useState(false)
+  const [lightboxResena, setLightboxResena] = useState<{ resenaId: string, url: string } | null>(null)
 
   const { resenas, insertarResena } = useResenas(id ?? null)
 
@@ -21,6 +27,15 @@ export function Producto() {
     puntuacion: 5,
     comentario: '',
   })
+
+  async function handleFotoResena(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const blob = await comprimirImagen(file, { maxWidth: 1200, quality: 0.8 })
+    const comprimido = blobToFile(blob, file.name)
+    setFotoResena(comprimido)
+    setVistaPreviaResena(URL.createObjectURL(comprimido))
+  }
 
   if (loading) {
     return (
@@ -63,9 +78,24 @@ export function Producto() {
   async function handleSubmitResena(e: React.FormEvent) {
     e.preventDefault()
     if (!id) return
-    const ok = await insertarResena({ ...formResena, producto_id: id })
-    if (ok) {
-      setFormResena({ nombre_usuario: '', puntuacion: 5, comentario: '' })
+
+    setSubiendoResena(true)
+    try {
+      let imagenUrl: string | null = null
+      if (fotoResena) {
+        const { url, error } = await subirImagen(fotoResena, 'reviews')
+        if (error || !url) throw new Error(error ?? 'No se pudo subir la imagen')
+        imagenUrl = JSON.stringify([url])
+      }
+
+      const ok = await insertarResena({ ...formResena, producto_id: id, imagen_url: imagenUrl })
+      if (ok) {
+        setFormResena({ nombre_usuario: '', puntuacion: 5, comentario: '' })
+        setFotoResena(null)
+        setVistaPreviaResena(null)
+      }
+    } finally {
+      setSubiendoResena(false)
     }
   }
 
@@ -143,23 +173,6 @@ export function Producto() {
             </div>
           )}
 
-          {/* Calculadora de envío */}
-          <div className="mt-6">
-            <p className="font-semibold mb-2">Calcular envío</p>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                className="input input-bordered flex-1"
-                placeholder="Código Postal"
-                value={cp}
-                onChange={(e) => setCp(e.target.value)}
-              />
-              <button className="btn btn-outline px-6 border-2 rounded-xl cursor-pointer hover:bg-primary hover:text-primary-content hover:border-primary">
-                Calcular
-              </button>
-            </div>
-          </div>
-
           {/* Agregar al carrito */}
           <button
             className="btn w-full bg-black text-white hover:bg-neutral-800 border-0 rounded-xl font-bold text-base mt-8 cursor-pointer transition-colors"
@@ -168,6 +181,9 @@ export function Producto() {
           >
             Agregar al Carrito
           </button>
+          <p className="text-xs opacity-60 mt-3 text-center">
+            🚚 Envíos a todo el país | Retiro sin cargo
+          </p>
         </div>
       </div>
 
@@ -211,11 +227,47 @@ export function Producto() {
             onChange={(e) => setFormResena(f => ({ ...f, comentario: e.target.value }))}
             required
           />
+
+          {/* Foto opcional de la reseña */}
+          <div className="mt-4">
+            <span className="text-sm font-semibold">Sumá una foto (opcional)</span>
+            <label className="mt-2 flex items-center justify-center w-full h-24 border-2 border-dashed border-base-300 rounded-xl cursor-pointer hover:border-primary transition-colors overflow-hidden relative">
+              {vistaPreviaResena ? (
+                <>
+                  <img src={vistaPreviaResena} alt="Vista previa" className="w-full h-full object-cover" />
+                  <button
+                    type="button"
+                    onClick={() => { setFotoResena(null); setVistaPreviaResena(null) }}
+                    className="absolute top-1 right-1 btn btn-circle btn-xs text-white"
+                    aria-label="Quitar foto"
+                  >
+                    ✕
+                  </button>
+                </>
+              ) : (
+                <span className="text-sm opacity-60 flex flex-col items-center gap-1">
+                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0z" />
+                  </svg>
+                  Subir foto
+                </span>
+              )}
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleFotoResena}
+              />
+            </label>
+          </div>
+
           <button
             type="submit"
             className="btn btn-primary mt-4 self-start px-6 py-3 rounded-xl cursor-pointer"
+            disabled={subiendoResena}
           >
-            Enviar Reseña
+            {subiendoResena ? 'Subiendo...' : 'Enviar Reseña'}
           </button>
         </form>
 
@@ -224,28 +276,66 @@ export function Producto() {
           <p className="opacity-60">No hay reseñas todavía. Sé el primero en comentar.</p>
         ) : (
           <div className="space-y-4">
-            {resenas.map((r) => (
-              <div key={r.id} className="card bg-base-100 shadow-sm p-4">
-                <div className="flex items-center justify-between">
-                  <span className="font-semibold">{r.nombre_usuario}</span>
-                  <div className="rating rating-sm">
-                    {Array.from({ length: 5 }).map((_, i) => (
-                      <input
-                        key={i}
-                        type="radio"
-                        className="mask mask-star-2 bg-warning"
-                        disabled
-                        checked={i < r.puntuacion}
-                      />
-                    ))}
+            {resenas.map((r) => {
+              const fotos = parseResenaImagenes(r.imagen_url)
+              return (
+                <div key={r.id} className="card bg-base-100 shadow-sm p-4">
+                  <div className="flex items-center justify-between">
+                    <span className="font-semibold">{r.nombre_usuario}</span>
+                    <div className="rating rating-sm">
+                      {Array.from({ length: 5 }).map((_, i) => (
+                        <input
+                          key={i}
+                          type="radio"
+                          className="mask mask-star-2 bg-warning"
+                          disabled
+                          checked={i < r.puntuacion}
+                        />
+                      ))}
+                    </div>
                   </div>
+                  <p className="mt-2 text-sm">{r.comentario}</p>
+                  {fotos.length > 0 && (
+                    <div className="flex gap-2 mt-3 flex-wrap">
+                      {fotos.map((foto, i) => (
+                        <button
+                          key={i}
+                          className="w-20 h-20 rounded-lg overflow-hidden cursor-pointer border border-base-300"
+                          onClick={() => setLightboxResena({ resenaId: r.id, url: foto })}
+                          aria-label="Ver foto de la reseña"
+                        >
+                          <img src={foto} alt="" className="w-full h-full object-cover" />
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
-                <p className="mt-2 text-sm">{r.comentario}</p>
-              </div>
-            ))}
+              )
+            })}
           </div>
         )}
       </section>
+
+      {/* Lightbox de reseña */}
+      {lightboxResena && (
+        <div
+          className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 cursor-zoom-out"
+          onClick={() => setLightboxResena(null)}
+        >
+          <button
+            className="absolute top-4 right-4 btn btn-circle btn-ghost text-white"
+            onClick={() => setLightboxResena(null)}
+            aria-label="Cerrar"
+          >
+            ✕
+          </button>
+          <img
+            src={lightboxResena.url}
+            alt="Foto de la reseña"
+            className="max-w-full max-h-[90vh] rounded-lg object-contain"
+          />
+        </div>
+      )}
     </div>
   )
 }

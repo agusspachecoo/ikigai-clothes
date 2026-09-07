@@ -105,12 +105,12 @@ export function Buscador({ className = '', placeholder = 'Buscar prendas...', on
       </form>
 
       {abierto && sugerencias.length > 0 && (
-        <div className="absolute left-0 right-0 top-full mt-2 rounded-xl bg-white border border-base-300 shadow-xl overflow-hidden z-50">
+        <div className="absolute left-0 right-0 top-full mt-2 rounded-xl bg-white text-gray-900 border border-base-300 shadow-xl overflow-hidden z-50">
           {sugerencias.map((p, i) => (
             <button
               key={p.id}
               onClick={() => irAlProducto(p.id)}
-              className="w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-base-200 cursor-pointer transition-colors"
+              className="w-full flex items-center gap-3 px-3 py-2.5 text-left text-gray-900 hover:bg-base-200 cursor-pointer transition-colors"
             >
               <img
                 src={imagenProducto(p.imagenes[0], i)}
@@ -119,7 +119,7 @@ export function Buscador({ className = '', placeholder = 'Buscar prendas...', on
               />
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold truncate">{p.nombre}</p>
-                <p className="text-xs opacity-50">{p.categoria}</p>
+                <p className="text-xs opacity-50 text-gray-600">{p.categoria}</p>
               </div>
               <span className="text-sm font-bold shrink-0">
                 ${p.precio.toLocaleString('es-AR')}
@@ -136,7 +136,7 @@ export function Buscador({ className = '', placeholder = 'Buscar prendas...', on
       )}
 
       {abierto && sugerencias.length === 0 && !loading && term.trim() && (
-        <div className="absolute left-0 right-0 top-full mt-2 rounded-xl bg-white border border-base-300 shadow-xl overflow-hidden z-50">
+        <div className="absolute left-0 right-0 top-full mt-2 rounded-xl bg-white text-gray-900 border border-base-300 shadow-xl overflow-hidden z-50">
           <button
             onClick={irAlCatalogo}
             className="w-full text-left px-4 py-3 text-sm font-semibold text-primary hover:bg-base-200 cursor-pointer transition-colors"

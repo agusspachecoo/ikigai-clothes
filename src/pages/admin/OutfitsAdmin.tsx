@@ -5,8 +5,10 @@ import {
   eliminarOutfit,
   setOutfitActivo,
   getProductosAdmin,
+  subirImagen,
   type OutfitInput,
 } from '../../lib/adminApi'
+import { comprimirImagen, blobToFile } from '../../lib/imageCompression'
 import { imagenOutfit, imagenProducto } from '../../lib/imagenes'
 import type { OutfitConItems, ProductoConStock } from '../../types/database'
 
@@ -169,6 +171,7 @@ function OutfitFormModal({ outfit, productos, onCerrar, onGuardado }: FormProps)
   }))
   const [guardando, setGuardando] = useState(false)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
+  const [subiendo, setSubiendo] = useState(false)
 
   function toggleProducto(id: string) {
     setForm((f) => ({
@@ -177,6 +180,23 @@ function OutfitFormModal({ outfit, productos, onCerrar, onGuardado }: FormProps)
         ? f.producto_ids.filter((x) => x !== id)
         : [...f.producto_ids, id],
     }))
+  }
+
+  async function handleSubir(file: File | null) {
+    if (!file) return
+    setSubiendo(true)
+    setErrorMsg(null)
+    try {
+      const blob = await comprimirImagen(file)
+      const archivo = blobToFile(blob, file.name)
+      const { url, error } = await subirImagen(archivo, 'outfits')
+      if (error) throw new Error(error)
+      if (url) setForm((f) => ({ ...f, imagen_portada: url }))
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : 'Error al subir la imagen')
+    } finally {
+      setSubiendo(false)
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -212,7 +232,7 @@ function OutfitFormModal({ outfit, productos, onCerrar, onGuardado }: FormProps)
     <dialog className="modal modal-open" onClose={onCerrar}>
       <div className="modal-box max-w-3xl p-0 overflow-hidden rounded-3xl">
         <div className="flex items-center justify-between p-5 border-b border-base-300">
-          <h2 className="text-lg font-bold">{outfit ? 'Editar outfit' : 'Nuevo outfit'}</h2>
+          <h2 className="text-lg font-bold text-gray-900">{outfit ? 'Editar outfit' : 'Nuevo outfit'}</h2>
           <button onClick={onCerrar} className="btn btn-ghost btn-circle btn-sm" aria-label="Cerrar">
             <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -259,7 +279,7 @@ function OutfitFormModal({ outfit, productos, onCerrar, onGuardado }: FormProps)
 
           {/* Imagen portada (selfie vestidor, vertical) */}
           <div>
-            <p className="font-semibold text-sm mb-2">Imagen de portada (vertical, tipo selfie de vestidor)</p>
+            <p className="font-semibold text-sm mb-2 text-gray-900">Imagen de portada (vertical, tipo selfie de vestidor)</p>
             <div className="flex items-center gap-3">
               <div className="w-24 h-32 bg-base-300 rounded-xl overflow-hidden shrink-0 flex items-center justify-center">
                 {form.imagen_portada ? (
@@ -268,20 +288,32 @@ function OutfitFormModal({ outfit, productos, onCerrar, onGuardado }: FormProps)
                   <span className="text-xs opacity-40 px-2 text-center">Imagen vertical</span>
                 )}
               </div>
-              <input
-                type="url"
-                className="input input-bordered flex-1"
-                placeholder="https://... (URL de la imagen)"
-                value={form.imagen_portada}
-                onChange={(e) => setForm({ ...form, imagen_portada: e.target.value })}
-                required
-              />
+              <div className="flex-1 flex flex-col gap-2">
+                <input
+                  type="url"
+                  className="input input-bordered w-full"
+                  placeholder="https://... (URL de la imagen)"
+                  value={form.imagen_portada}
+                  onChange={(e) => setForm({ ...form, imagen_portada: e.target.value })}
+                  required
+                />
+                <label className="btn btn-outline btn-sm w-fit">
+                  {subiendo ? <span className="loading loading-spinner loading-sm" /> : 'Subir imagen'}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    disabled={subiendo}
+                    onChange={(e) => handleSubir(e.target.files?.[0] ?? null)}
+                  />
+                </label>
+              </div>
             </div>
           </div>
 
           {/* Prendas del look */}
           <div>
-            <p className="font-semibold text-sm mb-2">
+            <p className="font-semibold text-sm mb-2 text-gray-900">
               Prendas que componen el look ({form.producto_ids.length} seleccionadas)
             </p>
             {productos.length === 0 ? (

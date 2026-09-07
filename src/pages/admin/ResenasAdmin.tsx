@@ -9,6 +9,7 @@ import {
   type ResenaConProducto,
 } from '../../lib/adminApi'
 import type { ComunidadFoto } from '../../types/database'
+import { parseResenaImagenes } from '../../types/database'
 
 export function ResenasAdmin() {
   const [resenas, setResenas] = useState<ResenaConProducto[]>([])
@@ -169,7 +170,7 @@ function ResenasList({
           </div>
           {r.imagen_url && (
             <img
-              src={r.imagen_url}
+              src={parseResenaImagenes(r.imagen_url)[0] ?? r.imagen_url}
               alt=""
               className="w-16 h-20 object-cover rounded-xl bg-base-300 shrink-0"
             />

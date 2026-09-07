@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import type { OutfitConItems } from '../types/database'
 import { imagenOutfit } from '../lib/imagenes'
@@ -7,6 +7,8 @@ import { BuyOutfitModal } from './BuyOutfitModal'
 interface Props {
   outfits: OutfitConItems[]
 }
+
+const LIMITE = 4
 
 const ICONO_BOLSA = (
   <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.9">
@@ -19,25 +21,9 @@ const ICONO_BOLSA = (
 )
 
 export function OutfitCarousel({ outfits }: Props) {
-  const carouselRef = useRef<HTMLDivElement>(null)
-  const [indiceActivo, setIndiceActivo] = useState(0)
   const [outfitSeleccionado, setOutfitSeleccionado] = useState<OutfitConItems | null>(null)
 
-  function onScrollCarousel() {
-    const el = carouselRef.current
-    if (!el || el.scrollWidth === el.clientWidth) return
-    const idx = Math.round(
-      (el.scrollLeft / (el.scrollWidth - el.clientWidth)) * (outfits.length - 1),
-    )
-    setIndiceActivo(Math.min(Math.max(idx, 0), outfits.length - 1))
-  }
-
-  function irA(indice: number) {
-    const el = carouselRef.current
-    if (!el) return
-    el.scrollTo({ left: (el.scrollWidth / outfits.length) * indice, behavior: 'smooth' })
-    setIndiceActivo(indice)
-  }
+  const visibles = outfits.slice(0, LIMITE)
 
   return (
     <section className="py-12 md:py-20 bg-base-100 border-t border-base-300">
@@ -53,14 +39,10 @@ export function OutfitCarousel({ outfits }: Props) {
 
         {outfits.length > 0 && (
           <>
-            {/* Carrusel */}
-            <div
-              ref={carouselRef}
-              onScroll={onScrollCarousel}
-              className="flex gap-4 md:gap-6 overflow-x-auto snap-x snap-mandatory px-1 pb-4 no-scrollbar"
-            >
-              {outfits.map((o, i) => (
-                <div key={o.id} className="snap-center shrink-0 w-64 md:w-72">
+            {/* Grid de outfits */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
+              {visibles.map((o, i) => (
+                <div key={o.id}>
                   <button
                     onClick={() => setOutfitSeleccionado(o)}
                     aria-label={`Ver detalle del look ${o.nombre}`}
@@ -86,7 +68,7 @@ export function OutfitCarousel({ outfits }: Props) {
                   </button>
 
                   <div className="pt-3 text-center">
-                    <h3 className="font-semibold text-sm md:text-base">{o.nombre}</h3>
+                    <h3 className="font-semibold text-sm md:text-base truncate">{o.nombre}</h3>
                     <p className="text-primary font-bold text-lg mt-0.5">
                       $ {o.precio_combo.toLocaleString('es-AR')}
                     </p>
@@ -95,21 +77,7 @@ export function OutfitCarousel({ outfits }: Props) {
               ))}
             </div>
 
-            {/* Dots */}
-            <div className="flex justify-center items-center gap-2 mt-6">
-              {outfits.map((_, i) => (
-                <button
-                  key={i}
-                  onClick={() => irA(i)}
-                  aria-label={`Ir al outfit ${i + 1}`}
-                  className={`h-2 rounded-full transition-all duration-300 ${
-                    i === indiceActivo ? 'w-6 bg-sky-500' : 'w-2 bg-base-300 hover:bg-base-400'
-                  }`}
-                />
-              ))}
-            </div>
-
-            <div className="text-center mt-6">
+            <div className="text-center mt-8">
               <Link to="/outfits" className="btn btn-outline btn-primary">
                 Ver todos los outfits
               </Link>

@@ -35,6 +35,28 @@ export async function eliminarCategoria(id: string) {
 }
 
 // ============================================
+// STORAGE (IMÁGENES)
+// ============================================
+
+export const BUCKET_IMAGENES = 'product-images'
+
+export async function subirImagen(file: File, carpeta: 'productos' | 'outfits' | 'reviews' | 'comunidad' = 'productos') {
+  const ext = file.type === 'image/jpeg' ? 'jpg' : 'webp'
+  const nombre = `${carpeta}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`
+
+  const { error } = await supabase.storage.from(BUCKET_IMAGENES).upload(nombre, file, {
+    cacheControl: '3600',
+    upsert: false,
+    contentType: file.type,
+  })
+
+  if (error) return { url: null, error: error.message }
+
+  const { data } = supabase.storage.from(BUCKET_IMAGENES).getPublicUrl(nombre)
+  return { url: data.publicUrl, error: null }
+}
+
+// ============================================
 // PRODUCTOS
 // ============================================
 
@@ -244,6 +266,29 @@ export async function getComunidadFotosAdmin() {
   const { data, error } = await supabase
     .from('comunidad_fotos')
     .select('*')
+    .order('orden', { ascending: true, nullsFirst: false })
+    .order('created_at', { ascending: false })
+  return { data: (data ?? []) as ComunidadFoto[], error: error?.message ?? null }
+}
+
+export async function insertarComunidadFoto(input: {
+  nombre_usuario: string
+  imagen_url: string
+  instagram_handle?: string | null
+  orden?: number | null
+}) {
+  const { error } = await supabase
+    .from('comunidad_fotos')
+    .insert([{ ...input, aprobado: true }])
+  return { error: error?.message ?? null }
+}
+
+export async function getComunidadFotosPublic() {
+  const { data, error } = await supabase
+    .from('comunidad_fotos')
+    .select('*')
+    .eq('aprobado', true)
+    .order('orden', { ascending: true, nullsFirst: false })
     .order('created_at', { ascending: false })
   return { data: (data ?? []) as ComunidadFoto[], error: error?.message ?? null }
 }

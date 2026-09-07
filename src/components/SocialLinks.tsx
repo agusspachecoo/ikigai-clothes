@@ -73,7 +73,7 @@ export function SocialLinks({ variant = 'icono', className = '' }: SocialLinksPr
           target={l.tipo === 'email' ? undefined : '_blank'}
           rel="noopener noreferrer"
           aria-label={l.nombre}
-          className="btn btn-circle btn-ghost btn-sm"
+          className="btn btn-circle btn-ghost btn-sm text-current"
         >
           {ICONOS[l.tipo]}
         </a>

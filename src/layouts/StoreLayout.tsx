@@ -3,6 +3,7 @@ import { SocialLinks } from '../components/SocialLinks'
 import { Buscador } from '../components/Buscador'
 import { useCart } from '../context/cart'
 import { useCategorias } from '../hooks/useCategorias'
+import { CONTACTO, WHATSAPP_URL } from '../lib/contacto'
 import logo from '../assets/logo-transparent.png'
 import logoWhite from '../assets/logo-white.png'
 
@@ -53,7 +54,7 @@ export function StoreLayout() {
             <label
               htmlFor="mobile-menu-drawer"
               aria-label="Abrir menú"
-              className="btn btn-ghost btn-circle lg:hidden"
+              className="btn btn-ghost btn-circle lg:hidden text-white hover:bg-white/10"
             >
               <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
@@ -62,7 +63,11 @@ export function StoreLayout() {
 
             {/* Logo */}
             <Link to="/" aria-label="Ikigai Clothes - Inicio" className="shrink-0">
-              <img src={logoWhite} alt="Ikigai Clothes" className="h-10 md:h-12 w-auto" />
+              <img
+                src={logoWhite}
+                alt="Ikigai Clothes"
+                className="h-10 max-h-10 md:h-12 md:max-h-12 w-auto"
+              />
             </Link>
 
             {/* Navegación desktop */}
@@ -95,7 +100,7 @@ export function StoreLayout() {
                 </div>
                 <ul
                   tabIndex={0}
-                  className="dropdown-content menu bg-base-100 rounded-xl shadow-lg border border-base-300 w-52 z-50 p-1.5"
+                  className="dropdown-content menu bg-base-100 text-gray-900 rounded-xl shadow-lg border border-base-300 w-52 z-50 p-1.5"
                 >
                   <li>
                     <Link to="/catalogo">Ver catálogo completo</Link>
@@ -112,7 +117,7 @@ export function StoreLayout() {
             <div className="flex items-center gap-2 ml-auto lg:ml-0">
               {/* Buscador desktop */}
               <Buscador
-                className="hidden lg:block input input-bordered input-sm w-56 xl:w-72 items-center gap-2"
+                className="hidden lg:block input input-bordered input-sm w-56 xl:w-72 items-center gap-2 bg-white/10 text-white border-white/20"
               />
 
               {/* Carrito */}
@@ -124,7 +129,7 @@ export function StoreLayout() {
                   checked={carritoAbierto}
                   onChange={(e) => setCarritoAbierto(e.target.checked)}
                 />
-                <label htmlFor="cart-drawer" className="btn btn-ghost btn-circle">
+                <label htmlFor="cart-drawer" className="btn btn-ghost btn-circle text-white hover:bg-white/10">
                   <div className="indicator">
                     <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007z" />
@@ -136,7 +141,7 @@ export function StoreLayout() {
                   <label htmlFor="cart-drawer" className="drawer-overlay"></label>
                   <div className="menu bg-base-100 text-base-content w-80 min-h-full p-6">
                     <div className="flex items-center justify-between mb-4">
-                      <h2 className="text-lg font-bold">Tu Carrito</h2>
+                      <h2 className="text-lg font-bold text-gray-900">Tu Carrito</h2>
                       <span className="badge badge-primary">{count}</span>
                     </div>
 
@@ -175,11 +180,11 @@ export function StoreLayout() {
                               <Link
                                 to={`/producto/${it.producto_id}`}
                                 onClick={cerrarCarrito}
-                                className="text-sm font-semibold truncate block hover:text-primary hover:underline transition-colors"
+                                className="text-sm font-semibold truncate block text-gray-900 hover:text-primary hover:underline transition-colors"
                               >
                                 {it.nombre}
                               </Link>
-                              <p className="text-xs opacity-60">Talle {it.talle || 'Único'}</p>
+                              <p className="text-xs opacity-70 text-gray-600">Talle {it.talle || 'Único'}</p>
                                 <div className="flex items-center gap-2 mt-1">
                                   <button
                                     className="btn btn-xs btn-ghost"
@@ -190,7 +195,7 @@ export function StoreLayout() {
                                   >
                                     −
                                   </button>
-                                  <span className="text-sm font-semibold">{it.cantidad}</span>
+                                  <span className="text-sm font-semibold text-gray-900">{it.cantidad}</span>
                                   <button
                                     className="btn btn-xs btn-ghost"
                                     aria-label="Aumentar cantidad"
@@ -203,7 +208,7 @@ export function StoreLayout() {
                                 </div>
                               </div>
                               <div className="text-right">
-                                <p className="text-sm font-bold">
+                                <p className="text-sm font-bold text-gray-900">
                                   $ {(it.precio_unitario * it.cantidad).toLocaleString('es-AR')}
                                 </p>
                                 <button
@@ -219,8 +224,8 @@ export function StoreLayout() {
 
                         <div className="divider my-4"></div>
                         <div className="flex items-center justify-between font-bold">
-                          <span>Total</span>
-                          <span>$ {total.toLocaleString('es-AR')}</span>
+                          <span className="text-gray-900">Total</span>
+                          <span className="text-gray-900">$ {total.toLocaleString('es-AR')}</span>
                         </div>
 
                         <div className="mt-6 space-y-2">
@@ -272,7 +277,24 @@ export function StoreLayout() {
               <div>
                 <h4 className="text-sm font-semibold uppercase tracking-widest text-white/50 mb-3">Contacto</h4>
                 <ul className="text-sm space-y-2">
-                  <li className="text-white/60">info@ikigaiclothes.com</li>
+                  <li>
+                    <a
+                      href={`mailto:${CONTACTO.email}`}
+                      className="link link-hover text-white/80"
+                    >
+                      {CONTACTO.email}
+                    </a>
+                  </li>
+                  <li>
+                    <a
+                      href={WHATSAPP_URL}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="link link-hover text-white/80"
+                    >
+                      {CONTACTO.whatsappVisible}
+                    </a>
+                  </li>
                 </ul>
                 <img src={logoWhite} alt="Ikigai Clothes" className="h-14 w-auto mx-auto mt-8" />
                 <SocialLinks className="mt-3 justify-center" />

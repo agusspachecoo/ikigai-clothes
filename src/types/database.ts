@@ -87,12 +87,23 @@ export interface Resena {
   created_at: string
 }
 
+export function parseResenaImagenes(url: string | null): string[] {
+  if (!url) return []
+  try {
+    const parsed = JSON.parse(url)
+    return Array.isArray(parsed) ? parsed.filter((u): u is string => typeof u === 'string') : []
+  } catch {
+    return url.startsWith('http') ? [url] : []
+  }
+}
+
 export interface ComunidadFoto {
   id: string
   nombre_usuario: string
   instagram_handle: string | null
   imagen_url: string
   aprobado: boolean
+  orden: number | null
   created_at: string
 }
 
@@ -148,7 +159,6 @@ export interface Database {
         Row: ComunidadFoto
         Insert: Omit<ComunidadFoto, 'id' | 'created_at'>
         Update: Partial<Omit<ComunidadFoto, 'id' | 'created_at'>>
-      }
-    }
+      }    }
   }
 }

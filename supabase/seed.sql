@@ -143,6 +143,14 @@ INSERT INTO outfits (id, nombre, descripcion, precio_combo, imagen_portada, acti
   116000.00,
   'https://images.unsplash.com/photo-1495385794356-15371f348c31?q=80&w=600&auto=format&fit=crop',
   true
+),
+(
+  '20000000-0000-4000-8000-000000000004',
+  'Sport Essential',
+  'Remera oversize + jogger deportivo. Liviano y cómodo, del gimnasio directo a la calle.',
+  70000.00,
+  'https://images.unsplash.com/photo-1541534741688-6078c6bfb5c5?q=80&w=600&auto=format&fit=crop',
+  true
 );
 
 -- ============================================================
@@ -158,7 +166,10 @@ INSERT INTO outfit_items (outfit_id, producto_id) VALUES
 -- Capas Urbanas: Remera + Hoodie + Cargo
 ('20000000-0000-4000-8000-000000000003', '10000000-0000-4000-8000-000000000001'),
 ('20000000-0000-4000-8000-000000000003', '10000000-0000-4000-8000-000000000002'),
-('20000000-0000-4000-8000-000000000003', '10000000-0000-4000-8000-000000000003');
+('20000000-0000-4000-8000-000000000003', '10000000-0000-4000-8000-000000000003'),
+-- Sport Essential: Remera + Jogger
+('20000000-0000-4000-8000-000000000004', '10000000-0000-4000-8000-000000000001'),
+('20000000-0000-4000-8000-000000000004', '10000000-0000-4000-8000-000000000004');
 
 COMMIT;
 

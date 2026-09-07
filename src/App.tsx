@@ -14,6 +14,7 @@ import { OutfitsAdmin } from './pages/admin/OutfitsAdmin'
 import { CategoriasAdmin } from './pages/admin/CategoriasAdmin'
 import { PedidosAdmin } from './pages/admin/PedidosAdmin'
 import { ResenasAdmin } from './pages/admin/ResenasAdmin'
+import { CommunityAdmin } from './pages/admin/CommunityAdmin'
 
 function App() {
   return (
@@ -37,6 +38,7 @@ function App() {
             <Route path="categorias" element={<CategoriasAdmin />} />
             <Route path="pedidos" element={<PedidosAdmin />} />
             <Route path="resenas" element={<ResenasAdmin />} />
+            <Route path="comunidad" element={<CommunityAdmin />} />
           </Route>
         </Route>
       </Routes>
