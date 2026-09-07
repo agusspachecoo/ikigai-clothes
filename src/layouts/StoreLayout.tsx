@@ -3,6 +3,8 @@ import { SocialLinks } from '../components/SocialLinks'
 import { Buscador } from '../components/Buscador'
 import { useCart } from '../context/cart'
 import { useCategorias } from '../hooks/useCategorias'
+import logo from '../assets/logo-transparent.png'
+import logoWhite from '../assets/logo-white.png'
 
 const NAV_ITEMS = [
   { to: '/', label: 'Inicio' },
@@ -45,7 +47,7 @@ export function StoreLayout() {
         </div>
 
         {/* Header */}
-        <header className="bg-base-100 bg-opacity-90 backdrop-blur shadow-sm sticky top-0 z-50 border-b border-base-300">
+        <header className="bg-[#111111] text-white border-b border-white/10 sticky top-0 z-50">
           <div className="max-w-7xl mx-auto px-4 py-3.5 flex items-center gap-3">
             {/* Botón hamburguesa (mobile) */}
             <label
@@ -59,9 +61,8 @@ export function StoreLayout() {
             </label>
 
             {/* Logo */}
-            <Link to="/" className="flex flex-col leading-none">
-              <span className="text-2xl font-black tracking-tight text-primary">IKIGAI</span>
-              <span className="text-[0.6rem] font-semibold tracking-[0.35em] uppercase opacity-50">Clothes</span>
+            <Link to="/" aria-label="Ikigai Clothes - Inicio" className="shrink-0">
+              <img src={logoWhite} alt="Ikigai Clothes" className="h-10 md:h-12 w-auto" />
             </Link>
 
             {/* Navegación desktop */}
@@ -72,8 +73,8 @@ export function StoreLayout() {
                   to={item.to}
                   className={`text-sm font-medium transition-colors relative py-1 ${
                     esActivo(item.to)
-                      ? 'text-primary font-semibold after:absolute after:left-0 after:right-0 after:-bottom-0.5 after:h-0.5 after:bg-primary after:rounded-full'
-                      : 'opacity-70 hover:opacity-100'
+                      ? 'text-white font-semibold after:absolute after:left-0 after:right-0 after:-bottom-0.5 after:h-0.5 after:bg-white after:rounded-full'
+                      : 'text-white/60 hover:text-white'
                   }`}
                 >
                   {item.label}
@@ -84,7 +85,7 @@ export function StoreLayout() {
                   tabIndex={0}
                   role="button"
                   className={`flex items-center gap-1 text-sm font-medium transition-colors relative py-1 ${
-                    esActivo('/catalogo') ? 'text-primary font-semibold' : 'opacity-70 hover:opacity-100'
+                    esActivo('/catalogo') ? 'text-white font-semibold' : 'text-white/60 hover:text-white'
                   }`}
                 >
                   Categorías
@@ -128,7 +129,7 @@ export function StoreLayout() {
                     <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007z" />
                     </svg>
-                    <span className="badge badge-sm badge-primary indicator-item">{count}</span>
+                    <span className="badge badge-sm indicator-item bg-white text-neutral border-white">{count}</span>
                   </div>
                 </label>
                 <div className="drawer-side z-50">
@@ -249,38 +250,36 @@ export function StoreLayout() {
         </main>
 
         {/* Footer */}
-        <footer className="bg-base-100 border-t mt-auto">
+        <footer className="bg-[#111111] text-white border-t border-white/10 mt-auto">
           <div className="max-w-7xl mx-auto px-4 py-10">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
               <div>
-                <div className="flex flex-col leading-none">
-                  <span className="text-xl font-black tracking-tight text-primary">IKIGAI</span>
-                  <span className="text-[0.6rem] font-semibold tracking-[0.35em] uppercase opacity-50">Clothes</span>
-                </div>
-                <p className="text-sm opacity-60 mt-3 max-w-xs">
+                <img src={logoWhite} alt="Ikigai Clothes" className="h-12 w-auto" />
+                <p className="text-sm text-white/60 mt-3 max-w-xs">
                   Ropa urbana y deportiva con estilo y actitud. Encontrá tu esencia.
                 </p>
               </div>
               <div>
-                <h4 className="text-sm font-semibold uppercase tracking-widest opacity-50 mb-3">Navegación</h4>
+                <h4 className="text-sm font-semibold uppercase tracking-widest text-white/50 mb-3">Navegación</h4>
                 <ul className="text-sm space-y-2">
                   {NAV_ITEMS.map((item) => (
                     <li key={item.to}>
-                      <Link to={item.to} className="link link-hover opacity-80">{item.label}</Link>
+                      <Link to={item.to} className="link link-hover text-white/80">{item.label}</Link>
                     </li>
                   ))}
                 </ul>
               </div>
               <div>
-                <h4 className="text-sm font-semibold uppercase tracking-widest opacity-50 mb-3">Contacto</h4>
+                <h4 className="text-sm font-semibold uppercase tracking-widest text-white/50 mb-3">Contacto</h4>
                 <ul className="text-sm space-y-2">
-                  <li className="opacity-60">info@ikigaiclothes.com</li>
+                  <li className="text-white/60">info@ikigaiclothes.com</li>
                 </ul>
-                <SocialLinks className="mt-4" />
+                <img src={logoWhite} alt="Ikigai Clothes" className="h-14 w-auto mx-auto mt-8" />
+                <SocialLinks className="mt-3 justify-center" />
               </div>
             </div>
             <div className="divider my-6"></div>
-            <p className="text-center text-xs opacity-50">&copy; 2026 Ikigai Clothes. Todos los derechos reservados.</p>
+            <p className="text-center text-xs text-white/50">&copy; 2026 Ikigai Clothes. Todos los derechos reservados.</p>
           </div>
         </footer>
       </div>
@@ -290,10 +289,7 @@ export function StoreLayout() {
         <label htmlFor="mobile-menu-drawer" className="drawer-overlay"></label>
         <aside className="menu bg-base-100 text-base-content w-80 min-h-full p-6 gap-6">
           <div className="flex items-center justify-between">
-            <div className="flex flex-col leading-none">
-              <span className="text-xl font-black tracking-tight text-primary">IKIGAI</span>
-              <span className="text-[0.6rem] font-semibold tracking-[0.35em] uppercase opacity-50">Clothes</span>
-            </div>
+            <img src={logo} alt="Ikigai Clothes" className="h-10 w-auto" />
             <label htmlFor="mobile-menu-drawer" className="btn btn-ghost btn-circle btn-sm" aria-label="Cerrar menú">
               <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />

@@ -11,6 +11,9 @@
 }
 
 @theme {
+  --font-sans: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Syne", "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --default-font-family: var(--font-sans);
   --color-primary: #111111;
   --color-primary-content: #ffffff;
   --color-secondary: #333333;
@@ -23,4 +26,23 @@
   --color-success: #22c55e;
   --color-warning: #eab308;
   --color-error: #ef4444;
+}
+
+@layer base {
+  html {
+    font-family: var(--font-sans);
+  }
+
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+    letter-spacing: -0.02em;
+  }
+
+  body {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
 }
