@@ -43,8 +43,16 @@ export function Outfits() {
               <div className="card-body">
                 <h2 className="card-title">{o.nombre}</h2>
                 {o.descripcion && <p className="text-sm opacity-70">{o.descripcion}</p>}
-                <p className="text-primary font-bold text-lg mt-2">
+                <p className="text-sm text-base-content/60 mt-2">
                   Combo: ${o.precio_combo.toLocaleString('es-AR')}
+                </p>
+                <p className="font-bold text-base-content">
+                  ${(o.precio_combo * 0.8).toLocaleString('es-AR')}{' '}
+                  <span className="text-xs font-medium opacity-60">por Transferencia</span>
+                </p>
+                <p className="inline-flex items-center gap-1.5 self-start rounded-lg bg-green-100 text-green-800 px-2 py-1 text-xs font-semibold">
+                  <span aria-hidden="true">💳</span>
+                  6 cuotas de ${(o.precio_combo / 6).toLocaleString('es-AR')} sin interés
                 </p>
                 <div className="mt-2">
                   <p className="text-xs font-semibold opacity-60 mb-1">Incluye:</p>

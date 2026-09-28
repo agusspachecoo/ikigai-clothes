@@ -5,6 +5,7 @@ export interface Producto {
   categoria: string
   precio: number
   precio_transferencia: number | null
+  discount_percent: number
   imagenes: string[]
   activo: boolean
   created_at: string
@@ -49,6 +50,22 @@ export interface OutfitConItems extends Outfit {
   outfit_items: OutfitItem[]
 }
 
+export interface EnvioDetalle {
+  metodo: 'envio' | 'retiro'
+  carrier?: string | null
+  carrier_id?: number | null
+  servicio?: string | null
+  service_type?: string | null
+  logistic_type?: string | null
+  costo?: number
+  codigo_postal?: string | null
+  origen_cp?: string | null
+  tiempo?: string | null
+  mock?: boolean
+  seleccion?: unknown | null
+  cotizacion?: unknown | null
+}
+
 export interface Orden {
   id: string
   cliente_nombre: string
@@ -64,6 +81,33 @@ export interface Orden {
   estado_pago: 'pendiente' | 'pagado'
   estado_envio: string
   comprobante_url: string | null
+  cupon_codigo: string | null
+  descuento_cupon: number
+  cupon_consumido: string | null
+  envio_detalle?: EnvioDetalle | null
+  created_at: string
+}
+
+export interface Cupon {
+  id: string
+  codigo: string
+  descripcion: string | null
+  tipo: 'porcentaje' | 'fijo'
+  valor: number
+  descuento_maximo: number | null
+  minimo_compra: number
+  usos_max: number | null
+  usos: number
+  fecha_inicio: string | null
+  fecha_fin: string | null
+  activo: boolean
+  created_at: string
+}
+
+export interface SuscriptorNewsletter {
+  id: string
+  email: string
+  activo: boolean
   created_at: string
 }
 
@@ -107,6 +151,27 @@ export interface ComunidadFoto {
   created_at: string
 }
 
+export interface Banner {
+  id: string
+  imagen_url: string
+  titulo: string | null
+  link_url: string | null
+  orden: number
+  activo: boolean
+  created_at: string
+}
+
+export interface Perfil {
+  id: string
+  email: string | null
+  nombre: string | null
+  apellido: string | null
+  dni: string | null
+  telefono: string | null
+  es_admin: boolean
+  created_at: string
+}
+
 export interface Database {
   public: {
     Tables: {
@@ -117,8 +182,8 @@ export interface Database {
       }
       productos: {
         Row: Producto
-        Insert: Omit<Producto, 'id' | 'created_at'>
-        Update: Partial<Omit<Producto, 'id' | 'created_at'>>
+        Insert: Omit<Producto, 'id' | 'created_at' | 'discount_percent'> & { discount_percent?: number }
+        Update: Partial<Omit<Producto, 'id' | 'created_at' | 'discount_percent'>> & { discount_percent?: number }
       }
       variaciones_stock: {
         Row: VariacionStock
@@ -159,6 +224,32 @@ export interface Database {
         Row: ComunidadFoto
         Insert: Omit<ComunidadFoto, 'id' | 'created_at'>
         Update: Partial<Omit<ComunidadFoto, 'id' | 'created_at'>>
-      }    }
+      }
+      banners: {
+        Row: Banner
+        Insert: Omit<Banner, 'id' | 'created_at'>
+        Update: Partial<Omit<Banner, 'id' | 'created_at'>>
+      }
+      perfiles: {
+        Row: Perfil
+        Insert: Partial<Omit<Perfil, 'id' | 'created_at'>>
+        Update: Partial<Omit<Perfil, 'id' | 'created_at'>>
+      }
+      cupones: {
+        Row: Cupon
+        Insert: Omit<Cupon, 'id' | 'created_at' | 'usos'>
+        Update: Partial<Omit<Cupon, 'id' | 'created_at' | 'usos'>>
+      }
+      config_tienda: {
+        Row: { clave: string; valor: string; descripcion: string | null; updated_at: string }
+        Insert: { clave: string; valor: string; descripcion?: string | null }
+        Update: { valor: string }
+      }
+      suscriptores_newsletter: {
+        Row: SuscriptorNewsletter
+        Insert: { email: string; activo?: boolean }
+        Update: Partial<Omit<SuscriptorNewsletter, 'id' | 'created_at'>>
+      }
+    }
   }
 }

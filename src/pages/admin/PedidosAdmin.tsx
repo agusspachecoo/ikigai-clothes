@@ -7,11 +7,14 @@ import {
   type EstadoOrden,
   type OrdenConItems,
 } from '../../lib/adminApi'
+import { useCierreModal } from '../../hooks/useCierreModal'
 
 const BADGE: Record<EstadoOrden, string> = {
   pendiente: 'badge-error',
+  pendiente_verificacion: 'badge-warning',
   pagado: 'badge-success',
   enviado: 'badge-info',
+  entregado: 'badge-neutral',
   cancelado: 'badge-neutral',
 }
 
@@ -98,6 +101,7 @@ export function PedidosAdmin() {
                   <th>Método</th>
                   <th>Total</th>
                   <th>Estado</th>
+                  <th>Comprobante</th>
                   <th className="text-right">Acciones</th>
                 </tr>
               </thead>
@@ -129,6 +133,18 @@ export function PedidosAdmin() {
                       <span className={`badge ${BADGE[(o.estado as EstadoOrden) ?? 'pendiente']}`}>
                         {ESTADO_LABEL[(o.estado as EstadoOrden) ?? 'pendiente']}
                       </span>
+                    </td>
+                    <td>
+                      {o.comprobante_url ? (
+                        <button
+                          className="btn btn-xs btn-outline btn-primary"
+                          onClick={() => setDetalle(o)}
+                        >
+                          Ver comprobante
+                        </button>
+                      ) : (
+                        <span className="text-xs opacity-40">—</span>
+                      )}
                     </td>
                     <td className="text-right">
                       <button className="btn btn-xs btn-ghost" onClick={() => setDetalle(o)}>
@@ -170,8 +186,11 @@ function PedidoDetalle({
   const [estado, setEstado] = useState<EstadoOrden>((orden.estado as EstadoOrden) ?? 'pendiente')
   const [guardando, setGuardando] = useState(false)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
+  const [mostrarComprobante, setMostrarComprobante] = useState(false)
+  useCierreModal(true, onCerrar)
+  useCierreModal(mostrarComprobante, () => setMostrarComprobante(false))
 
-  const esRetiro = orden.direccion === 'Retiro en showroom'
+  const esRetiro = orden.envio_detalle?.metodo === 'retiro' || orden.direccion === 'Retiro en showroom'
 
   async function guardarEstado() {
     setGuardando(true)
@@ -185,138 +204,207 @@ function PedidoDetalle({
   const items = orden.orden_items ?? []
 
   return (
-    <dialog className="modal modal-open" onClose={onCerrar}>
-      <form method="dialog" className="modal-backdrop">
-        <button onClick={onCerrar}>cerrar</button>
-      </form>
+    <>
+      <dialog className="modal modal-open" onClose={onCerrar}>
+        <form method="dialog" className="modal-backdrop">
+          <button onClick={onCerrar}>cerrar</button>
+        </form>
 
-      <div className="modal-box max-w-2xl p-0 overflow-hidden rounded-3xl">
-        <div className="flex items-center justify-between p-5 border-b border-base-300">
-          <div>
-            <h2 className="text-lg font-bold text-gray-900">Pedido {orden.id.slice(0, 8).toUpperCase()}</h2>
-            <p className="text-xs opacity-50">
-              {new Date(orden.created_at).toLocaleString('es-AR')}
-            </p>
+        <div className="modal-box max-w-2xl p-0 overflow-hidden rounded-3xl">
+          <div className="flex items-center justify-between p-5 border-b border-base-300">
+            <div>
+              <h2 className="text-lg font-bold text-gray-900">Pedido {orden.id.slice(0, 8).toUpperCase()}</h2>
+              <p className="text-xs opacity-50">
+                {new Date(orden.created_at).toLocaleString('es-AR')}
+              </p>
+            </div>
           </div>
-          <button onClick={onCerrar} className="btn btn-ghost btn-circle btn-sm" aria-label="Cerrar">
-            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
 
-        <div className="p-5 space-y-5 max-h-[75vh] overflow-y-auto">
-          {/* Cliente */}
-          <section>
-            <h3 className="font-semibold text-sm mb-2 text-gray-900">Cliente</h3>
-            <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 text-sm bg-base-200 rounded-xl p-4">
-              <div>
-                <dt className="opacity-50">Nombre</dt>
-                <dd className="font-medium">{orden.cliente_nombre}</dd>
-              </div>
-              <div>
-                <dt className="opacity-50">DNI</dt>
-                <dd className="font-medium">{orden.cliente_dni}</dd>
-              </div>
-              <div>
-                <dt className="opacity-50">Email</dt>
-                <dd className="font-medium">{orden.cliente_email}</dd>
-              </div>
-              <div>
-                <dt className="opacity-50">Teléfono</dt>
-                <dd className="font-medium">{orden.cliente_telefono}</dd>
-              </div>
-            </dl>
-          </section>
+          <div className="p-5 space-y-5 max-h-[75vh] overflow-y-auto">
+            {/* Cliente */}
+            <section>
+              <h3 className="font-semibold text-sm mb-2 text-gray-900">Cliente</h3>
+              <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 text-sm bg-base-200 rounded-xl p-4">
+                <div>
+                  <dt className="opacity-50">Nombre</dt>
+                  <dd className="font-medium">{orden.cliente_nombre}</dd>
+                </div>
+                <div>
+                  <dt className="opacity-50">DNI</dt>
+                  <dd className="font-medium">{orden.cliente_dni}</dd>
+                </div>
+                <div>
+                  <dt className="opacity-50">Email</dt>
+                  <dd className="font-medium">{orden.cliente_email}</dd>
+                </div>
+                <div>
+                  <dt className="opacity-50">Teléfono</dt>
+                  <dd className="font-medium">{orden.cliente_telefono}</dd>
+                </div>
+              </dl>
+            </section>
 
-          {/* Envío */}
-          <section>
-            <h3 className="font-semibold text-sm mb-2 text-gray-900">Entrega</h3>
-            <div className="bg-base-200 rounded-xl p-4 text-sm">
-              {esRetiro ? (
-                <p>Retiro en showroom (sin envío).</p>
-              ) : (
-                <>
-                  <p className="font-medium">{orden.direccion}</p>
-                  <p className="opacity-60">CP: {orden.codigo_postal}</p>
-                </>
-              )}
-              <p className="opacity-60 mt-1">Costo de envío: ${Number(orden.costo_envio).toLocaleString('es-AR')}</p>
-            </div>
-          </section>
+            {/* Envío */}
+            <section>
+              <h3 className="font-semibold text-sm mb-2 text-gray-900">Entrega</h3>
+              <div className="bg-base-200 rounded-xl p-4 text-sm space-y-1.5">
+                {esRetiro ? (
+                  <p>Retiro en showroom (sin envío).</p>
+                ) : (
+                  <>
+                    <p className="font-medium">{orden.direccion}</p>
+                    <p className="opacity-60">CP destino: {orden.codigo_postal}</p>
+                    {orden.envio_detalle?.carrier && (
+                      <p className="opacity-60">
+                        Transporte: {orden.envio_detalle.carrier}
+                        {orden.envio_detalle.servicio ? ` — ${orden.envio_detalle.servicio}` : ''}
+                      </p>
+                    )}
+                    {orden.envio_detalle?.tiempo && (
+                      <p className="opacity-60">Tiempo estimado: {orden.envio_detalle.tiempo}</p>
+                    )}
+                    {orden.envio_detalle?.mock && (
+                      <span className="badge badge-warning text-xs">Cotización de prueba (mock)</span>
+                    )}
+                  </>
+                )}
+                <p className="opacity-60">Costo de envío: ${Number(orden.costo_envio).toLocaleString('es-AR')}</p>
 
-          {/* Método de pago */}
-          <section>
-            <h3 className="font-semibold text-sm mb-2 text-gray-900">Pago</h3>
-            <div className="bg-base-200 rounded-xl p-4 text-sm flex items-center justify-between">
-              <span>{METODO_LABEL[orden.metodo_pago] ?? orden.metodo_pago}</span>
-              <span className="font-bold text-primary">
-                ${Number(orden.monto_total).toLocaleString('es-AR')}
-              </span>
-            </div>
+                {!esRetiro && (Boolean(orden.envio_detalle?.cotizacion) || Boolean(orden.envio_detalle?.seleccion)) && (
+                  <details className="mt-2">
+                    <summary className="text-xs opacity-50 cursor-pointer hover:opacity-80">
+                      Payload completo (para etiqueta)
+                    </summary>
+                    <pre className="mt-2 p-3 bg-base-300 rounded-lg text-[11px] overflow-x-auto whitespace-pre-wrap">
+                      {JSON.stringify(
+                        {
+                          seleccion: orden.envio_detalle?.seleccion,
+                          cotizacion_completa: orden.envio_detalle?.cotizacion,
+                        },
+                        null,
+                        2,
+                      )}
+                    </pre>
+                  </details>
+                )}
+              </div>
+            </section>
+
+            {/* Método de pago */}
+            <section>
+              <h3 className="font-semibold text-sm mb-2 text-gray-900">Pago</h3>
+              <div className="bg-base-200 rounded-xl p-4 text-sm flex items-center justify-between">
+                <span>{METODO_LABEL[orden.metodo_pago] ?? orden.metodo_pago}</span>
+                <span className="font-bold text-primary">
+                  ${Number(orden.monto_total).toLocaleString('es-AR')}
+                </span>
+              </div>
+            </section>
+
+            {/* Comprobante */}
             {orden.comprobante_url && (
+              <section>
+                <h3 className="font-semibold text-sm mb-2 text-gray-900">Comprobante de pago</h3>
+                <div className="bg-base-200 rounded-xl p-4">
+                  <button
+                    type="button"
+                    onClick={() => setMostrarComprobante(true)}
+                    className="btn btn-sm btn-outline btn-primary gap-2"
+                  >
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0022.5 18.75V5.25A2.25 2.25 0 0020.25 3H3.75A2.25 2.25 0 001.5 5.25v13.5A2.25 2.25 0 003.75 21z" />
+                    </svg>
+                    Ver comprobante
+                  </button>
+                </div>
+              </section>
+            )}
+
+            {/* Items */}
+            <section>
+              <h3 className="font-semibold text-sm mb-2 text-gray-900">Ítems</h3>
+              <ul className="space-y-2">
+                {items.map((it, i) => (
+                  <li key={i} className="flex items-center gap-3 bg-base-200 rounded-xl p-3">
+                    <div className="flex-1 text-sm">
+                      <p className="font-medium">{it.producto?.nombre ?? 'Producto'}</p>
+                      <p className="text-xs opacity-50">
+                        Talle {it.talle} · {it.cantidad} uds
+                      </p>
+                    </div>
+                    <span className="text-sm font-bold">
+                      ${(Number(it.precio_unitario) * it.cantidad).toLocaleString('es-AR')}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+
+            {/* Estado */}
+            <section>
+              <h3 className="font-semibold text-sm mb-2 text-gray-900">Estado del pedido</h3>
+              <div className="flex flex-wrap items-center gap-2">
+                <select
+                  className="select select-bordered select-sm"
+                  value={estado}
+                  onChange={(e) => setEstado(e.target.value as EstadoOrden)}
+                >
+                  {ESTADOS_ORDEN.map((e) => (
+                    <option key={e} value={e}>{ESTADO_LABEL[e]}</option>
+                  ))}
+                </select>
+                <button className="btn btn-primary btn-sm" onClick={guardarEstado} disabled={guardando}>
+                  {guardando ? (
+                    <span className="loading loading-spinner loading-sm" />
+                  ) : (
+                    'Actualizar estado'
+                  )}
+                </button>
+              </div>
+              {errorMsg && <div className="alert alert-error text-sm mt-2">{errorMsg}</div>}
+            </section>
+          </div>
+        </div>
+      </dialog>
+
+      {/* Modal de comprobante */}
+      {mostrarComprobante && orden.comprobante_url && (
+        <dialog className="modal modal-open" onClose={() => setMostrarComprobante(false)}>
+          <form method="dialog" className="modal-backdrop">
+            <button onClick={() => setMostrarComprobante(false)}>cerrar</button>
+          </form>
+          <div className="modal-box max-w-3xl p-0 overflow-hidden rounded-3xl">
+            <div className="flex items-center justify-between p-4 border-b border-base-300">
+              <h3 className="font-bold text-gray-900">Comprobante de pago</h3>
+            </div>
+            <div className="p-4">
+              {orden.comprobante_url.endsWith('.pdf') ? (
+                <iframe
+                  src={orden.comprobante_url}
+                  className="w-full h-[70vh] rounded-lg"
+                  title="Comprobante"
+                />
+              ) : (
+                <img
+                  src={orden.comprobante_url}
+                  alt="Comprobante de pago"
+                  className="max-w-full max-h-[70vh] mx-auto rounded-lg object-contain"
+                />
+              )}
+            </div>
+            <div className="p-4 border-t border-base-300 flex justify-end">
               <a
                 href={orden.comprobante_url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="btn btn-sm btn-outline mt-2"
+                className="btn btn-sm btn-outline"
               >
-                Ver comprobante
+                Abrir en nueva pestaña
               </a>
-            )}
-          </section>
-
-          {/* Items */}
-          <section>
-            <h3 className="font-semibold text-sm mb-2 text-gray-900">Ítems</h3>
-            <ul className="space-y-2">
-              {items.map((it, i) => (
-                <li key={i} className="flex items-center gap-3 bg-base-200 rounded-xl p-3">
-                  <div className="flex-1 text-sm">
-                    <p className="font-medium">{it.producto?.nombre ?? 'Producto'}</p>
-                    <p className="text-xs opacity-50">
-                      Talle {it.talle} · {it.cantidad} uds
-                    </p>
-                  </div>
-                  <span className="text-sm font-bold">
-                    ${(Number(it.precio_unitario) * it.cantidad).toLocaleString('es-AR')}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </section>
-
-          {/* Estado */}
-          <section>
-            <h3 className="font-semibold text-sm mb-2 text-gray-900">Estado del pedido</h3>
-            <div className="flex flex-wrap items-center gap-2">
-              <select
-                className="select select-bordered select-sm"
-                value={estado}
-                onChange={(e) => setEstado(e.target.value as EstadoOrden)}
-              >
-                {ESTADOS_ORDEN.map((e) => (
-                  <option key={e} value={e}>{ESTADO_LABEL[e]}</option>
-                ))}
-              </select>
-              <button className="btn btn-primary btn-sm" onClick={guardarEstado} disabled={guardando}>
-                {guardando ? (
-                  <span className="loading loading-spinner loading-sm" />
-                ) : (
-                  'Actualizar estado'
-                )}
-              </button>
             </div>
-            {errorMsg && <div className="alert alert-error text-sm mt-2">{errorMsg}</div>}
-          </section>
-
-          <div className="flex justify-end pt-2 border-t border-base-300 -mx-5 px-5 pb-0">
-            <button className="btn btn-ghost" onClick={onCerrar}>
-              Cerrar
-            </button>
           </div>
-        </div>
-      </div>
-    </dialog>
+        </dialog>
+      )}
+    </>
   )
 }

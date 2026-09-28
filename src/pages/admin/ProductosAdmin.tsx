@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router'
-import { getProductosAdmin, guardarProducto, eliminarProducto, setProductoActivo, getCategoriasAdmin, subirImagen } from '../../lib/adminApi'
-import { comprimirImagen, blobToFile } from '../../lib/imageCompression'
+import { getProductosAdmin, guardarProducto, eliminarProducto, setProductoActivo, getCategoriasAdmin } from '../../lib/adminApi'
+import { ImageUploader } from '../../components/ImageUploader'
 import { imagenProducto } from '../../lib/imagenes'
 import { CATEGORIAS_FALLBACK } from '../../lib/categorias'
+import { useCierreModal } from '../../hooks/useCierreModal'
 import type { ProductoConStock } from '../../types/database'
 
 const TALLES_SUGERIDOS = ['S', 'M', 'L', 'XL', 'XXL']
@@ -19,6 +20,7 @@ interface FormState {
   categoria: string
   precio: string
   precio_transferencia: string
+  discount_percent: string
   descripcion: string
   imagenes: string[]
   activo: boolean
@@ -32,6 +34,7 @@ function crearForm(producto: ProductoConStock | null): FormState {
       categoria: '',
       precio: '',
       precio_transferencia: '',
+      discount_percent: '',
       descripcion: '',
       imagenes: [''],
       activo: true,
@@ -45,6 +48,7 @@ function crearForm(producto: ProductoConStock | null): FormState {
     categoria: producto.categoria,
     precio: String(producto.precio),
     precio_transferencia: producto.precio_transferencia ? String(producto.precio_transferencia) : '',
+    discount_percent: producto.discount_percent ? String(producto.discount_percent) : '',
     descripcion: producto.descripcion ?? '',
     imagenes: producto.imagenes.length > 0 ? [...producto.imagenes] : [''],
     activo: producto.activo,
@@ -204,7 +208,14 @@ export function ProductosAdmin() {
                       <td>
                         <span className="badge badge-outline">{p.categoria}</span>
                       </td>
-                      <td className="font-semibold">${Number(p.precio).toLocaleString('es-AR')}</td>
+                      <td className="font-semibold">
+                        ${Number(p.precio).toLocaleString('es-AR')}
+                        {Number(p.discount_percent) > 0 && (
+                          <span className="badge badge-error badge-sm ml-2 text-white border-0">
+                            -{p.discount_percent}%
+                          </span>
+                        )}
+                      </td>
                       <td>
                         <span className="text-sm">
                           {p.variaciones_stock.length} talles · {stockTotal} uds
@@ -271,7 +282,7 @@ function ProductoFormModal({ producto, categorias, onCerrar, onGuardado }: FormP
   const [form, setForm] = useState<FormState>(() => crearForm(producto))
   const [guardando, setGuardando] = useState(false)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
-  const [subiendo, setSubiendo] = useState<number | null>(null)
+  useCierreModal(true, onCerrar)
 
   function setField<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((f) => ({ ...f, [key]: value }))
@@ -289,23 +300,6 @@ function ProductoFormModal({ producto, categorias, onCerrar, onGuardado }: FormP
 
   function removeImagen(i: number) {
     setField('imagenes', form.imagenes.filter((_, idx) => idx !== i))
-  }
-
-  async function handleFile(i: number, file: File | null) {
-    if (!file) return
-    setSubiendo(i)
-    setErrorMsg(null)
-    try {
-      const blob = await comprimirImagen(file)
-      const archivo = blobToFile(blob, file.name)
-      const { url, error } = await subirImagen(archivo, 'productos')
-      if (error) throw new Error(error)
-      if (url) setImagen(i, url)
-    } catch (err) {
-      setErrorMsg(err instanceof Error ? err.message : 'Error al subir la imagen')
-    } finally {
-      setSubiendo(null)
-    }
   }
 
   function addTalleSugerido(t: string) {
@@ -333,6 +327,8 @@ function ProductoFormModal({ producto, categorias, onCerrar, onGuardado }: FormP
       return
     }
 
+    const discount_percent = Math.max(0, Math.min(100, Number(form.discount_percent) || 0))
+
     setGuardando(true)
     const res = await guardarProducto({
       id: form.id,
@@ -341,6 +337,7 @@ function ProductoFormModal({ producto, categorias, onCerrar, onGuardado }: FormP
       categoria: form.categoria.trim() || 'Otros',
       precio,
       precio_transferencia: form.precio_transferencia ? Number(form.precio_transferencia) : null,
+      discount_percent,
       imagenes: form.imagenes,
       activo: form.activo,
       talles: form.talles.map((t) => ({
@@ -365,11 +362,6 @@ function ProductoFormModal({ producto, categorias, onCerrar, onGuardado }: FormP
           <h2 className="text-lg font-bold text-gray-900">
             {producto ? 'Editar producto' : 'Nuevo producto'}
           </h2>
-          <button onClick={onCerrar} className="btn btn-ghost btn-circle btn-sm" aria-label="Cerrar">
-            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
         </div>
 
         <form onSubmit={handleSubmit} className="p-5 space-y-5 max-h-[75vh] overflow-y-auto">
@@ -427,6 +419,32 @@ function ProductoFormModal({ producto, categorias, onCerrar, onGuardado }: FormP
                 onChange={(e) => setField('precio_transferencia', e.target.value)}
               />
             </label>
+
+            <label className="floating-label">
+              <span>Descuento (%%)</span>
+              <input
+                type="number"
+                min="0"
+                max="100"
+                className="input input-bordered w-full"
+                value={form.discount_percent}
+                onChange={(e) => setField('discount_percent', e.target.value)}
+                placeholder="0 = sin descuento"
+              />
+            </label>
+
+            {(() => {
+              const base = Number(form.precio) || 0
+              const desc = Math.max(0, Math.min(100, Number(form.discount_percent) || 0))
+              if (base <= 0 || desc <= 0) return null
+              const promo = Math.round(base * (100 - desc)) / 100
+              return (
+                <p className="text-xs text-success font-semibold md:col-span-2">
+                  Precio original ${base.toLocaleString('es-AR')} → Precio promocional{' '}
+                  ${promo.toLocaleString('es-AR')} (ahorro ${(base - promo).toLocaleString('es-AR')})
+                </p>
+              )
+            })()}
           </div>
 
           <label className="floating-label">
@@ -442,41 +460,28 @@ function ProductoFormModal({ producto, categorias, onCerrar, onGuardado }: FormP
           {/* Imágenes */}
           <div>
             <p className="font-semibold text-sm mb-2 text-gray-900">Imágenes (frente, dorso, detalles)</p>
-            <div className="space-y-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {form.imagenes.map((img, i) => (
-                <div key={i} className="flex items-center gap-2">
-                  <div className="w-12 h-14 bg-base-300 rounded-lg overflow-hidden shrink-0">
-                    {img && <img src={img} alt="" className="w-full h-full object-cover" />}
+                <div key={i} className="space-y-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-xs opacity-60">Imagen {i + 1}</p>
+                    {form.imagenes.length > 1 && (
+                      <button
+                        type="button"
+                        className="btn btn-ghost btn-xs text-error"
+                        onClick={() => removeImagen(i)}
+                      >
+                        Quitar
+                      </button>
+                    )}
                   </div>
-                  <input
-                    type="url"
-                    className="input input-bordered flex-1 input-sm"
-                    placeholder="https://... (URL de la imagen)"
-                    value={img}
-                    onChange={(e) => setImagen(i, e.target.value)}
+                  <ImageUploader
+                    carpeta="productos"
+                    imagenActual={img}
+                    onUrl={(url) => setImagen(i, url)}
+                    proporcion="retrato"
+                    altoMinimo="h-48"
                   />
-                  {subiendo === i && (
-                    <span className="loading loading-spinner loading-sm text-primary shrink-0" />
-                  )}
-                  <label className="btn btn-outline btn-sm shrink-0">
-                    {subiendo === i ? 'Subiendo…' : 'Subir'}
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      disabled={subiendo !== null}
-                      onChange={(e) => handleFile(i, e.target.files?.[0] ?? null)}
-                    />
-                  </label>
-                  {form.imagenes.length > 1 && (
-                    <button
-                      type="button"
-                      className="btn btn-ghost btn-sm text-error shrink-0"
-                      onClick={() => removeImagen(i)}
-                    >
-                      Quitar
-                    </button>
-                  )}
                 </div>
               ))}
             </div>
@@ -547,15 +552,16 @@ function ProductoFormModal({ producto, categorias, onCerrar, onGuardado }: FormP
           {errorMsg && <div className="alert alert-error text-sm">{errorMsg}</div>}
 
           <div className="flex justify-end gap-2 pt-2">
-            <button type="button" className="btn btn-ghost" onClick={onCerrar}>
-              Cancelar
-            </button>
             <button type="submit" className="btn btn-primary" disabled={guardando}>
               {guardando ? <span className="loading loading-spinner loading-sm" /> : 'Guardar'}
             </button>
           </div>
         </form>
       </div>
+
+      <form method="dialog" className="modal-backdrop">
+        <button onClick={onCerrar}>cerrar</button>
+      </form>
     </dialog>
   )
 }

@@ -76,11 +76,11 @@ export function CommunitySection() {
   if (!cargado) {
     return (
       <section className="max-w-7xl mx-auto px-4 py-6">
-        <div className="bg-white rounded-2xl shadow-sm p-6 my-8">
-          <div className="skeleton h-8 w-72 mb-6 rounded-lg"></div>
+        <div className="bg-white rounded-sm border border-base-300/60 p-6 my-8">
+          <div className="skeleton h-8 w-72 mb-6 rounded-sm"></div>
           <div className="flex gap-3 overflow-hidden">
             {Array.from({ length: 5 }).map((_, i) => (
-              <div key={i} className="shrink-0 w-40 md:w-44 aspect-[9/16] skeleton rounded-2xl"></div>
+              <div key={i} className="shrink-0 w-40 md:w-44 aspect-[9/16] skeleton rounded-sm"></div>
             ))}
           </div>
         </div>
@@ -90,7 +90,7 @@ export function CommunitySection() {
 
   return (
     <section className="max-w-7xl mx-auto px-4 py-6">
-      <div className="bg-white rounded-2xl shadow-sm p-6 my-8">
+      <div className="bg-white rounded-sm border border-base-300/60 p-6 my-8">
         <h2 className="text-2xl md:text-3xl font-bold mb-6">
           Nuestra Comunidad Vistiendo Ikigai!
         </h2>
@@ -102,7 +102,7 @@ export function CommunitySection() {
           {fotos.map((foto) => (
             <div
               key={foto.id}
-              className="snap-center shrink-0 w-40 md:w-44 aspect-[9/16] rounded-2xl overflow-hidden bg-base-200 shadow-sm relative group"
+              className="snap-center shrink-0 w-40 md:w-44 aspect-[9/16] rounded-sm overflow-hidden bg-base-200 border border-base-300/60 relative group"
             >
               <img
                 src={foto.img}

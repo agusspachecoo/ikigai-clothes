@@ -1,7 +1,7 @@
 import { supabase } from './supabase'
 import { slugify } from './categorias'
 import type { ProductoConStock, OutfitConItems, Orden, OrdenItem, Resena } from '../types/database'
-import type { ComunidadFoto, Categoria } from '../types/database'
+import type { ComunidadFoto, Categoria, Banner } from '../types/database'
 
 // ============================================
 // CATEGORÍAS
@@ -80,6 +80,7 @@ export interface ProductoInput {
   categoria: string
   precio: number
   precio_transferencia: number | null
+  discount_percent: number
   imagenes: string[]
   activo: boolean
   talles: TalleInput[]
@@ -92,6 +93,7 @@ export async function guardarProducto(input: ProductoInput) {
     categoria: input.categoria,
     precio: input.precio,
     precio_transferencia: input.precio_transferencia || null,
+    discount_percent: input.discount_percent,
     imagenes: input.imagenes.filter(Boolean),
     activo: input.activo,
   }
@@ -211,13 +213,15 @@ export type OrdenConItems = Orden & {
   orden_items: (OrdenItem & { producto: { nombre: string } | null })[]
 }
 
-export const ESTADOS_ORDEN = ['pendiente', 'pagado', 'enviado', 'cancelado'] as const
+export const ESTADOS_ORDEN = ['pendiente', 'pendiente_verificacion', 'pagado', 'enviado', 'entregado', 'cancelado'] as const
 export type EstadoOrden = (typeof ESTADOS_ORDEN)[number]
 
 export const ESTADO_LABEL: Record<EstadoOrden, string> = {
   pendiente: 'Pendiente de pago',
+  pendiente_verificacion: 'Pendiente de verificación',
   pagado: 'Pagado',
   enviado: 'Enviado',
+  entregado: 'Entregado',
   cancelado: 'Cancelado',
 }
 
@@ -230,8 +234,44 @@ export async function getOrdenesAdmin() {
 }
 
 export async function actualizarEstadoOrden(id: string, estado: EstadoOrden) {
-  const { error } = await supabase.from('ordenes').update({ estado }).eq('id', id)
+  // Al marcarla como pagada, también se confirma el pago (transfereĸncia) y se
+  // descuenta el stock. El webhook de Mercado Pago ya hace esto para MP, así que
+  // aquí debemos replicarlo para las transferencias marcadas manualmente.
+  const update: Record<string, unknown> = {}
+  if (estado === 'pagado') {
+    update.estado_pago = 'pagado'
+    const { error: errStock } = await supabase.rpc('descontar_stock', { p_orden_id: id })
+    if (errStock) return { error: errStock.message }
+  }
+  update.estado = estado
+  const { error } = await supabase.from('ordenes').update(update).eq('id', id)
   return { error: error?.message ?? null }
+}
+
+export async function actualizarComprobanteOrden(id: string, comprobanteUrl: string) {
+  const { error } = await supabase
+    .from('ordenes')
+    .update({ comprobante_url: comprobanteUrl, estado: 'pendiente_verificacion' })
+    .eq('id', id)
+  return { error: error?.message ?? null }
+}
+
+export const BUCKET_COMPROBANTES = 'comprobantes'
+
+export async function subirComprobante(file: File, ordenId: string) {
+  const ext = file.name.split('.').pop() || 'jpg'
+  const nombre = `comprobantes/${ordenId}-${Date.now()}.${ext}`
+
+  const { error } = await supabase.storage.from(BUCKET_COMPROBANTES).upload(nombre, file, {
+    cacheControl: '3600',
+    upsert: false,
+    contentType: file.type,
+  })
+
+  if (error) return { url: null, error: error.message }
+
+  const { data } = supabase.storage.from(BUCKET_COMPROBANTES).getPublicUrl(nombre)
+  return { url: data.publicUrl, error: null }
 }
 
 // ============================================
@@ -300,5 +340,51 @@ export async function setComunidadFotoAprobada(id: string, aprobado: boolean) {
 
 export async function eliminarComunidadFoto(id: string) {
   const { error } = await supabase.from('comunidad_fotos').delete().eq('id', id)
+  return { error: error?.message ?? null }
+}
+
+// ============================================
+// BANNERS (CARRUSEL HERO)
+// ============================================
+
+export interface BannerInput {
+  imagen_url: string
+  titulo?: string | null
+  link_url?: string | null
+}
+
+export async function getBannersPublic() {
+  const { data, error } = await supabase
+    .from('banners')
+    .select('*')
+    .eq('activo', true)
+    .order('orden', { ascending: true })
+  return { data: (data ?? []) as Banner[], error: error?.message ?? null }
+}
+
+export async function getBannersAdmin() {
+  const { data, error } = await supabase
+    .from('banners')
+    .select('*')
+    .order('orden', { ascending: true })
+  return { data: (data ?? []) as Banner[], error: error?.message ?? null }
+}
+
+export async function guardarBanners(items: BannerInput[]) {
+  const { error: errDel } = await supabase.from('banners').delete()
+  if (errDel) return { error: errDel.message }
+
+  const limpios = items.filter((i) => i.imagen_url.trim() !== '')
+  if (limpios.length === 0) return { error: null }
+
+  const rows = limpios.map((item, orden) => ({
+    imagen_url: item.imagen_url.trim(),
+    titulo: item.titulo?.trim() || null,
+    link_url: item.link_url?.trim() || null,
+    orden,
+    activo: true,
+  }))
+
+  const { error } = await supabase.from('banners').insert(rows)
   return { error: error?.message ?? null }
 }

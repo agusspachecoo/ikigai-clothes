@@ -61,7 +61,7 @@ Deno.serve(async (req) => {
 
     const { data: orden } = await supabase
       .from('ordenes')
-      .select('monto_total, estado_pago')
+      .select('monto_total, estado_pago, cupon_codigo')
       .eq('id', ordenId)
       .maybeSingle()
 
@@ -107,6 +107,15 @@ Deno.serve(async (req) => {
         if (errorStock) {
           console.error('descontar_stock error:', errorStock)
           return json({ ok: false, error: errorStock.message }, { status: 500 })
+        }
+
+        // Consumir un uso del cupón (idempotente por pedido, ver migración 016)
+        if (orden.cupon_codigo) {
+          const { error: errorCupon } = await supabase.rpc('usar_cupon', {
+            p_codigo: orden.cupon_codigo,
+            p_orden_id: ordenId,
+          })
+          if (errorCupon) console.error('usar_cupon error:', errorCupon)
         }
       }
     }

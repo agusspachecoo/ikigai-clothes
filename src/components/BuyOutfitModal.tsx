@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom'
 import type { OutfitConItems } from '../types/database'
 import { useCart } from '../context/cart'
 import { imagenOutfit, imagenProducto } from '../lib/imagenes'
+import { useCierreModal } from '../hooks/useCierreModal'
+import { precioConDescuento } from '../lib/precios'
 
 interface Props {
   outfit: OutfitConItems | null
@@ -10,6 +12,8 @@ interface Props {
 }
 
 export function BuyOutfitModal({ outfit, onClose }: Props) {
+  useCierreModal(outfit !== null, onClose)
+
   if (!outfit) return null
 
   return (
@@ -45,7 +49,7 @@ function OutfitModalContent({ outfit, onClose }: { outfit: OutfitConItems; onClo
         nombre: p.nombre,
         imagen: imagenProducto(p.imagenes[0], 0),
         talle: talles[p.id] ?? '',
-        precio_unitario: p.precio,
+        precio_unitario: precioConDescuento(p.precio, p.discount_percent),
       })
     }
     onClose()
@@ -60,15 +64,6 @@ function OutfitModalContent({ outfit, onClose }: { outfit: OutfitConItems; onClo
           alt={outfit.nombre}
           className="w-full h-full object-cover"
         />
-        <button
-          onClick={onClose}
-          aria-label="Cerrar"
-          className="btn btn-circle btn-sm bg-black/40 hover:bg-black/60 border-0 text-white absolute top-3 right-3"
-        >
-          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
       </figure>
 
       <div className="p-6">
@@ -88,6 +83,8 @@ function OutfitModalContent({ outfit, onClose }: { outfit: OutfitConItems; onClo
             const p = item.producto
             if (!p) return null
             const variaciones = p.variaciones_stock ?? []
+            const precio = precioConDescuento(p.precio, p.discount_percent)
+            const descuento = Number(p.discount_percent) || 0
 
             return (
               <li key={item.id} className="flex gap-3 items-center">
@@ -137,7 +134,12 @@ function OutfitModalContent({ outfit, onClose }: { outfit: OutfitConItems; onClo
                   )}
                 </div>
                 <p className="text-sm font-bold whitespace-nowrap text-gray-900">
-                  $ {p.precio.toLocaleString('es-AR')}
+                  {descuento > 0 && (
+                    <span className="text-xs font-medium opacity-50 line-through mr-1">
+                      $ {p.precio.toLocaleString('es-AR')}
+                    </span>
+                  )}
+                  $ {precio.toLocaleString('es-AR')}
                 </p>
               </li>
             )

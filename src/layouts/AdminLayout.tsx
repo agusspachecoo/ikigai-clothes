@@ -1,22 +1,59 @@
 import { useState } from 'react'
 import { Outlet, NavLink, Link } from 'react-router-dom'
-import { loginAdmin, logoutAdmin, isAdminAuthed, DEFAULT_CREDENTIALS } from '../lib/admin'
+import { iniciarSesionAdmin, salirAdmin, useEsAdmin } from '../lib/admin'
 
 const TABS = [
   { to: '/admin', label: 'Dashboard', end: true },
   { to: '/admin/productos', label: 'Productos' },
   { to: '/admin/outfits', label: 'Outfits' },
   { to: '/admin/categorias', label: 'Categorías' },
+  { to: '/admin/banners', label: 'Banners' },
   { to: '/admin/pedidos', label: 'Pedidos' },
   { to: '/admin/resenas', label: 'Reseñas' },
   { to: '/admin/comunidad', label: 'Comunidad' },
+  { to: '/admin/cupones', label: 'Cupones' },
+  { to: '/admin/newsletter', label: 'Newsletter' },
+  { to: '/admin/config', label: 'Configuración' },
 ]
 
 export function AdminLayout() {
-  const [authed, setAuthed] = useState(isAdminAuthed())
+  const { user, esAdmin, cargando } = useEsAdmin()
 
-  if (!authed) {
-    return <AdminLogin onLogin={() => setAuthed(true)} />
+  if (cargando) {
+    return (
+      <div className="min-h-screen bg-base-200 flex items-center justify-center">
+        <span className="loading loading-spinner loading-lg" />
+      </div>
+    )
+  }
+
+  if (!user) return <AdminLogin />
+
+  if (!esAdmin) {
+    return (
+      <div className="min-h-screen bg-base-200 flex items-center justify-center p-4">
+        <div className="card bg-base-100 w-full max-w-sm">
+          <div className="card-body">
+            <h1 className="font-bold text-lg">Sin acceso</h1>
+            <p className="text-sm opacity-70">
+              Iniciaste sesión como <span className="font-medium">{user.email}</span>, pero esa
+              cuenta no es administradora.
+            </p>
+            <div className="card-actions mt-2">
+              <button
+                onClick={() => void salirAdmin()}
+                className="btn btn-outline btn-sm"
+              >
+                Cambiar de cuenta
+              </button>
+              <Link to="/" className="btn btn-ghost btn-sm">
+                Volver a la tienda
+              </Link>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -32,10 +69,7 @@ export function AdminLayout() {
               </span>
             </div>
             <button
-              onClick={() => {
-                logoutAdmin()
-                setAuthed(false)
-              }}
+              onClick={() => void salirAdmin()}
               className="btn btn-ghost btn-sm lg:mt-5"
             >
               Cerrar sesión
@@ -75,18 +109,19 @@ export function AdminLayout() {
   )
 }
 
-function AdminLogin({ onLogin }: { onLogin: () => void }) {
-  const [usuario, setUsuario] = useState('')
+function AdminLogin() {
+  const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [cargando, setCargando] = useState(false)
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (loginAdmin(usuario, password)) {
-      onLogin()
-    } else {
-      setError('Credenciales incorrectas')
-    }
+    setError(null)
+    setCargando(true)
+    const { error: err } = await iniciarSesionAdmin(email, password)
+    setCargando(false)
+    if (err) setError(err)
   }
 
   return (
@@ -106,12 +141,13 @@ function AdminLogin({ onLogin }: { onLogin: () => void }) {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
               </svg>
               <input
-                type="text"
+                type="email"
                 className="grow"
-                placeholder="Usuario"
-                value={usuario}
-                onChange={(e) => setUsuario(e.target.value)}
+                placeholder="Email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 required
+                autoComplete="username"
               />
             </label>
 
@@ -126,22 +162,24 @@ function AdminLogin({ onLogin }: { onLogin: () => void }) {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
+                autoComplete="current-password"
               />
             </label>
 
             {error && <div className="alert alert-error text-sm">{error}</div>}
 
-            <button type="submit" className="btn btn-primary btn-block">
-              Ingresar
+            <button type="submit" className="btn btn-primary btn-block" disabled={cargando}>
+              {cargando ? (
+                <span className="loading loading-spinner loading-sm" />
+              ) : (
+                'Ingresar'
+              )}
             </button>
           </form>
 
-          {DEFAULT_CREDENTIALS && (
-            <p className="text-xs opacity-50 mt-4 text-center">
-              Credenciales por defecto: <span className="font-mono">admin</span> /{' '}
-              <span className="font-mono">ikigai2026</span>
-            </p>
-          )}
+          <p className="text-xs opacity-50 mt-4 text-center">
+            Solo pueden ingresar las cuentas marcadas como administradoras.
+          </p>
         </div>
       </div>
     </div>

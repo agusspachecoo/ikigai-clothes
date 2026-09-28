@@ -9,9 +9,19 @@ interface ClientePago {
 
 const supabaseUrl = String(import.meta.env.VITE_SUPABASE_URL ?? '').replace(/\/$/, '')
 const supabaseAnonKey = String(import.meta.env.VITE_SUPABASE_ANON_KEY ?? '')
+export const MERCADOPAGO_PUBLIC_KEY = String(
+  import.meta.env.VITE_MERCADOPAGO_PUBLIC_KEY ?? '',
+)
 const FUNCTIONS_URL = `${supabaseUrl}/functions/v1`
 
-export async function crearPreferenciaMP(ordenId: string, items: CartItem[], cliente: ClientePago) {
+export async function crearPreferenciaMP(
+  ordenId: string,
+  items: CartItem[],
+  cliente: ClientePago,
+  costoEnvio = 0,
+  carrierEnvio?: string,
+  cuponCodigo?: string,
+) {
   const base = window.location.origin
 
   const body = {
@@ -23,12 +33,16 @@ export async function crearPreferenciaMP(ordenId: string, items: CartItem[], cli
       cantidad: i.cantidad,
       precio_unitario: i.precio_unitario,
     })),
+    costo_envio: costoEnvio,
+    carrier_envio: carrierEnvio,
+    cupon_codigo: cuponCodigo,
     cliente,
     urls: {
       back: {
-        success: `${base}/checkout/success`,
-        failure: `${base}/checkout/failure`,
-        pending: `${base}/checkout/pending`,
+        // La app usa HashRouter, así que Mercado Pago debe redirigir a las rutas con `#/`.
+        success: `${base}/#/checkout/success`,
+        failure: `${base}/#/checkout/failure`,
+        pending: `${base}/#/checkout/pending`,
       },
       notification: `${FUNCTIONS_URL}/mercadopago-webhook`,
     },

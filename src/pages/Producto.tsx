@@ -1,24 +1,62 @@
-import { useParams, Link } from 'react-router-dom'
-import { useState } from 'react'
+import { useParams } from 'react-router-dom'
+import { useState, useEffect, useRef } from 'react'
 import { useProducto } from '../hooks/useProductos'
 import { useResenas } from '../hooks/useResenas'
 import { useCart } from '../context/cart'
+import { useAuth } from '../context/auth'
 import { imagenProducto } from '../lib/imagenes'
+import { EnvioCalculator } from '../components/EnvioCalculator'
+import { RatingProducto } from '../components/RatingProducto'
+import { FAQSection } from '../components/FAQSection'
+import { ProductosRelacionados } from '../components/ProductosRelacionados'
+import { BeneficiosSection } from '../components/BeneficiosSection'
 import { comprimirImagen, blobToFile } from '../lib/imageCompression'
 import { subirImagen } from '../lib/adminApi'
 import { parseResenaImagenes } from '../types/database'
-import type { VariacionStock } from '../types/database'
+import { useCierreModal } from '../hooks/useCierreModal'
+import { useTienda } from '../context/tienda'
+import { Breadcrumbs } from '../components/Breadcrumbs'
+import { BotonCompartir } from '../components/BotonCompartir'
+import { tallesDisponibles } from '../lib/talles'
+import { slugify } from '../lib/categorias'
+import {
+  formatearPrecio,
+  montoCuota,
+  precioConDescuento,
+  precioTransferencia,
+} from '../lib/precios'
 
 export function Producto() {
   const { id } = useParams<{ id: string }>()
   const { producto, loading, error } = useProducto(id ?? null)
   const { agregarItem, setCarritoAbierto } = useCart()
+  const { user, abrirAuthModal } = useAuth()
   const [imagenActiva, setImagenActiva] = useState(0)
   const [talleSeleccionado, setTalleSeleccionado] = useState<string | null>(null)
   const [fotoResena, setFotoResena] = useState<File | null>(null)
   const [vistaPreviaResena, setVistaPreviaResena] = useState<string | null>(null)
   const [subiendoResena, setSubiendoResena] = useState(false)
   const [lightboxResena, setLightboxResena] = useState<{ resenaId: string, url: string } | null>(null)
+  const { descuento_transferencia, cuotas_sin_interes, umbral_envio_gratis, envio_gratis_activo } =
+    useTienda()
+  useCierreModal(Boolean(lightboxResena), () => setLightboxResena(null))
+
+  // Al navegar entre productos (mismo componente, sin remount) hay que resetear
+  // todo el estado local para no mostrar datos stale del producto anterior.
+  const idProducto = id ?? null
+   
+  const estadoReseteadoId = useRef(idProducto)
+  useEffect(() => {
+    if (estadoReseteadoId.current !== idProducto) {
+      estadoReseteadoId.current = idProducto
+      setImagenActiva(0)
+      setTalleSeleccionado(null)
+      setFotoResena(null)
+      setVistaPreviaResena(null)
+      setSubiendoResena(false)
+      setLightboxResena(null)
+    }
+  }, [idProducto])
 
   const { resenas, insertarResena } = useResenas(id ?? null)
 
@@ -27,6 +65,22 @@ export function Producto() {
     puntuacion: 5,
     comentario: '',
   })
+
+  useEffect(() => {
+    if (user && !formResena.nombre_usuario) {
+      const nombreSugerido =
+        user.user_metadata?.full_name ??
+        user.user_metadata?.name ??
+        user.email?.split('@')[0] ??
+        ''
+      if (nombreSugerido) {
+        // Prefill del nombre al iniciar sesión en plena navegación.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setFormResena(f => ({ ...f, nombre_usuario: nombreSugerido }))
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id])
 
   async function handleFotoResena(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -51,17 +105,21 @@ export function Producto() {
     return (
       <div className="max-w-7xl mx-auto px-4 py-16 text-center">
         <p className="text-error">{error ?? 'Producto no encontrado'}</p>
-        <Link to="/catalogo" className="btn btn-primary mt-4">Volver al catálogo</Link>
       </div>
     )
   }
 
-  const getStock = (variaciones: VariacionStock[], talle: string) =>
-    variaciones.find(v => v.talle === talle)?.stock_disponible ?? 0
+  const precioOriginal = Number(producto.precio) || 0
+  const descuento = Number(producto.discount_percent) || 0
+  const precioOferta = precioConDescuento(precioOriginal, descuento)
 
-  const talles = producto
-    ? [...new Set(producto.variaciones_stock.map(v => v.talle))]
-    : []
+  const talles = producto ? tallesDisponibles(producto.variaciones_stock) : []
+  const precioTransferenciaFinal = precioTransferencia(precioOferta, descuento_transferencia)
+  const ahorroTransferencia = Math.max(0, precioOferta - precioTransferenciaFinal)
+
+  const promedioResenas = resenas.length
+    ? Math.round((resenas.reduce((s, r) => s + r.puntuacion, 0) / resenas.length) * 10) / 10
+    : 0
 
   function agregarAlCarrito() {
     if (!producto || !talleSeleccionado) return
@@ -70,7 +128,7 @@ export function Producto() {
       nombre: producto.nombre,
       imagen: imagenProducto(producto.imagenes[0], 0),
       talle: talleSeleccionado,
-      precio_unitario: producto.precio,
+      precio_unitario: precioOferta,
     })
     setCarritoAbierto(true)
   }
@@ -100,11 +158,20 @@ export function Producto() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8">
+    <div className="max-w-7xl mx-auto px-4 py-6">
+      <Breadcrumbs
+        items={[
+          { label: 'Inicio', to: '/' },
+          { label: 'Productos', to: '/catalogo' },
+          { label: producto.categoria, to: `/catalogo?categoria=${slugify(producto.categoria)}` },
+          { label: producto.nombre },
+        ]}
+      />
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         {/* Galería */}
         <div>
-          <figure className="aspect-[3/4] bg-base-300 rounded-lg overflow-hidden">
+          <figure className="aspect-[3/4] bg-base-200 overflow-hidden">
             {producto.imagenes[imagenActiva] && (
               <img
                 src={producto.imagenes[imagenActiva]}
@@ -118,7 +185,10 @@ export function Producto() {
               {producto.imagenes.map((img, i) => (
                 <button
                   key={i}
-                  className={`w-16 h-16 rounded border-2 overflow-hidden ${i === imagenActiva ? 'border-primary' : 'border-transparent'}`}
+                  aria-label={`Ver foto ${i + 1}`}
+                  className={`w-16 h-16 border overflow-hidden ${
+                    i === imagenActiva ? 'border-neutral' : 'border-line'
+                  }`}
                   onClick={() => setImagenActiva(i)}
                 >
                   <img src={img} alt="" className="w-full h-full object-cover" />
@@ -130,69 +200,155 @@ export function Producto() {
 
         {/* Detalles */}
         <div>
-          <h1 className="text-3xl font-bold">{producto.nombre}</h1>
-          <span className="badge badge-outline mt-2">{producto.categoria}</span>
+          <div className="flex items-start justify-between gap-4">
+            <h1 className="font-display text-2xl md:text-3xl">{producto.nombre}</h1>
+            <BotonCompartir titulo={producto.nombre} texto={`Mirá ${producto.nombre} en Ikigai Clothes`} />
+          </div>
 
-          <div className="mt-6">
-            <p className="text-3xl font-bold text-primary">
-              ${producto.precio.toLocaleString('es-AR')}
-            </p>
+          <RatingProducto promedio={promedioResenas} cantidad={resenas.length} className="mt-2" />
+
+          <p className="text-[11px] uppercase tracking-widest opacity-50 mt-3">
+            {producto.categoria}
+          </p>
+
+          {/* Precio */}
+          <div className="mt-5 space-y-1">
+            {descuento > 0 && (
+              <span className="inline-block bg-oferta text-white text-[10px] font-semibold uppercase tracking-widest px-2 py-1">
+                -{descuento}% off
+              </span>
+            )}
+
+            <div className="flex items-baseline gap-2">
+              <span className="text-2xl font-semibold">${formatearPrecio(precioOferta)}</span>
+              {descuento > 0 && (
+                <span className="text-sm opacity-50 line-through">
+                  ${formatearPrecio(precioOriginal)}
+                </span>
+              )}
+            </div>
+
+            {descuento > 0 && (
+              <p className="text-xs text-success">
+                Ahorrás ${formatearPrecio(precioOriginal - precioOferta)}
+              </p>
+            )}
+
+            {descuento_transferencia > 0 && (
+              <div className="border border-success/40 bg-success/5 px-3 py-2 mt-3">
+                <p className="text-sm font-semibold text-success">
+                  Pagando por transferencia: ${formatearPrecio(precioTransferenciaFinal)}
+                </p>
+                {ahorroTransferencia > 0 && (
+                  <p className="text-xs text-success/80">
+                    Ahorrás ${formatearPrecio(ahorroTransferencia)} (
+                    {Math.round(descuento_transferencia * 100)}% off)
+                  </p>
+                )}
+              </div>
+            )}
+
+            {cuotas_sin_interes > 1 && (
+              <p className="text-xs opacity-70">
+                {cuotas_sin_interes} cuotas sin interés de $
+                {formatearPrecio(montoCuota(precioOferta, cuotas_sin_interes))}
+              </p>
+            )}
           </div>
 
           {producto.descripcion && (
-            <p className="mt-4 opacity-70">{producto.descripcion}</p>
+            <p className="mt-4 text-sm opacity-70 leading-relaxed">{producto.descripcion}</p>
           )}
 
           {/* Selector de talles */}
           {talles.length > 0 && (
             <div className="mt-6">
-              <p className="font-semibold mb-2">Talle</p>
+              <p className="text-xs uppercase tracking-widest mb-2">Talle</p>
               <div className="flex flex-wrap gap-2">
-                {talles.map((t) => {
-                  const stock = getStock(producto.variaciones_stock, t)
-                  return (
-                    <button
-                      key={t}
-                      className={`btn btn-sm min-w-14 px-5 border-2 rounded-xl font-semibold ${
-                        t === talleSeleccionado
-                          ? 'btn-primary border-transparent'
-                          : 'bg-base-100 border-base-300 hover:border-primary hover:text-primary'
-                      } ${
-                        stock === 0
-                          ? 'opacity-30 cursor-not-allowed pointer-events-none'
-                          : 'cursor-pointer'
-                      }`}
-                      disabled={stock === 0}
-                      onClick={() => setTalleSeleccionado(t)}
-                    >
-                      {t}
-                    </button>
-                  )
-                })}
+                {talles.map(({ talle: t, stock }) => (
+                  <button
+                    key={t}
+                    type="button"
+                    aria-pressed={t === talleSeleccionado}
+                    disabled={stock === 0}
+                    onClick={() => setTalleSeleccionado(t)}
+                    className={`min-w-12 h-10 px-4 border text-sm transition-colors ${
+                      t === talleSeleccionado
+                        ? 'bg-neutral text-neutral-content border-neutral'
+                        : stock === 0
+                          ? 'border-line opacity-40 line-through cursor-not-allowed'
+                          : 'border-line hover:border-neutral'
+                    }`}
+                  >
+                    {t}
+                  </button>
+                ))}
               </div>
             </div>
           )}
 
           {/* Agregar al carrito */}
-          <button
-            className="btn w-full bg-black text-white hover:bg-neutral-800 border-0 rounded-xl font-bold text-base mt-8 cursor-pointer transition-colors"
-            disabled={!talleSeleccionado}
-            onClick={agregarAlCarrito}
-          >
-            Agregar al Carrito
-          </button>
-          <p className="text-xs opacity-60 mt-3 text-center">
-            🚚 Envíos a todo el país | Retiro sin cargo
-          </p>
+          <div className="mt-7">
+            <button
+              type="button"
+              onClick={agregarAlCarrito}
+              disabled={!talleSeleccionado}
+              className="btn btn-primary rounded-none w-full"
+            >
+              {talleSeleccionado ? 'Agregar al carrito' : 'Elegí un talle'}
+            </button>
+          </div>
+
+          {/* Medios de pago y envío */}
+          <ul className="mt-6 border-t border-line text-xs divide-y divide-line">
+            <li className="flex items-center justify-between py-2.5">
+              <span className="opacity-60">Medios de pago</span>
+              <span>Mercado Pago · Transferencia</span>
+            </li>
+            <li className="flex items-center justify-between py-2.5">
+              <span className="opacity-60">Envíos</span>
+              <span>
+                {envio_gratis_activo && umbral_envio_gratis > 0
+                  ? `Gratis desde $${formatearPrecio(umbral_envio_gratis)}`
+                  : 'A todo el país'}
+              </span>
+            </li>
+            <li className="flex items-center justify-between py-2.5">
+              <span className="opacity-60">Retiro</span>
+              <span>Showroom sin cargo</span>
+            </li>
+          </ul>
+
+          <div className="mt-6">
+            <EnvioCalculator
+              items={[
+                {
+                  producto_id: producto.id,
+                  nombre: producto.nombre,
+                  imagen: producto.imagenes[0] ?? '',
+                  talle: talleSeleccionado ?? '',
+                  precio_unitario: precioOferta,
+                  cantidad: 1,
+                },
+              ]}
+            />
+          </div>
         </div>
       </div>
+
+      {/* Preguntas frecuentes */}
+      <FAQSection />
+
+      {/* Productos relacionados */}
+      <ProductosRelacionados categoria={producto.categoria} productoId={producto.id} />
 
       {/* Reseñas */}
       <section className="mt-16">
         <h2 className="text-2xl font-bold mb-6">Reseñas</h2>
 
         {/* Formulario de reseña */}
-        <form onSubmit={handleSubmitResena} className="card bg-base-100 shadow-sm p-6 mb-8">
+        {user ? (
+          <form onSubmit={handleSubmitResena} className="card bg-base-100 shadow-sm p-6 mb-8">
           <h3 className="font-semibold mb-4">Dejá tu reseña</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <input
@@ -270,6 +426,26 @@ export function Producto() {
             {subiendoResena ? 'Subiendo...' : 'Enviar Reseña'}
           </button>
         </form>
+        ) : (
+          <div className="card bg-base-100 shadow-sm p-6 mb-8 text-center">
+            <div className="mx-auto w-12 h-12 rounded-full bg-base-200 flex items-center justify-center mb-3">
+              <svg className="h-6 w-6 opacity-60" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+              </svg>
+            </div>
+            <p className="font-semibold mb-1">Dejá tu reseña</p>
+            <p className="text-sm opacity-70 max-w-sm mx-auto mb-4">
+              Iniciá sesión para dejar tu reseña sobre este producto.
+            </p>
+            <button
+              type="button"
+              className="btn btn-primary mx-auto px-6 py-3 rounded-xl cursor-pointer"
+              onClick={() => abrirAuthModal()}
+            >
+              Iniciar sesión
+            </button>
+          </div>
+        )}
 
         {/* Lista de reseñas */}
         {resenas.length === 0 ? (
@@ -316,19 +492,15 @@ export function Producto() {
         )}
       </section>
 
+      {/* Beneficios (antes del footer) */}
+      <BeneficiosSection />
+
       {/* Lightbox de reseña */}
       {lightboxResena && (
         <div
           className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 cursor-zoom-out"
           onClick={() => setLightboxResena(null)}
         >
-          <button
-            className="absolute top-4 right-4 btn btn-circle btn-ghost text-white"
-            onClick={() => setLightboxResena(null)}
-            aria-label="Cerrar"
-          >
-            ✕
-          </button>
           <img
             src={lightboxResena.url}
             alt="Foto de la reseña"

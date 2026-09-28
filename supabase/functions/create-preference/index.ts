@@ -11,6 +11,7 @@
 
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { corsHeaders, json } from '../_shared/cors.ts'
+import { validarCupon, type Cupon } from '../_shared/cupones.ts'
 
 interface ItemInput {
   producto_id: string
@@ -34,22 +35,23 @@ const hostLocales = ['localhost', '127.0.0.1', '0.0.0.0']
 function esUrlPublica(url: string) {
   try {
     const u = new URL(url)
-    return (u.protocol === 'https:' || u.protocol === 'http:') && !hostLocales.includes(u.hostname)
+    return u.protocol === 'https:' || u.protocol === 'http:'
   } catch {
     return false
   }
 }
 
-// Las URLs de retorno SIEMPRE apuntan a la raíz de la tienda (STORE_URL),
-// una ruta válida del frontend. Nunca se usan URLs locales ni subrutas inexistentes.
+// Las URLs de retorno apuntan a la ruta hash del frontend (`#/checkout/success`),
+// porque la app usa HashRouter. Nunca se usan subrutas de pathname inexistentes.
 function obtenerBackUrls(back: { success?: string; failure?: string; pending?: string } | undefined) {
   const store = (Deno.env.get('STORE_URL') ?? '').replace(/\/$/, '')
+  const ruta = (sufijo: string) => `${store}/#/checkout/${sufijo}`
 
   if (store && esUrlPublica(store)) {
     return {
-      success: `${store}/`,
-      failure: `${store}/`,
-      pending: `${store}/`,
+      success: ruta('success'),
+      failure: ruta('failure'),
+      pending: ruta('pending'),
     }
   }
 
@@ -78,7 +80,7 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json()
-    const { ordenId, items, cliente, urls } = body
+    const { ordenId, items, cliente, urls, costo_envio = 0, carrier_envio, cupon_codigo } = body
 
     if (!ordenId || !Array.isArray(items) || items.length === 0) {
       return json({ error: 'Faltan datos: ordenId e items son obligatorios.' }, { status: 400 })
@@ -104,7 +106,7 @@ Deno.serve(async (req) => {
     // Validar que el pedido exista y que el monto coincida
     const { data: orden } = await supabase
       .from('ordenes')
-      .select('monto_total, cliente_nombre, cliente_email, cliente_telefono, cliente_dni')
+      .select('monto_total, cliente_nombre, cliente_email, cliente_telefono, cliente_dni, envio_detalle, cupon_codigo, descuento_cupon')
       .eq('id', ordenId)
       .maybeSingle()
 
@@ -116,20 +118,90 @@ Deno.serve(async (req) => {
       (n, i) => n + Number(i.cantidad) * Number(i.precio_unitario),
       0,
     )
-    if (Math.round(Number(orden.monto_total)) !== Math.round(montoCliente)) {
-      return json({ error: 'El monto de los ítems no coincide con el pedido.' }, { status: 409 })
+    const costoEnvioNum = Number(costo_envio) || 0
+
+    // El envío gratis solo puede venir del retiro en el local o del umbral de la
+    // tienda: si el cliente pide envío gratis sin cumplir, se rechaza.
+    if (costoEnvioNum <= 0 && carrier_envio) {
+      const { data: config } = await supabase
+        .from('config_tienda')
+        .select('clave, valor')
+        .in('clave', ['envio_gratis_activo', 'umbral_envio_gratis'])
+
+      const activo = config?.find((c) => c.clave === 'envio_gratis_activo')?.valor === 'true'
+      const umbral = Number(config?.find((c) => c.clave === 'umbral_envio_gratis')?.valor ?? 0)
+
+      if (activo && umbral > 0 && montoCliente < umbral) {
+        return json(
+          { error: `El envío gratis se aplica a compras desde $${umbral.toLocaleString('es-AR')}.` },
+          { status: 409 },
+        )
+      }
+    }
+
+    // El cupón se recalcula acá: el descuento que envía el cliente no se confía
+    let descuentoCupon = 0
+    let etiquetaCupon = ''
+    const codigoCupon = String(cupon_codigo ?? orden.cupon_codigo ?? '').trim().toUpperCase()
+
+    if (codigoCupon) {
+      const { data: cupon } = await supabase
+        .from('cupones')
+        .select('*')
+        .eq('codigo', codigoCupon)
+        .maybeSingle()
+
+      const resultado = validarCupon((cupon ?? null) as Cupon | null, montoCliente)
+      if (!resultado.ok) {
+        return json({ error: resultado.motivo ?? 'El cupón no es válido.' }, { status: 409 })
+      }
+
+      descuentoCupon = resultado.descuento
+      etiquetaCupon = `Cupón ${codigoCupon}`
+    }
+
+    if (Math.abs(Number(orden.descuento_cupon ?? 0) - descuentoCupon) > 0.01) {
+      return json({ error: 'El descuento del cupón no coincide con el pedido.' }, { status: 409 })
+    }
+
+    const totalEsperado = montoCliente + costoEnvioNum - descuentoCupon
+    if (Math.round(Number(orden.monto_total)) !== Math.round(totalEsperado)) {
+      return json({ error: 'El monto total no coincide con el pedido.' }, { status: 409 })
     }
 
     // API oficial de Mercado Pago (Checkout Pro): crear preferencia
+    const mpItems = (items as ItemInput[]).map((i) => ({
+      id: i.producto_id,
+      title: i.talle ? `${i.nombre} - Talle ${i.talle}` : i.nombre,
+      quantity: Number(i.cantidad),
+      unit_price: Number(i.precio_unitario),
+      currency_id: 'ARS',
+    }))
+    if (costoEnvioNum > 0) {
+      mpItems.push({
+        id: 'envio',
+        title: carrier_envio ? `Envío (${carrier_envio})` : 'Envío',
+        quantity: 1,
+        unit_price: costoEnvioNum,
+        currency_id: 'ARS',
+      })
+    }
+
+    // El descuento del cupón viaja como ítem negativo para que el total de la
+    // preferencia sea exactamente el monto de la orden
+    if (descuentoCupon > 0) {
+      mpItems.push({
+        id: 'cupon',
+        title: etiquetaCupon,
+        quantity: 1,
+        unit_price: -descuentoCupon,
+        currency_id: 'ARS',
+      })
+    }
+
     const mpBody = {
       statement_descriptor: 'IKIGAI CLOTHES',
-      items: (items as ItemInput[]).map((i) => ({
-        id: i.producto_id,
-        title: i.talle ? `${i.nombre} - Talle ${i.talle}` : i.nombre,
-        quantity: Number(i.cantidad),
-        unit_price: Number(i.precio_unitario),
-        currency_id: 'ARS',
-      })),
+      items: mpItems,
       payer: {
         name: cliente?.nombre ?? orden.cliente_nombre,
         email: cliente?.email ?? orden.cliente_email,
@@ -138,7 +210,7 @@ Deno.serve(async (req) => {
           number: String(cliente?.telefono ?? orden.cliente_telefono)
             .replace(/\D/g, '')
             .replace(/^54/, '')
-            .slice(0, 10),
+            .slice(0, 15),
         },
         identification: {
           type: 'DNI',

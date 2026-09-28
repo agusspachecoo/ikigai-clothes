@@ -46,7 +46,7 @@ export function OutfitCarousel({ outfits }: Props) {
                   <button
                     onClick={() => setOutfitSeleccionado(o)}
                     aria-label={`Ver detalle del look ${o.nombre}`}
-                    className="relative block w-full rounded-3xl overflow-hidden aspect-[3/4] bg-base-300 shadow-sm cursor-pointer group focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
+                    className="relative block w-full rounded-sm overflow-hidden aspect-[3/4] bg-base-300 border border-base-300/60 cursor-pointer group focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
                   >
                     <img
                       src={imagenOutfit(o.imagen_portada, i)}
@@ -62,15 +62,23 @@ export function OutfitCarousel({ outfits }: Props) {
                     />
                     <div className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-black/35 to-transparent" />
 
-                    <span className="absolute bottom-4 left-1/2 -translate-x-1/2 btn btn-circle btn-lg bg-sky-500 hover:bg-sky-400 border-0 shadow-lg shadow-sky-500/40 text-white pointer-events-none">
+                    <span className="absolute bottom-4 left-1/2 -translate-x-1/2 btn btn-circle btn-lg bg-sky-500 hover:bg-sky-400 border-0 text-white pointer-events-none">
                       {ICONO_BOLSA}
                     </span>
                   </button>
 
                   <div className="pt-3 text-center">
                     <h3 className="font-semibold text-sm md:text-base truncate">{o.nombre}</h3>
-                    <p className="text-primary font-bold text-lg mt-0.5">
-                      $ {o.precio_combo.toLocaleString('es-AR')}
+                    <p className="text-sm text-base-content/60 mt-0.5">
+                      ${o.precio_combo.toLocaleString('es-AR')}
+                    </p>
+                    <p className="font-bold text-base-content mt-0.5">
+                      ${(o.precio_combo * 0.8).toLocaleString('es-AR')}{' '}
+                      <span className="text-xs font-medium opacity-60">por Transferencia</span>
+                    </p>
+                    <p className="inline-flex items-center gap-1.5 rounded-sm bg-green-100 text-green-800 px-2 py-1 text-xs font-semibold">
+                      <span aria-hidden="true">💳</span>
+                      6 cuotas de ${(o.precio_combo / 6).toLocaleString('es-AR')} sin interés
                     </p>
                   </div>
                 </div>

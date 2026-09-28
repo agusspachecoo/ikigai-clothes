@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import type { ProductoConStock } from '../types/database'
 import { imagenProducto } from '../lib/imagenes'
+import { formatearPrecio, precioConDescuento } from '../lib/precios'
+import { QuickshopModal } from './QuickshopModal'
 
 interface Props {
   className?: string
@@ -15,6 +17,7 @@ export function Buscador({ className = '', placeholder = 'Buscar prendas...', on
   const [sugerencias, setSugerencias] = useState<ProductoConStock[]>([])
   const [abierto, setAbierto] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [quickshop, setQuickshop] = useState<ProductoConStock | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const timerRef = useRef<number | null>(null)
   const navigate = useNavigate()
@@ -24,6 +27,7 @@ export function Buscador({ className = '', placeholder = 'Buscar prendas...', on
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
         setAbierto(false)
       }
+      setQuickshop(null)
     }
     document.addEventListener('mousedown', onClickOutside)
     return () => document.removeEventListener('mousedown', onClickOutside)
@@ -66,6 +70,12 @@ export function Buscador({ className = '', placeholder = 'Buscar prendas...', on
     setAbierto(false)
     setTerm('')
     setSugerencias([])
+    setQuickshop(null)
+  }
+
+  function abrirQuickshop(producto: ProductoConStock) {
+    setAbierto(false)
+    setQuickshop(producto)
   }
 
   function irAlCatalogo() {
@@ -90,45 +100,53 @@ export function Buscador({ className = '', placeholder = 'Buscar prendas...', on
         }}
         className="w-full h-full flex items-center gap-2"
       >
-        <svg className="h-4 w-4 opacity-50 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-          <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-4.35-4.35" />
-        </svg>
         <input
-          type="search"
-          className="grow outline-none bg-transparent"
+          type="text"
+          className="grow outline-none bg-transparent resize-none placeholder:text-current placeholder:opacity-40"
           placeholder={placeholder}
           value={term}
           onChange={(e) => onChangeTerm(e.target.value)}
           onFocus={() => term.trim() && setAbierto(true)}
         />
         {loading && <span className="loading loading-spinner loading-xs text-primary"></span>}
+        <svg className="h-4 w-4 opacity-60 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+          <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-4.35-4.35" />
+        </svg>
       </form>
 
       {abierto && sugerencias.length > 0 && (
-        <div className="absolute left-0 right-0 top-full mt-2 rounded-xl bg-white text-gray-900 border border-base-300 shadow-xl overflow-hidden z-50">
+        <div className="absolute left-0 right-0 top-full mt-0 bg-base-100 text-base-content border border-line overflow-hidden z-50">
           {sugerencias.map((p, i) => (
-            <button
-              key={p.id}
-              onClick={() => irAlProducto(p.id)}
-              className="w-full flex items-center gap-3 px-3 py-2.5 text-left text-gray-900 hover:bg-base-200 cursor-pointer transition-colors"
-            >
-              <img
-                src={imagenProducto(p.imagenes[0], i)}
-                alt=""
-                className="w-10 h-12 object-cover rounded-lg bg-base-300 shrink-0"
-              />
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold truncate">{p.nombre}</p>
-                <p className="text-xs opacity-50 text-gray-600">{p.categoria}</p>
-              </div>
-              <span className="text-sm font-bold shrink-0">
-                ${p.precio.toLocaleString('es-AR')}
-              </span>
-            </button>
+            <div key={p.id} className="flex items-center gap-2 pr-3 hover:bg-base-200 transition-colors">
+              <button
+                onClick={() => irAlProducto(p.id)}
+                className="flex-1 min-w-0 flex items-center gap-3 px-3 py-2.5 text-left cursor-pointer"
+              >
+                <img
+                  src={imagenProducto(p.imagenes[0], i)}
+                  alt=""
+                  className="w-10 h-12 object-cover bg-base-200 shrink-0"
+                />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate">{p.nombre}</p>
+                  <p className="text-xs opacity-50 text-gray-600">{p.categoria}</p>
+                </div>
+                <span className="text-sm shrink-0">
+                  ${formatearPrecio(precioConDescuento(p.precio, p.discount_percent))}
+                </span>
+              </button>
+              <button
+                onClick={() => abrirQuickshop(p)}
+                className="btn btn-xs btn-neutral shrink-0"
+                title={`Compra rápida: ${p.nombre}`}
+              >
+                Ver
+              </button>
+            </div>
           ))}
           <button
             onClick={irAlCatalogo}
-            className="w-full text-left px-4 py-3 text-sm font-semibold text-primary hover:bg-base-200 cursor-pointer border-t border-base-300 transition-colors"
+            className="w-full text-left px-4 py-3 text-sm font-medium hover:bg-base-200 cursor-pointer border-t border-line transition-colors"
           >
             Ver todos los resultados para &quot;{term}&quot;
           </button>
@@ -136,7 +154,7 @@ export function Buscador({ className = '', placeholder = 'Buscar prendas...', on
       )}
 
       {abierto && sugerencias.length === 0 && !loading && term.trim() && (
-        <div className="absolute left-0 right-0 top-full mt-2 rounded-xl bg-white text-gray-900 border border-base-300 shadow-xl overflow-hidden z-50">
+        <div className="absolute left-0 right-0 top-full mt-0 bg-base-100 text-base-content border border-line overflow-hidden z-50">
           <button
             onClick={irAlCatalogo}
             className="w-full text-left px-4 py-3 text-sm font-semibold text-primary hover:bg-base-200 cursor-pointer transition-colors"
@@ -144,6 +162,10 @@ export function Buscador({ className = '', placeholder = 'Buscar prendas...', on
             Buscar &quot;{term}&quot; en el catálogo
           </button>
         </div>
+      )}
+
+      {quickshop && (
+        <QuickshopModal producto={quickshop} onCerrar={() => setQuickshop(null)} />
       )}
     </div>
   )

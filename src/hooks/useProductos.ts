@@ -5,6 +5,7 @@ import type { ProductoConStock } from '../types/database'
 interface UseProductosOptions {
   categoria?: string
   buscar?: string
+  descuentos?: boolean
   limit?: number
   offset?: number
 }
@@ -39,9 +40,18 @@ export function useProductos(options: UseProductosOptions = {}): UseProductosRes
         query = query.eq('categoria', options.categoria)
       }
 
+      if (options.descuentos) {
+        query = query.gt('discount_percent', 0)
+      }
+
       if (options.buscar) {
-        const termino = options.buscar.replace(/["'%\\]/g, '')
-        query = query.or(`nombre.ilike.%${termino}%,categoria.ilike.%${termino}%`)
+        // Limpiar caracteres que rompen la sintaxis del `.or()` de Supabase
+        // (las comas y paréntesis son separadores de cláusula) además de los
+        // comodines LIKE. Sin esto, buscar "remera, manga" genera una query inválida.
+        const termino = options.buscar.replace(/["'%\\,()]/g, '').trim()
+        if (termino) {
+          query = query.or(`nombre.ilike.%${termino}%,categoria.ilike.%${termino}%`)
+        }
       }
 
       if (options.limit) {
@@ -63,7 +73,7 @@ export function useProductos(options: UseProductosOptions = {}): UseProductosRes
 
     fetchProductos()
     return () => { cancelled = true }
-  }, [options.categoria, options.buscar, options.limit, options.offset])
+  }, [options.categoria, options.buscar, options.descuentos, options.limit, options.offset])
 
   return { productos, loading, error, total }
 }

@@ -2,8 +2,11 @@ import { useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { CartItem } from '../types/cart'
 import { CartContext } from './cart'
+import type { CuponAplicado } from '../lib/cupones'
+import { calcularDescuentoCupon } from '../lib/cupones'
 
 const STORAGE_KEY = 'ikigai-cart'
+const CUPON_STORAGE_KEY = 'ikigai-cupon'
 
 export function CartProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<CartItem[]>(() => {
@@ -17,9 +20,26 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const [carritoAbierto, setCarritoAbierto] = useState(false)
 
+  const [cupon, setCupon] = useState<CuponAplicado | null>(() => {
+    try {
+      const raw = localStorage.getItem(CUPON_STORAGE_KEY)
+      return raw ? (JSON.parse(raw) as CuponAplicado) : null
+    } catch {
+      return null
+    }
+  })
+
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(items))
   }, [items])
+
+  useEffect(() => {
+    if (cupon) {
+      localStorage.setItem(CUPON_STORAGE_KEY, JSON.stringify(cupon))
+    } else {
+      localStorage.removeItem(CUPON_STORAGE_KEY)
+    }
+  }, [cupon])
 
   function agregarItem(item: Omit<CartItem, 'cantidad'> & { cantidad?: number }) {
     const cantidad = item.cantidad ?? 1
@@ -64,21 +84,42 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   function vaciar() {
     setItems([])
+    setCupon(null)
   }
+
+  function aplicarCupon(nuevo: CuponAplicado) {
+    setCupon(nuevo)
+  }
+
+  function quitarCupon() {
+    setCupon(null)
+  }
+
+  const total = useMemo(
+    () => items.reduce((n, i) => n + i.cantidad * i.precio_unitario, 0),
+    [items],
+  )
+  const descuentoCupon = useMemo(() => calcularDescuentoCupon(cupon, total), [cupon, total])
+  const totalConDescuento = Math.max(0, total - descuentoCupon)
 
   const value = useMemo(
     () => ({
       items,
       count: items.reduce((n, i) => n + i.cantidad, 0),
-      total: items.reduce((n, i) => n + i.cantidad * i.precio_unitario, 0),
+      total,
       agregarItem,
       actualizarCantidad,
       eliminarItem,
       vaciar,
       carritoAbierto,
       setCarritoAbierto,
+      cupon,
+      descuentoCupon,
+      totalConDescuento,
+      aplicarCupon,
+      quitarCupon,
     }),
-    [items, carritoAbierto],
+    [items, carritoAbierto, cupon, total, descuentoCupon, totalConDescuento],
   )
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>

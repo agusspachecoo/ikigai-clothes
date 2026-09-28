@@ -24,52 +24,131 @@
     border-radius: 9999px;
   }
   &::-webkit-scrollbar-thumb:hover {
-    background: #d4d4d4;
+    background: #c3cbcd;
   }
 }
 
 @theme {
-  --font-sans: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
-  --font-display: "Syne", "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Literata", "Plus Jakarta Sans", ui-serif, Georgia, serif;
   --default-font-family: var(--font-sans);
-  --color-primary: #111111;
-  --color-primary-content: #ffffff;
-  --color-secondary: #333333;
-  --color-secondary-content: #ffffff;
-  --color-accent: #555555;
-  --color-accent-content: #ffffff;
+
+  --animate-marquee: marquee 38s linear infinite;
+
+  /* El bloque de mensajes se duplica en el JSX, por eso -50% es un ciclo exacto */
+  @keyframes marquee {
+    from {
+      transform: translateX(0);
+    }
+    to {
+      transform: translateX(-50%);
+    }
+  }
+
+  /* Superficies: fondo general gris frío, tarjetas y campos en blanco */
   --color-base-100: #ffffff;
-  --color-base-200: #fafafa;
-  --color-base-300: #f0f0f0;
-  --color-base-content: #111111;
-  --color-neutral: #111111;
+  --color-base-200: #ecf0f1;
+  --color-base-300: #dde3e5;
+  --color-base-content: #000000;
+
+  --color-primary: #000000;
+  --color-primary-content: #ffffff;
+  --color-secondary: #8a8a8a;
+  --color-secondary-content: #ffffff;
+  --color-accent: #8a8a8a;
+  --color-accent-content: #ffffff;
+  --color-neutral: #000000;
   --color-neutral-content: #ffffff;
+
   --color-info: #3b82f6;
-  --color-success: #22c55e;
-  --color-warning: #eab308;
-  --color-error: #ef4444;
+  --color-success: #4bb98c;
+  --color-warning: #dc8f38;
+  --color-error: #dd7774;
+
+  /* Acentos propios: barra de anuncios y etiquetas de oferta */
+  --color-adbar: #111111;
+  --color-adbar-content: #ffffff;
+  --color-oferta: #dd7774;
+  --color-line: #0000001a;
+  --color-line-strong: #00000033;
+
+  /* Escala tipográfica compacta */
+  --text-xs: 0.6875rem;
+  --text-xs--line-height: 1rem;
+  --text-sm: 0.75rem;
+  --text-sm--line-height: 1.125rem;
+  --text-base: 0.8125rem;
+  --text-base--line-height: 1.25rem;
+  --text-lg: 0.9375rem;
+  --text-lg--line-height: 1.375rem;
+  --text-xl: 1.125rem;
+  --text-xl--line-height: 1.5rem;
+  --text-2xl: 1.25rem;
+  --text-2xl--line-height: 1.625rem;
+  --text-3xl: 1.5rem;
+  --text-3xl--line-height: 1.75rem;
+  --text-4xl: 1.75rem;
+  --text-4xl--line-height: 2rem;
+  --text-5xl: 2.125rem;
+  --text-5xl--line-height: 2.25rem;
+  --text-6xl: 2.75rem;
+  --text-6xl--line-height: 2.875rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-marquee {
+    animation: none;
+  }
 }
 
 @layer base {
+  :root {
+    /* Estética plana: esquinas mínimas y sin profundidad */
+    --radius-selector: 0.125rem;
+    --radius-field: 0.125rem;
+    --radius-box: 0.125rem;
+    --depth: 0;
+    --noise: 0;
+  }
+
   html {
     font-family: var(--font-sans);
+    -webkit-text-size-adjust: 100%;
   }
 
   h1,
   h2,
-  h3 {
+  h3,
+  h4,
+  h5,
+  h6 {
     font-family: var(--font-display);
-    letter-spacing: -0.02em;
+    letter-spacing: -0.01em;
+    font-weight: 600;
   }
 
   body {
+    background-color: var(--color-base-200);
+    color: var(--color-base-content);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
   }
-}
 
-/* Garantizar contraste: texto oscuro sobre superficies claras */
-:where(.card, .modal-box, .menu, .dropdown-content, .drawer, .drawer-content, .drawer-side) {
-  color: var(--color-base-content, #111111);
+  /* Superficies planas: el peso lo hace el borde, no la sombra */
+  :where(.card, .btn, .badge, .input, .select, .textarea, .checkbox, .radio,
+    .toggle, .modal-box, .drawer, .alert, .tab, .collapse) {
+    box-shadow: none;
+  }
+
+  :where(.card, .modal-box, .menu, .dropdown-content, .drawer, .drawer-content, .drawer-side) {
+    color: var(--color-base-content, #000000);
+  }
+
+  /* Etiquetas compactas estilo tienda de indumentaria */
+  .badge {
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+  }
 }
