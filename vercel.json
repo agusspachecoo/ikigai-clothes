@@ -1,20 +1,53 @@
 {
   "rewrites": [
-    { "source": "/(.*)", "destination": "/index.html" }
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
   ],
   "redirects": [
     {
-      "source": "/(.*)",
-      "destination": "https://ikigai-clothes.vercel.app/:path*",
+      "source": "/",
+      "destination": "https://ikigai-clothes.vercel.app/",
       "has": [
-        { "type": "header", "key": "host", "value": "ikigai-store-omega.vercel.app" }
+        {
+          "type": "header",
+          "key": "host",
+          "value": "ikigai-store-omega.vercel.app"
+        }
       ]
     },
     {
-      "source": "/(.*)",
+      "source": "/",
+      "destination": "https://ikigai-clothes.vercel.app/",
+      "has": [
+        {
+          "type": "header",
+          "key": "host",
+          "value": "ikigai-store-pache3.vercel.app"
+        }
+      ]
+    },
+    {
+      "source": "/:path*",
       "destination": "https://ikigai-clothes.vercel.app/:path*",
       "has": [
-        { "type": "header", "key": "host", "value": "ikigai-store-pache3.vercel.app" }
+        {
+          "type": "header",
+          "key": "host",
+          "value": "ikigai-store-omega.vercel.app"
+        }
+      ]
+    },
+    {
+      "source": "/:path*",
+      "destination": "https://ikigai-clothes.vercel.app/:path*",
+      "has": [
+        {
+          "type": "header",
+          "key": "host",
+          "value": "ikigai-store-pache3.vercel.app"
+        }
       ]
     }
   ]

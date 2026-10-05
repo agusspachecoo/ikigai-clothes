@@ -82,8 +82,8 @@ export function ProductCard({
   return (
     <div className="group flex flex-col bg-base-100 border border-line">
       {/* Imágenes */}
-      <Link to={`/producto/${producto.id}`} className="block relative overflow-hidden bg-base-200">
-        <figure className="relative aspect-[3/4]">
+      <Link to={`/producto/${producto.id}`} className="block relative bg-white rounded-t-lg">
+        <figure className="relative aspect-[3/4] bg-white p-3 flex items-center justify-center overflow-hidden rounded-t-lg">
           {descuento > 0 && (
             <span className="absolute top-2 left-2 z-10 bg-oferta text-white text-[10px] font-semibold uppercase tracking-widest px-2 py-1">
               -{descuento}%
@@ -105,10 +105,7 @@ export function ProductCard({
               decoding="async"
               width={320}
               height={400}
-              /* object-top ancla el recorte arriba: con object-center una
-                 prenda alta perdia cuello y hombros, que es justo lo que hay
-                 que ver en la grilla. */
-              className="w-full h-full object-cover object-top"
+              className="w-full h-full object-contain object-center"
             />
           )}
           {producto.imagenes[1] && (
@@ -124,7 +121,7 @@ export function ProductCard({
               decoding="async"
               width={320}
               height={400}
-              className="absolute inset-0 w-full h-full object-cover object-top opacity-0 group-hover:opacity-100 transition-opacity duration-500"
+              className="absolute inset-0 w-full h-full object-contain object-center opacity-0 group-hover:opacity-100 transition-opacity duration-500"
             />
           )}
 
