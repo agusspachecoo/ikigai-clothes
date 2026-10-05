@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import type { OutfitConItems } from '../types/database'
 import { useCart } from '../context/cart'
-import { imagenProducto, srcsetImagen } from '../lib/imagenes'
+import { imagenProducto } from '../lib/imagenes'
 import { useCierreModal } from '../hooks/useCierreModal'
 import { formatearPrecio, precioConDescuento } from '../lib/precios'
 import { DESCUENTO_OUTFIT_PCT } from '../lib/outfits'
@@ -171,17 +171,15 @@ function OutfitModalContent({ outfit, onClose }: { outfit: OutfitConItems; onClo
               className="flex items-center gap-3 bg-neutral-100/80 p-3 rounded-2xl"
             >
               {/* IMAGEN DE LA PRENDA: shrink-0 y w-16 h-16 obligatorios para evitar colapso */}
-              <div className="relative w-16 h-16 shrink-0 flex-shrink-0 max-w-[64px] aspect-square bg-white rounded-xl overflow-hidden flex items-center justify-center border border-line/50">
+              <div className="w-16 h-16 min-w-[64px] min-h-[64px] shrink-0 aspect-square bg-white rounded-xl overflow-hidden flex items-center justify-center border border-line/50">
                 <img
-                  src={imagenProducto(producto.imagenes[0], 0)}
-                  srcSet={srcsetImagen(producto.imagenes[0], 64).srcset}
-                  sizes={srcsetImagen(producto.imagenes[0], 64).sizes}
+                  src={producto.imagenes[0]}
                   alt={producto.nombre}
                   loading="lazy"
                   decoding="async"
                   width={64}
                   height={64}
-                  className="w-full h-full object-contain p-1"
+                  className="w-full h-full object-contain p-1 block"
                 />
               </div>
 
