@@ -108,7 +108,7 @@ export function QuickshopModal({
                 decoding="async"
                 width={360}
                 height={480}
-                className="w-full h-full object-contain object-center"
+                className="w-full h-full object-cover"
               />
             )}
           </figure>

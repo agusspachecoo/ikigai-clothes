@@ -109,10 +109,10 @@ function OutfitModalContent({ outfit, onClose }: { outfit: OutfitConItems; onClo
 
   return (
     <div className="modal-box max-w-md p-0 overflow-hidden rounded-3xl">
-      {/* Antes era h-52 (208px de alto por 448 de ancho, 2.15:1) pero la
-          portada de outfit es 9:16 vertical. Con object-contain en una caja
-          apaisada la prenda quedaba chiquita flotando en una banda vacía;
-          aspect-[4/5] usa el ancho del modal y deja de cortar el look. */}
+      {/* h-52 daba una caja apaisada (2.15:1) para una portada de outfit que
+          es 9:16 vertical, asi que object-cover cortaba el look en una
+          franja. aspect-[4/5] mantiene la proporcion de la prenda y el
+          object-cover de abajo la llena sin deformar. */}
       <figure className="relative aspect-[4/5] w-full bg-base-300">
         <img
           src={imagenOutfit(outfit.imagen_portada, 0)}
@@ -123,7 +123,7 @@ function OutfitModalContent({ outfit, onClose }: { outfit: OutfitConItems; onClo
           decoding="async"
           width={448}
           height={560}
-          className="w-full h-full object-contain object-center"
+          className="w-full h-full object-cover"
         />
       </figure>
 
@@ -164,7 +164,7 @@ function OutfitModalContent({ outfit, onClose }: { outfit: OutfitConItems; onClo
                     decoding="async"
                     width={56}
                     height={64}
-                    className="w-14 h-16 object-contain object-center rounded-xl hover:opacity-80 transition-opacity"
+                    className="w-14 h-16 object-cover rounded-xl hover:opacity-80 transition-opacity"
                   />
                 </Link>
                 <div className="flex-1">
