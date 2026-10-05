@@ -65,8 +65,8 @@ export function Header() {
   return (
     <>
       {/* ────────── ADBAR ────────── */}
-      <div className="bg-adbar text-adbar-content h-9 flex items-center overflow-hidden">
-        <div className="flex w-max animate-marquee hover:[animation-play-state:paused]">
+      <div className="relative w-full bg-adbar text-adbar-content h-9 flex items-center overflow-hidden">
+        <div className="flex w-max animate-marquee">
           {[0, 1].map((copia) => (
             <ul
               key={copia}

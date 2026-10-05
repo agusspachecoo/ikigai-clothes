@@ -98,6 +98,7 @@
 @media (prefers-reduced-motion: reduce) {
   .animate-marquee {
     animation: none;
+    will-change: auto;
   }
 }
 
@@ -150,5 +151,20 @@
     font-weight: 600;
     letter-spacing: 0.02em;
     text-transform: uppercase;
+  }
+}
+
+/* Marquesina: pista de composicion para que el translateX no dispare
+   repaint en cada frame. */
+.animate-marquee {
+  will-change: transform;
+}
+
+/* La pausa al pasar el mouse solo tiene sentido con puntero fino. En touch
+   el estado hover emulado puede quedar pegado y dejar el texto congelado,
+   que es justo lo que pasaba en mobile. */
+@media (hover: hover) and (pointer: fine) {
+  .animate-marquee:hover {
+    animation-play-state: paused;
   }
 }
