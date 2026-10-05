@@ -70,9 +70,6 @@ export function Producto() {
 
   const { resenas, insertarResena } = useResenas(id ?? null)
 
-  // La galería principal se renderiza a media pantalla en desktop.
-  const srcsetGaleria = srcsetImagen(producto?.imagenes?.[imagenActiva], 600)
-
   // Metadatos por producto. El título y la descripción se calculan siempre
   // (también durante el loading) para que crawlers y previews no queden vacíos.
   const seo = useMemo(() => {
@@ -266,11 +263,13 @@ export function Producto() {
             {producto.imagenes[imagenActiva] && (
               /* Esta es la imagen LCP de la página: eager + fetchpriority high
                  para que el navegador la empiece a bajar apenas parsea el HTML,
-                 en vez de esperar a que entre en viewport. Las demás van lazy. */
+                 en vez de esperar a que entre en viewport. Las demás van lazy.
+                 Sin width/height ni srcSet a proposito: las dimensiones
+                 nativas mas un contain sin parametros de srcset dejan que el
+                 navegador libremente elija el recurso y la imagen entre
+                 completa en el marco, sin recortar. */
               <img
                 src={producto.imagenes[imagenActiva]}
-                srcSet={srcsetGaleria.srcset}
-                sizes={srcsetGaleria.sizes}
                 alt={
                   imagenActiva === 0
                     ? `${producto.nombre} de ${producto.categoria}, vista frontal`
@@ -279,34 +278,31 @@ export function Producto() {
                 loading={imagenActiva === 0 ? 'eager' : 'lazy'}
                 fetchPriority={imagenActiva === 0 ? 'high' : 'auto'}
                 decoding={imagenActiva === 0 ? 'sync' : 'async'}
-                width={600}
-                height={800}
-                className="max-w-full max-h-full w-auto h-auto object-contain p-2 md:p-4 select-none"
+                className="absolute inset-0 w-full h-full object-contain p-3 md:p-6 select-none"
               />
             )}
           </figure>
+
+          {/* Miniaturas */}
           {producto.imagenes.length > 1 && (
-            <div className="flex gap-2 mt-3">
+            <div className="flex gap-2 mt-3 overflow-x-auto pb-1">
               {producto.imagenes.map((img, i) => (
                 <button
                   key={i}
+                  type="button"
                   aria-label={`Ver foto ${i + 1} de ${producto.nombre}`}
                   aria-current={i === imagenActiva}
-                  className={`w-16 h-16 md:w-20 aspect-square bg-neutral-100 rounded-md overflow-hidden flex items-center justify-center border border-line ${
-                    i === imagenActiva ? 'border-neutral' : 'border-line'
+                  className={`relative w-16 h-16 md:w-20 md:h-20 shrink-0 bg-neutral-100 rounded-md overflow-hidden border transition-colors ${
+                    i === imagenActiva ? 'border-neutral ring-1 ring-neutral' : 'border-line hover:border-neutral/50'
                   }`}
                   onClick={() => setImagenActiva(i)}
                 >
                   <img
                     src={img}
-                    srcSet={srcsetImagen(img, 128).srcset}
-                    sizes={srcsetImagen(img, 128).sizes}
                     alt=""
                     loading="lazy"
                     decoding="async"
-                    width={64}
-                    height={64}
-                    className="max-w-full max-h-full object-contain p-1"
+                    className="absolute inset-0 w-full h-full object-contain p-1"
                   />
                 </button>
               ))}
