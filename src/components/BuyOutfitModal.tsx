@@ -8,6 +8,7 @@ import { formatearPrecio, precioConDescuento } from '../lib/precios'
 import { DESCUENTO_OUTFIT_PCT } from '../lib/outfits'
 import { ConflictModal } from './ConflictModal'
 import type { Colision } from '../lib/conflictos'
+import { tallesDisponibles } from '../lib/talles'
 
 interface Props {
   outfit: OutfitConItems | null
@@ -155,78 +156,73 @@ function OutfitModalContent({ outfit, onClose }: { outfit: OutfitConItems; onClo
         {outfit.descripcion && <p className="text-sm opacity-60 mt-1">{outfit.descripcion}</p>}
       </header>
 
-      {/* Lista con scroll propio */}
-      <ul className="flex-1 overflow-y-auto pr-1 my-3 flex flex-col gap-3 min-h-0">
-        {prendas.map((item, i) => {
-          const p = item.producto!
-          const variaciones = p.variaciones_stock ?? []
-          const precio = precioConDescuento(p.precio, p.discount_percent)
-          const descuento = Number(p.discount_percent) || 0
+      {/* Lista de prendas del Outfit */}
+      <div className="flex-1 overflow-y-auto space-y-3 pr-1 my-3 min-h-0 max-h-[50vh]">
+        {prendas.map((item) => {
+          const producto = item.producto!
+          // Selección de talle para este producto puntual
+          const talleActual = talles[producto.id] || ''
+          const opciones = tallesDisponibles(producto.variaciones_stock ?? [])
+          const precio = precioConDescuento(producto.precio, producto.discount_percent)
 
           return (
-            <li key={item.id} className="flex items-center gap-3 bg-neutral-100 rounded-xl p-3">
-              {/* min-w-* es lo que evita que el <Link> se estire o se
-                  aplaste: sin el, el flex lo comprime a una tira vertical
-                  cuando el nombre de la prenda es largo. */}
-              <Link
-                to={`/producto/${p.id}`}
-                onClick={onClose}
-                className="block shrink-0 flex-shrink-0 w-16 h-16 min-w-[64px] max-w-[64px] aspect-square bg-neutral-100 rounded-lg overflow-hidden"
-                aria-label={`Ver ${p.nombre}`}
-              >
+            <div
+              key={item.id}
+              className="flex items-center gap-3 bg-neutral-100/80 p-3 rounded-2xl"
+            >
+              {/* IMAGEN DE LA PRENDA: shrink-0 y w-16 h-16 obligatorios para evitar colapso */}
+              <div className="relative w-16 h-16 shrink-0 flex-shrink-0 max-w-[64px] aspect-square bg-white rounded-xl overflow-hidden flex items-center justify-center border border-line/50">
                 <img
-                  src={imagenProducto(p.imagenes[0], i)}
-                  srcSet={srcsetImagen(p.imagenes[0], 64).srcset}
-                  sizes={srcsetImagen(p.imagenes[0], 64).sizes}
-                  alt={`${p.nombre}, prenda del look ${outfit.nombre}`}
+                  src={imagenProducto(producto.imagenes[0], 0)}
+                  srcSet={srcsetImagen(producto.imagenes[0], 64).srcset}
+                  sizes={srcsetImagen(producto.imagenes[0], 64).sizes}
+                  alt={producto.nombre}
                   loading="lazy"
                   decoding="async"
                   width={64}
                   height={64}
-                  className="block w-full h-full object-contain p-1"
+                  className="w-full h-full object-contain p-1"
                 />
-              </Link>
+              </div>
 
-              <div className="flex-1 min-w-0">
-                <Link
-                  to={`/producto/${p.id}`}
-                  onClick={onClose}
-                  className="block text-sm font-bold uppercase text-base-content hover:text-primary transition-colors truncate"
-                >
-                  {p.nombre}
-                </Link>
-
-                <p className="text-sm text-base-content/80 mt-0.5">
-                  {descuento > 0 && (
-                    <span className="text-xs opacity-50 line-through mr-1">
-                      $ {formatearPrecio(p.precio)}
-                    </span>
-                  )}
-                  $ {formatearPrecio(precio)}
-                </p>
-
-                {variaciones.length > 0 ? (
-                  <select
-                    aria-label={`Talle de ${p.nombre}`}
-                    value={talles[p.id] ?? ''}
-                    onChange={(e) => setTalles((t) => ({ ...t, [p.id]: e.target.value }))}
-                    className="select select-sm select-bordered w-full mt-2 bg-base-100"
+              {/* DETALLE Y SELECTOR */}
+              <div className="flex-1 min-w-0 flex flex-col justify-between py-0.5">
+                <div>
+                  <Link
+                    to={`/producto/${producto.id}`}
+                    onClick={onClose}
+                    className="font-bold text-xs uppercase tracking-wide truncate block hover:text-primary transition-colors"
                   >
-                    {variaciones.map((v) => (
-                      <option key={v.id} value={v.talle} disabled={v.stock_disponible === 0}>
-                        {v.talle}
-                        {v.stock_disponible === 0 ? ' — sin stock' : ''}
+                    {producto.nombre}
+                  </Link>
+                  <p className="text-xs font-semibold opacity-70 mt-0.5 whitespace-nowrap">
+                    {`$${formatearPrecio(precio)}`}
+                  </p>
+                </div>
+
+                {/* Selector de talle estilo Dropdown */}
+                <div className="mt-2">
+                  <select
+                    aria-label={`Talle de ${producto.nombre}`}
+                    value={talleActual}
+                    onChange={(e) => setTalles((t) => ({ ...t, [producto.id]: e.target.value }))}
+                    className="select select-xs select-bordered w-full max-w-[140px] bg-white font-medium text-xs rounded-lg"
+                  >
+                    <option value="" disabled>
+                      Elegí talle
+                    </option>
+                    {opciones.map(({ talle, stock }) => (
+                      <option key={talle} value={talle} disabled={stock === 0}>
+                        {talle} {stock === 0 ? '(Agotado)' : ''}
                       </option>
                     ))}
                   </select>
-                ) : (
-                  <p className="text-xs opacity-50 mt-2">Talle único</p>
-                )}
+                </div>
               </div>
-            </li>
+            </div>
           )
         })}
-      </ul>
+      </div>
 
       {/* Footer fijo: el boton nunca queda fuera de pantalla */}
       <footer className="shrink-0 mt-auto flex flex-col gap-2 pt-4 border-t border-line">
