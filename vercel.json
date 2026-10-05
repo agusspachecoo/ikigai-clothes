@@ -1,5 +1,21 @@
 {
   "rewrites": [
     { "source": "/(.*)", "destination": "/index.html" }
+  ],
+  "redirects": [
+    {
+      "source": "/(.*)",
+      "destination": "https://ikigai-clothes.vercel.app/:path*",
+      "has": [
+        { "type": "header", "key": "host", "value": "ikigai-store-omega.vercel.app" }
+      ]
+    },
+    {
+      "source": "/(.*)",
+      "destination": "https://ikigai-clothes.vercel.app/:path*",
+      "has": [
+        { "type": "header", "key": "host", "value": "ikigai-store-pache3.vercel.app" }
+      ]
+    }
   ]
 }
