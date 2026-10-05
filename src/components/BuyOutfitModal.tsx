@@ -4,7 +4,8 @@ import type { OutfitConItems } from '../types/database'
 import { useCart } from '../context/cart'
 import { imagenOutfit, imagenProducto, srcsetImagen } from '../lib/imagenes'
 import { useCierreModal } from '../hooks/useCierreModal'
-import { precioConDescuento } from '../lib/precios'
+import { formatearPrecio, precioConDescuento } from '../lib/precios'
+import { DESCUENTO_OUTFIT_PCT } from '../lib/outfits'
 import { ConflictModal } from './ConflictModal'
 import type { Colision } from '../lib/conflictos'
 
@@ -19,10 +20,10 @@ export function BuyOutfitModal({ outfit, onClose }: Props) {
   if (!outfit) return null
 
   return (
-    <dialog className="modal modal-open" onClose={onClose}>
+    <dialog className="modal modal-open">
       <OutfitModalContent outfit={outfit} onClose={onClose} />
 
-      <form method="dialog" className="modal-backdrop">
+      <form method="dialog" className="modal-backdrop bg-neutral/70 backdrop-blur-sm">
         <button onClick={onClose}>cerrar</button>
       </form>
     </dialog>
@@ -73,6 +74,42 @@ function OutfitModalContent({ outfit, onClose }: { outfit: OutfitConItems; onClo
     )
   }
 
+  /**
+   * El outfit es un pack cerrado: se compra entero. Por eso el total se
+   * calcula sobre la suma de las prendas con el 5% de descuento aplicado,
+   * que es el mismo criterio que usa `calcularDescuentoOutfit` cuando el
+   * carrito arma el pedido. Así lo que se ve acá es lo que se cobra.
+   */
+  function resumen() {
+    let suma = 0
+    for (const item of outfit.outfit_items) {
+      const p = item.producto
+      if (!p) continue
+      suma += precioConDescuento(p.precio, p.discount_percent)
+    }
+    const total = Math.round(suma * (1 - DESCUENTO_OUTFIT_PCT) * 100) / 100
+    return { suma, total, ahorro: Math.round((suma - total) * 100) / 100 }
+  }
+
+  /**
+   * Cada prenda tiene que tener un talle con stock efectivamente elegido.
+   * Con `tallesIniciales` ya viene uno preseleccionado, pero si el usuario
+   * lo cambia por uno sin stock (o no hay variaciones) tiene que bloquear.
+   */
+  function talleValido(productoId: string) {
+    const item = outfit.outfit_items.find((i) => i.producto_id === productoId)
+    const variaciones = item?.producto?.variaciones_stock ?? []
+    if (variaciones.length === 0) return true
+    const elegido = talles[productoId]
+    if (!elegido) return false
+    const variacion = variaciones.find((v) => v.talle === elegido)
+    return !!variacion && variacion.stock_disponible > 0
+  }
+
+  const prendas = outfit.outfit_items.filter((item) => item.producto)
+  const completo = prendas.length > 0 && prendas.every((item) => talleValido(item.producto_id))
+  const { suma, total, ahorro } = resumen()
+
   function cerrarYMostrarCarrito() {
     setModalAbierto(false)
     setConflictos([])
@@ -81,6 +118,7 @@ function OutfitModalContent({ outfit, onClose }: { outfit: OutfitConItems; onClo
   }
 
   function agregarAlCarrito() {
+    if (!completo) return
     const resultado = intentarAgregarOutfit(
       outfit.id,
       outfit.nombre,
@@ -108,7 +146,7 @@ function OutfitModalContent({ outfit, onClose }: { outfit: OutfitConItems; onClo
   }
 
   return (
-    <div className="modal-box max-w-md p-0 overflow-hidden rounded-3xl">
+    <div className="modal-box max-w-md p-0 overflow-hidden rounded-3xl bg-base-100">
       {/* h-52 daba una caja apaisada (2.15:1) para una portada de outfit que
           es 9:16 vertical, asi que object-cover cortaba el look en una
           franja. aspect-[4/5] mantiene la proporcion de la prenda y el
@@ -118,7 +156,7 @@ function OutfitModalContent({ outfit, onClose }: { outfit: OutfitConItems; onClo
           src={imagenOutfit(outfit.imagen_portada, 0)}
           srcSet={srcsetPortada.srcset}
           sizes={srcsetPortada.sizes}
-          alt={`Look ${outfit.nombre}: ${outfit.outfit_items.length} prendas combinadas`}
+          alt={`Look ${outfit.nombre}: ${prendas.length} prendas combinadas`}
           loading="lazy"
           decoding="async"
           width={448}
@@ -128,31 +166,23 @@ function OutfitModalContent({ outfit, onClose }: { outfit: OutfitConItems; onClo
       </figure>
 
       <div className="p-6">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <h3 className="text-xl font-bold text-gray-900">{outfit.nombre}</h3>
-            <p className="text-primary font-bold text-2xl mt-1">
-              $ {outfit.precio_combo.toLocaleString('es-AR')}
-            </p>
-          </div>
-        </div>
+        <h3 className="text-xl font-bold text-base-content">{outfit.nombre}</h3>
 
-        {outfit.descripcion && <p className="text-sm opacity-60 mt-2 text-gray-700">{outfit.descripcion}</p>}
+        {outfit.descripcion && <p className="text-sm opacity-60 mt-1">{outfit.descripcion}</p>}
 
-        <ul className="space-y-4 mt-5">
-          {outfit.outfit_items.map((item, i) => {
-            const p = item.producto
-            if (!p) return null
+        <ul className="flex flex-col gap-3 mt-5">
+          {prendas.map((item, i) => {
+            const p = item.producto!
             const variaciones = p.variaciones_stock ?? []
             const precio = precioConDescuento(p.precio, p.discount_percent)
             const descuento = Number(p.discount_percent) || 0
 
             return (
-              <li key={item.id} className="flex gap-3 items-center">
+              <li key={item.id} className="flex items-center gap-3 bg-neutral-100 rounded-xl p-3">
                 <Link
                   to={`/producto/${p.id}`}
                   onClick={onClose}
-                  className="shrink-0 block"
+                  className="shrink-0 block w-16 h-16 bg-neutral-100 rounded-lg overflow-hidden"
                   aria-label={`Ver ${p.nombre}`}
                 >
                   <img
@@ -162,67 +192,88 @@ function OutfitModalContent({ outfit, onClose }: { outfit: OutfitConItems; onClo
                     alt={`${p.nombre}, prenda del look ${outfit.nombre}`}
                     loading="lazy"
                     decoding="async"
-                    width={56}
+                    width={64}
                     height={64}
-                    className="w-14 h-16 object-cover rounded-xl hover:opacity-80 transition-opacity"
+                    className="w-full h-full object-contain p-1"
                   />
                 </Link>
-                <div className="flex-1">
+
+                <div className="flex-1 min-w-0">
                   <Link
                     to={`/producto/${p.id}`}
                     onClick={onClose}
-                    className="text-sm font-semibold block text-gray-900 hover:text-primary hover:underline transition-colors"
+                    className="block text-sm font-bold uppercase text-base-content hover:text-primary transition-colors truncate"
                   >
                     {p.nombre}
                   </Link>
+
+                  <p className="text-sm text-base-content/80 mt-0.5">
+                    {descuento > 0 && (
+                      <span className="text-xs opacity-50 line-through mr-1">
+                        {formatearPrecio(p.precio)}
+                      </span>
+                    )}
+                    {formatearPrecio(precio)}
+                  </p>
+
                   {variaciones.length > 0 ? (
-                    <div className="flex flex-wrap gap-1 mt-1.5">
+                    <select
+                      aria-label={`Talle de ${p.nombre}`}
+                      value={talles[p.id] ?? ''}
+                      onChange={(e) => setTalles((t) => ({ ...t, [p.id]: e.target.value }))}
+                      className="select select-sm select-bordered w-full mt-2 bg-base-100"
+                    >
                       {variaciones.map((v) => (
-                        <button
-                          key={v.id}
-                          disabled={v.stock_disponible === 0}
-                          onClick={() => setTalles((t) => ({ ...t, [p.id]: v.talle }))}
-                          className={`btn btn-xs min-w-10 px-3 border-2 rounded-lg font-semibold cursor-pointer ${
-                            talles[p.id] === v.talle
-                              ? 'btn-primary border-transparent'
-                              : 'bg-base-100 border-base-300 text-gray-900 hover:border-primary hover:text-primary'
-                          } ${
-                            v.stock_disponible === 0
-                              ? 'opacity-30 pointer-events-none'
-                              : ''
-                          }`}
-                        >
+                        <option key={v.id} value={v.talle} disabled={v.stock_disponible === 0}>
                           {v.talle}
-                        </button>
+                          {v.stock_disponible === 0 ? ' — sin stock' : ''}
+                        </option>
                       ))}
-                    </div>
+                    </select>
                   ) : (
-                    <p className="text-xs opacity-50 mt-1.5 text-gray-700">Talle único</p>
+                    <p className="text-xs opacity-50 mt-2">Talle único</p>
                   )}
                 </div>
-                <p className="text-sm font-bold whitespace-nowrap text-gray-900">
-                  {descuento > 0 && (
-                    <span className="text-xs font-medium opacity-50 line-through mr-1">
-                      $ {p.precio.toLocaleString('es-AR')}
-                    </span>
-                  )}
-                  $ {precio.toLocaleString('es-AR')}
-                </p>
               </li>
             )
           })}
         </ul>
 
+        {/* Pack cerrado: sin checkboxes, todas las prendas van juntas. */}
+        <div className="flex flex-col gap-2 mt-5 pt-4 border-t border-line">
+          <div className="flex items-center justify-between">
+            <span className="badge badge-success font-bold uppercase tracking-wider">
+              -{DESCUENTO_OUTFIT_PCT * 100}% OFF COMBO
+            </span>
+            <span className="text-xs opacity-60">Pack completo · {prendas.length} prendas</span>
+          </div>
+
+          <div className="flex items-baseline gap-2">
+            <span className="text-2xl font-bold text-base-content">{formatearPrecio(total)}</span>
+            <span className="text-sm opacity-50 line-through">{formatearPrecio(suma)}</span>
+            <span className="text-xs text-success font-medium">Ahorrás {formatearPrecio(ahorro)}</span>
+          </div>
+        </div>
+
         <button
+          type="button"
           onClick={agregarAlCarrito}
-          className="btn w-full bg-black text-white hover:bg-neutral-800 border-0 rounded-xl font-bold mt-6 cursor-pointer transition-colors"
+          disabled={!completo}
+          className="btn w-full bg-black text-white hover:bg-neutral-800 border-0 rounded-xl font-bold uppercase tracking-widest mt-4 disabled:opacity-40 disabled:bg-neutral transition-colors"
         >
           <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
             <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007z" />
           </svg>
-          Agregar todo el look
+          Agregar outfit al carrito
         </button>
+
+        {!completo && (
+          <p className="text-xs text-error text-center mt-2" role="alert">
+            Elegí un talle con stock para cada prenda del outfit.
+          </p>
+        )}
       </div>
+
       {modalAbierto && (
         <ConflictModal
           abierto={modalAbierto}
