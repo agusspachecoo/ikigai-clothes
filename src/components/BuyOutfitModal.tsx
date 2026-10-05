@@ -171,7 +171,7 @@ function OutfitModalContent({ outfit, onClose }: { outfit: OutfitConItems; onClo
               <Link
                 to={`/producto/${p.id}`}
                 onClick={onClose}
-                className="shrink-0 block w-16 h-16 min-w-[64px] bg-neutral-100 rounded-lg overflow-hidden"
+                className="block shrink-0 flex-shrink-0 w-16 h-16 min-w-[64px] max-w-[64px] aspect-square bg-neutral-100 rounded-lg overflow-hidden"
                 aria-label={`Ver ${p.nombre}`}
               >
                 <img
@@ -183,7 +183,7 @@ function OutfitModalContent({ outfit, onClose }: { outfit: OutfitConItems; onClo
                   decoding="async"
                   width={64}
                   height={64}
-                  className="w-full h-full object-contain p-1"
+                  className="block w-full h-full object-contain p-1"
                 />
               </Link>
 
@@ -199,10 +199,10 @@ function OutfitModalContent({ outfit, onClose }: { outfit: OutfitConItems; onClo
                 <p className="text-sm text-base-content/80 mt-0.5">
                   {descuento > 0 && (
                     <span className="text-xs opacity-50 line-through mr-1">
-                      {formatearPrecio(p.precio)}
+                      $ {formatearPrecio(p.precio)}
                     </span>
                   )}
-                  {formatearPrecio(precio)}
+                  $ {formatearPrecio(precio)}
                 </p>
 
                 {variaciones.length > 0 ? (
@@ -238,9 +238,9 @@ function OutfitModalContent({ outfit, onClose }: { outfit: OutfitConItems; onClo
         </div>
 
         <div className="flex items-baseline gap-2">
-          <span className="text-2xl font-bold text-base-content">{formatearPrecio(total)}</span>
-          <span className="text-sm opacity-50 line-through">{formatearPrecio(suma)}</span>
-          <span className="text-xs text-success font-medium">Ahorrás {formatearPrecio(ahorro)}</span>
+          <span className="text-2xl font-bold text-base-content whitespace-nowrap">$ {formatearPrecio(total)}</span>
+          <span className="text-sm opacity-50 line-through whitespace-nowrap">$ {formatearPrecio(suma)}</span>
+          <span className="text-xs text-success font-medium whitespace-nowrap">Ahorrás $ {formatearPrecio(ahorro)}</span>
         </div>
 
         <button
