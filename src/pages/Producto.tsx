@@ -281,7 +281,7 @@ export function Producto() {
                 decoding={imagenActiva === 0 ? 'sync' : 'async'}
                 width={600}
                 height={800}
-                className="w-full h-full object-cover"
+                className="w-full h-full object-contain object-center"
               />
             )}
           </figure>
@@ -306,7 +306,7 @@ export function Producto() {
                     decoding="async"
                     width={64}
                     height={64}
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-contain object-center"
                   />
                 </button>
               ))}

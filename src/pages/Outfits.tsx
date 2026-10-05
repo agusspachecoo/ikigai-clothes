@@ -51,7 +51,7 @@ export function Outfits() {
                     decoding="async"
                     width={420}
                     height={747}
-                    className="w-full h-full object-cover object-center"
+                    className="w-full h-full object-contain object-center"
                   />
                 </button>
                 <span className="absolute top-3 left-3 z-10 px-2.5 py-1 text-xs font-bold bg-base-100 text-success rounded-full shadow-sm border border-success/20">

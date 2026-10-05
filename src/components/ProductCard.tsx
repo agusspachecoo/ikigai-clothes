@@ -105,7 +105,11 @@ export function ProductCard({
               decoding="async"
               width={320}
               height={400}
-              className="w-full h-full object-cover"
+              /* object-contain, no object-cover: con cover la prenda se
+                 recortaba y se veía una versión "zoomada" sin el cuerpo entero.
+                 contain la muestra completa y deja el fondo del contenedor
+                 (bg-base-200) como marge. */
+              className="w-full h-full object-contain object-center"
             />
           )}
           {producto.imagenes[1] && (
@@ -121,7 +125,7 @@ export function ProductCard({
               decoding="async"
               width={320}
               height={400}
-              className="absolute inset-0 w-full h-full object-cover opacity-0 group-hover:opacity-100 transition-opacity duration-500"
+              className="absolute inset-0 w-full h-full object-contain object-center opacity-0 group-hover:opacity-100 transition-opacity duration-500"
             />
           )}
 
