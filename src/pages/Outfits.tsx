@@ -36,7 +36,7 @@ export function Outfits() {
               key={o.id}
               className="card bg-base-100 border border-line shadow-none overflow-hidden pt-3 px-3"
             >
-              <figure className="relative w-full aspect-video rounded-2xl overflow-hidden bg-neutral-100 cursor-pointer">
+              <figure className="relative w-full aspect-[9/16] rounded-2xl overflow-hidden bg-neutral-100 cursor-pointer">
                 <button
                   onClick={() => setOutfitSeleccionado(o)}
                   aria-label={`Ver detalle del look ${o.nombre}`}
@@ -50,7 +50,7 @@ export function Outfits() {
                     loading="lazy"
                     decoding="async"
                     width={420}
-                    height={236}
+                    height={747}
                     className="w-full h-full object-cover object-[center_20%]"
                   />
                 </button>

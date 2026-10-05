@@ -46,7 +46,7 @@ export function OutfitCarousel({ outfits }: Props) {
                   <button
                     onClick={() => setOutfitSeleccionado(o)}
                     aria-label={`Ver detalle del look ${o.nombre}`}
-                    className="relative block w-full aspect-video rounded-2xl overflow-hidden bg-neutral-100 cursor-pointer group focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
+                    className="relative block w-full aspect-[9/16] rounded-2xl overflow-hidden bg-neutral-100 cursor-pointer group focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
                   >
                     <img
                       src={imagenOutfit(o.imagen_portada, i)}
@@ -57,7 +57,7 @@ export function OutfitCarousel({ outfits }: Props) {
                       loading="lazy"
                       decoding="async"
                       width={280}
-                      height={158}
+                      height={498}
                       onError={(e) => {
                         const img = e.currentTarget
                         if (!img.dataset.fallback) {
