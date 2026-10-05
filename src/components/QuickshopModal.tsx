@@ -97,7 +97,7 @@ export function QuickshopModal({
           ✕
         </button>
         <div className="grid sm:grid-cols-2">
-          <figure className="hidden sm:block aspect-[3/4] flex items-center justify-center overflow-hidden rounded-tl-lg rounded-bl-lg">
+          <figure className="hidden sm:block aspect-[5/6] flex items-center justify-center overflow-hidden rounded-tl-lg rounded-bl-lg">
             {producto.imagenes[0] && (
               <img
                 src={imagenProducto(producto.imagenes[0], 0)}

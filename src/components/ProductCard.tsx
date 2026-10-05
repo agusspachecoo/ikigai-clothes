@@ -83,7 +83,7 @@ export function ProductCard({
     <div className="group flex flex-col bg-base-100 border border-line">
       {/* Imágenes */}
       <Link to={`/producto/${producto.id}`} className="block relative bg-white rounded-t-lg">
-        <figure className="relative aspect-[3/4] flex items-center justify-center overflow-hidden rounded-t-lg">
+        <figure className="relative aspect-[5/6] flex items-center justify-center overflow-hidden rounded-t-lg">
           {descuento > 0 && (
             <span className="absolute top-2 left-2 z-10 bg-oferta text-white text-[10px] font-semibold uppercase tracking-widest px-2 py-1">
               -{descuento}%
