@@ -15,7 +15,7 @@ export async function getCategoriasAdmin() {
   return { data: (data ?? []) as Categoria[], error: error?.message ?? null }
 }
 
-export async function crearCategoria(nombre: string) {
+export async function crearCategoria(nombre: string, imagenUrl: string | null = null) {
   const base = slugify(nombre) || 'categoria'
 
   const { data } = await supabase.from('categorias').select('slug')
@@ -25,7 +25,24 @@ export async function crearCategoria(nombre: string) {
   let sufijo = 2
   while (usados.has(slug)) slug = `${base}-${sufijo++}`
 
-  const { error } = await supabase.from('categorias').insert([{ nombre, slug }])
+  const { error } = await supabase
+    .from('categorias')
+    .insert([{ nombre, slug, imagen_url: imagenUrl || null }])
+  return { error: error?.message ?? null }
+}
+
+/** Actualiza nombre e imagen representativa de una categoría. */
+export async function actualizarCategoria(
+  id: string,
+  datos: { nombre?: string; imagen_url?: string | null },
+) {
+  const payload: Record<string, unknown> = {}
+  if (datos.nombre !== undefined) payload.nombre = datos.nombre
+  if (datos.imagen_url !== undefined) payload.imagen_url = datos.imagen_url || null
+
+  if (Object.keys(payload).length === 0) return { error: null }
+
+  const { error } = await supabase.from('categorias').update(payload).eq('id', id)
   return { error: error?.message ?? null }
 }
 
@@ -40,7 +57,60 @@ export async function eliminarCategoria(id: string) {
 
 export const BUCKET_IMAGENES = 'product-images'
 
-export async function subirImagen(file: File, carpeta: 'productos' | 'outfits' | 'reviews' | 'comunidad' = 'productos') {
+export type CarpetaImagen =
+  | 'productos'
+  | 'outfits'
+  | 'reviews'
+  | 'comunidad'
+  | 'showroom'
+  | 'categorias'
+  | 'banners'
+
+/** Convierte una URL pública de imágenes a su path en Storage. */
+function pathDeImagen(valor: string): string | null {
+  const base = `${BUCKET_IMAGENES}/`
+  if (valor.startsWith(base)) return valor
+
+  try {
+    const url = new URL(valor)
+    const idx = url.pathname.indexOf(`/object/public/${base}`)
+    if (idx !== -1) return decodeURIComponent(url.pathname.slice(idx + `/object/public/`.length))
+  } catch {
+    return null
+  }
+  return null
+}
+
+/**
+ * Borra una imagen de `product-images` a partir de su URL pública.
+ *
+ * Pensado para llamarse DESPUÉS de que la fila ya apunta a la nueva imagen. Si
+ * se borra antes de guardar y el guardado falla (o el usuario cancela el
+ * modal), la fila queda apuntando a un archivo que ya no existe.
+ */
+export async function eliminarImagen(url: string | null | undefined) {
+  const path = url ? pathDeImagen(url) : null
+  // `pathDeImagen` devuelve null si la URL no es de este bucket: no se toca nada.
+  if (!path) return { error: null }
+
+  const { error } = await supabase.storage.from(BUCKET_IMAGENES).remove([path])
+  return { error: error?.message ?? null }
+}
+
+/**
+ * Sube una imagen ya comprimida.
+ *
+ * Esta función NO borra nada. Las imágenes viejas se limpian con
+ * `eliminarImagen()`, y solo recién después de que la fila en la base ya apunte
+ * a la nueva. Encadenar el borrado acá parecía más cómodo pero rompe los
+ * formularios: con un modal de edición, subir una foto y cancelar dejaba la
+ * fila apuntando a un archivo que ya se había borrado.
+ *
+ * Antes esta función tenía un `borrarAnterior` que purgaba la carpeta entera.
+ * Con `categorias` eso significaba que subir la foto de "Buzos" borraba la de
+ * "Remeras", porque todas comparten carpeta. No volver a un borrado por carpeta.
+ */
+export async function subirImagen(file: File, carpeta: CarpetaImagen = 'productos') {
   const ext = file.type === 'image/jpeg' ? 'jpg' : 'webp'
   const nombre = `${carpeta}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`
 
@@ -84,6 +154,7 @@ export interface ProductoInput {
   imagenes: string[]
   activo: boolean
   talles: TalleInput[]
+  sku?: string | null
 }
 
 export async function guardarProducto(input: ProductoInput) {
@@ -96,6 +167,9 @@ export async function guardarProducto(input: ProductoInput) {
     discount_percent: input.discount_percent,
     imagenes: input.imagenes.filter(Boolean),
     activo: input.activo,
+    // Vacío o solo espacios se guarda como NULL: el índice único ignora los
+    // NULL, así que varios productos pueden quedarse sin SKU.
+    sku: input.sku?.trim() || null,
   }
 
   let productoId = input.id ?? ''
@@ -234,18 +308,37 @@ export async function getOrdenesAdmin() {
 }
 
 export async function actualizarEstadoOrden(id: string, estado: EstadoOrden) {
-  // Al marcarla como pagada, también se confirma el pago (transfereĸncia) y se
-  // descuenta el stock. El webhook de Mercado Pago ya hace esto para MP, así que
-  // aquí debemos replicarlo para las transferencias marcadas manualmente.
-  const update: Record<string, unknown> = {}
-  if (estado === 'pagado') {
-    update.estado_pago = 'pagado'
-    const { error: errStock } = await supabase.rpc('descontar_stock', { p_orden_id: id })
-    if (errStock) return { error: errStock.message }
+  // Al marcarla como pagada, el descuento de stock y el consumo del cupón
+  // se ejecutan en la Edge Function `admin-estado-orden` (con service_role).
+  // Esto evita revocar EXECUTE sobre descontar_stock() al navegador.
+  try {
+    const { data: { session } } = await supabase.auth.getSession()
+    const token = session?.access_token
+    if (!token) return { error: 'Sesión de administrador no válida.' }
+
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+    const res = await fetch(`${supabaseUrl}/functions/v1/admin-estado-orden`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
+      },
+      body: JSON.stringify({ orden_id: id, estado }),
+    })
+
+    const payload = await res.json().catch(() => ({} as unknown))
+
+    if (!res.ok || !(payload as { ok?: boolean }).ok) {
+      const err = (payload as { error?: string })?.error ?? 'No se pudo actualizar el pedido.'
+      return { error: err }
+    }
+
+    return { error: null }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Error inesperado al actualizar el pedido.'
+    return { error: msg }
   }
-  update.estado = estado
-  const { error } = await supabase.from('ordenes').update(update).eq('id', id)
-  return { error: error?.message ?? null }
 }
 
 export async function actualizarComprobanteOrden(id: string, comprobanteUrl: string) {
@@ -270,8 +363,43 @@ export async function subirComprobante(file: File, ordenId: string) {
 
   if (error) return { url: null, error: error.message }
 
-  const { data } = supabase.storage.from(BUCKET_COMPROBANTES).getPublicUrl(nombre)
-  return { url: data.publicUrl, error: null }
+  // El bucket es privado (migración 022): se guarda el path, no una URL pública.
+  // Ver `comprobanteFirmado()` para abrirlo.
+  return { url: nombre, error: null }
+}
+
+const EXPIRACION_COMPROBANTE_SEG = 300
+
+/** Acepta un path (`comprobantes/x.png`) o una URL pública legacy. */
+function pathDeComprobante(valor: string): string {
+  const base = `${BUCKET_COMPROBANTES}/`
+  if (valor.startsWith(base)) return valor
+
+  try {
+    const url = new URL(valor)
+    const idx = url.pathname.indexOf(`/object/public/${base}`)
+    if (idx !== -1) return decodeURIComponent(url.pathname.slice(idx + `/object/public/`.length))
+  } catch {
+    return valor
+  }
+  return valor
+}
+
+/**
+ * Genera una signed URL corta para ver el comprobante. El bucket es privado y
+ * la lectura la exige `es_admin()`, así que solo el panel puede obtenerla.
+ */
+export async function comprobanteFirmado(
+  valor: string | null | undefined,
+): Promise<{ url: string | null; error: string | null }> {
+  if (!valor) return { url: null, error: 'La orden no tiene comprobante' }
+
+  const { data, error } = await supabase.storage
+    .from(BUCKET_COMPROBANTES)
+    .createSignedUrl(pathDeComprobante(valor), EXPIRACION_COMPROBANTE_SEG)
+
+  if (error) return { url: null, error: error.message }
+  return { url: data.signedUrl, error: null }
 }
 
 // ============================================
@@ -349,6 +477,8 @@ export async function eliminarComunidadFoto(id: string) {
 
 export interface BannerInput {
   imagen_url: string
+  /** Versión vertical para mobile. Si queda vacía se usa imagen_url. */
+  imagen_mobile?: string | null
   titulo?: string | null
   link_url?: string | null
 }
@@ -379,6 +509,7 @@ export async function guardarBanners(items: BannerInput[]) {
 
   const rows = limpios.map((item, orden) => ({
     imagen_url: item.imagen_url.trim(),
+    imagen_mobile: item.imagen_mobile?.trim() || null,
     titulo: item.titulo?.trim() || null,
     link_url: item.link_url?.trim() || null,
     orden,

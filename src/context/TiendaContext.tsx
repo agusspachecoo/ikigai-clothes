@@ -13,6 +13,7 @@ const CLAVES = [
   'email_contacto',
   'instagram',
   'nombre_tienda',
+  'imagen_showroom',
 ] as const
 
 function numero(valor: string | null | undefined, porDefecto: number) {
@@ -60,6 +61,7 @@ export function TiendaProvider({ children }: { children: ReactNode }) {
         email_contacto: valores.email_contacto ?? CONFIG_POR_DEFECTO.email_contacto,
         instagram: valores.instagram ?? CONFIG_POR_DEFECTO.instagram,
         nombre_tienda: valores.nombre_tienda ?? CONFIG_POR_DEFECTO.nombre_tienda,
+        imagen_showroom: valores.imagen_showroom ?? CONFIG_POR_DEFECTO.imagen_showroom,
       })
     }
 

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import {
   getOutfitsAdmin,
   guardarOutfit,
@@ -9,8 +9,12 @@ import {
 } from '../../lib/adminApi'
 import { ImageUploader } from '../../components/ImageUploader'
 import { imagenOutfit, imagenProducto } from '../../lib/imagenes'
+import { formatearPrecio, precioConDescuento } from '../../lib/precios'
 import { useCierreModal } from '../../hooks/useCierreModal'
 import type { OutfitConItems, ProductoConStock } from '../../types/database'
+
+/** Descuento por defecto que se sugiere sobre la suma de las prendas. */
+const DESCUENTO_SUGERIDO = 0.05
 
 interface EstadoModal {
   abierto: boolean
@@ -95,7 +99,11 @@ export function OutfitsAdmin() {
               <figure className="aspect-[3/4] bg-base-300">
                 <img
                   src={imagenOutfit(o.imagen_portada, i)}
-                  alt={o.nombre}
+                  alt={`Portada del look ${o.nombre}`}
+                  loading="lazy"
+                  decoding="async"
+                  width={300}
+                  height={400}
                   className="w-full h-full object-cover"
                 />
               </figure>
@@ -173,13 +181,36 @@ function OutfitFormModal({ outfit, productos, onCerrar, onGuardado }: FormProps)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
   useCierreModal(true, onCerrar)
 
+  /** Suma de los precios de venta (con descuento aplicado) de las prendas elegidas. */
+  const subtotal = useMemo(() => {
+    const porId = new Map(productos.map((p) => [p.id, p]))
+    return form.producto_ids.reduce((acc, id) => {
+      const p = porId.get(id)
+      return p ? acc + precioConDescuento(p.precio, p.discount_percent) : acc
+    }, 0)
+  }, [form.producto_ids, productos])
+
+  const precioSugerido = Math.round(subtotal * (1 - DESCUENTO_SUGERIDO))
+  const precioManual = form.producto_ids.length > 0 && form.precio_combo !== precioSugerido
+
   function toggleProducto(id: string) {
-    setForm((f) => ({
-      ...f,
-      producto_ids: f.producto_ids.includes(id)
+    setForm((f) => {
+      const producto_ids = f.producto_ids.includes(id)
         ? f.producto_ids.filter((x) => x !== id)
-        : [...f.producto_ids, id],
-    }))
+        : [...f.producto_ids, id]
+      // Recalculamos el sugerido sobre la nueva selección y lo autocompletamos,
+      // pero el input sigue siendo editable para fijar otro monto a mano.
+      const porId = new Map(productos.map((p) => [p.id, p]))
+      const suma = producto_ids.reduce((acc, pid) => {
+        const p = porId.get(pid)
+        return p ? acc + precioConDescuento(p.precio, p.discount_percent) : acc
+      }, 0)
+      return {
+        ...f,
+        producto_ids,
+        precio_combo: producto_ids.length === 0 ? 0 : Math.round(suma * (1 - DESCUENTO_SUGERIDO)),
+      }
+    })
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -231,18 +262,35 @@ function OutfitFormModal({ outfit, productos, onCerrar, onGuardado }: FormProps)
               />
             </label>
 
-            <label className="floating-label">
-              <span>Precio del combo ($)</span>
-              <input
-                type="number"
-                min="0"
-                step="0.01"
-                className="input input-bordered w-full"
-                value={form.precio_combo}
-                onChange={(e) => setForm({ ...form, precio_combo: Number(e.target.value) })}
-                required
-              />
-            </label>
+            <div>
+              <label className="floating-label">
+                <span>Precio del combo ($)</span>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  className="input input-bordered w-full"
+                  value={form.precio_combo}
+                  onChange={(e) => setForm({ ...form, precio_combo: Number(e.target.value) })}
+                  required
+                />
+              </label>
+              {form.producto_ids.length > 0 && (
+                <div className="mt-2 space-y-1">
+                  <p className="text-xs opacity-60">
+                    Suma de prendas: ${formatearPrecio(subtotal)}
+                  </p>
+                  <p className="text-xs opacity-60">
+                    Precio sugerido (-5% OFF): ${formatearPrecio(precioSugerido)}
+                  </p>
+                  {precioManual && (
+                    <p className="text-xs text-warning">
+                      Precio modificado a mano. Se autocompleta solo al agregar o quitar prendas.
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
 
           <label className="floating-label">
@@ -294,13 +342,17 @@ function OutfitFormModal({ outfit, productos, onCerrar, onGuardado }: FormProps)
                     >
                       <img
                         src={imagenProducto(p.imagenes[0], i)}
-                        alt=""
+                        alt={`Foto de ${p.nombre}`}
+                        loading="lazy"
+                        decoding="async"
+                        width={40}
+                        height={48}
                         className="w-10 h-12 object-cover rounded-lg bg-base-300 shrink-0"
                       />
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium truncate">{p.nombre}</p>
                         <p className="text-xs opacity-50">
-                          {p.categoria} · ${Number(p.precio).toLocaleString('es-AR')}
+                          {p.categoria} · ${formatearPrecio(precioConDescuento(p.precio, p.discount_percent))}
                         </p>
                       </div>
                       <input

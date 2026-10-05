@@ -9,8 +9,11 @@ import { ProductCard } from '../components/ProductCard'
 import { PanelFiltros } from '../components/PanelFiltros'
 import { FILTROS_INICIALES, tallesDelCatalogo, type EstadoFiltros } from '../lib/filtros'
 import { Breadcrumbs } from '../components/Breadcrumbs'
+import { useSeo } from '../hooks/useSeo'
 
 export function Catalogo() {
+  useSeo()
+
   const [searchParams] = useSearchParams()
   const inicial = searchParams.get('buscar') ?? ''
   const [ultimoParam, setUltimoParam] = useState(inicial)
@@ -124,12 +127,15 @@ export function Catalogo() {
         ))}
       </div>
 
-      {/* Orden + filtros mobile */}
-      <div className="flex items-center gap-3 border-y border-line py-3 mb-6">
-        <div className="relative">
+      {/* Orden + filtros mobile.
+          Por debajo de 380px los tres controles en una fila no entran: el select
+          con "Precio: menor a mayor" + botón Filtrar + input de 160px se pasaban
+          del viewport y generaban scroll horizontal en toda la página. */}
+      <div className="flex flex-wrap items-center gap-3 border-y border-line py-3 mb-6">
+        <div className="relative min-w-0">
           <select
             aria-label="Ordenar productos"
-            className="select select-sm rounded-none"
+            className="select select-sm rounded-none max-w-full"
             value={filtros.orden}
             onChange={(e) =>
               setFiltros({ ...filtros, orden: e.target.value as EstadoFiltros['orden'] })
@@ -146,16 +152,17 @@ export function Catalogo() {
         <button
           type="button"
           onClick={() => setPanelAbierto(true)}
-          className="btn btn-sm btn-outline rounded-none lg:hidden"
+          className="btn btn-sm btn-outline rounded-none lg:hidden shrink-0"
         >
           Filtrar
         </button>
 
-        <form onSubmit={handleSearch} className="ml-auto">
+        <form onSubmit={handleSearch} className="w-full min-w-0 sm:w-auto sm:ml-auto">
           <input
             type="search"
-            className="input input-sm rounded-none w-40 sm:w-56"
+            className="input input-sm rounded-none w-full sm:w-56"
             placeholder="Buscar..."
+            aria-label="Buscar productos"
             value={buscar}
             onChange={(e) => setBuscar(e.target.value)}
           />

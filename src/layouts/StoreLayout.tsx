@@ -5,10 +5,13 @@ import { AuthModal } from '../components/AuthModal'
 import { SocialLinks } from '../components/SocialLinks'
 import { NewsletterForm } from '../components/NewsletterForm'
 import { WhatsAppButton } from '../components/WhatsAppButton'
+import { BannerCookies } from '../components/BannerCookies'
+import { Analytics } from '../components/Analytics'
+import { abrirPreferenciasCookies } from '../lib/consentimiento'
 import { useAuth } from '../context/auth'
 import { TiendaProvider } from '../context/TiendaContext'
 import { useTienda } from '../context/tienda'
-import { CONTACTO, WHATSAPP_URL } from '../lib/contacto'
+import { CONTACTO, SHOWROOM, WHATSAPP_URL } from '../lib/contacto'
 import logoDark from '../assets/logo-transparent.png'
 
 const WELCOME_FLAG = 'ikigai-auth-welcome-visto'
@@ -28,11 +31,13 @@ const PIE_ITEMS = [
 ]
 
 const LEGALES = [
+  { label: 'Términos y Condiciones', to: '/terminos-y-condiciones' },
+  { label: 'Política de Privacidad', to: '/politica-de-privacidad' },
+  { label: 'Botón de arrepentimiento', to: '/contacto?arrepentimiento=1' },
   {
     label: 'Defensa de los consumidores',
     href: 'https://www.argentina.gob.ar/producucion/defensadelconsumidor/formulario',
   },
-  { label: 'Botón de arrepentimiento', to: '/contacto?arrepentimiento=1' },
 ]
 
 function Footer() {
@@ -44,8 +49,16 @@ function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 py-10">
           {/* Newsletter */}
           <div>
-            <img src={logoDark} alt="Ikigai Clothes" className="h-12 w-auto" />
-            <h3 className="mt-4 text-base">Suscribite a nuestro newsletter</h3>
+            <img
+              src={logoDark}
+              alt="Ikigai Clothes"
+              loading="lazy"
+              decoding="async"
+              width={500}
+              height={500}
+              className="h-12 w-auto"
+            />
+            <h3 className="mt-4 text-base">Suscribite a la comunidad</h3>
             <p className="text-xs opacity-60 mt-1 mb-3 max-w-xs">
               Enterate de los drops, las ofertas y las liquidaciones antes que nadie.
             </p>
@@ -86,6 +99,10 @@ function Footer() {
                   {CONTACTO.email}
                 </a>
               </li>
+              {/* NAP: la dirección legal tiene que estar en el footer, no solo
+                  en la sección de showroom, para el SEO local. */}
+              <li className="opacity-70">{SHOWROOM.direccion}, Argentina</li>
+              <li className="opacity-70">{SHOWROOM.horario}</li>
             </ul>
             <div className="mt-6 flex flex-wrap gap-2">
               {['Mercado Pago', 'Transferencia', '6 cuotas s/interés'].map((m) => (
@@ -102,6 +119,15 @@ function Footer() {
             &copy; {new Date().getFullYear()} {nombre_tienda}. Todos los derechos reservados.
           </p>
           <ul className="flex flex-wrap gap-4">
+            <li>
+              <button
+                type="button"
+                onClick={abrirPreferenciasCookies}
+                className="link link-hover"
+              >
+                Preferencias de cookies
+              </button>
+            </li>
             {LEGALES.map((l) => (
               <li key={l.label}>
                 {l.to ? (
@@ -149,9 +175,13 @@ export function StoreLayout() {
 
         <AuthModal />
 
+        {/* Analytics va después del banner: si el usuario ya había aceptado en
+            una visita anterior, el tag carga de entrada. */}
+        {!esAdmin && <Analytics />}
         {!esAdmin && <WhatsAppButton />}
 
         <Footer />
+        {!esAdmin && <BannerCookies />}
       </div>
     </TiendaProvider>
   )

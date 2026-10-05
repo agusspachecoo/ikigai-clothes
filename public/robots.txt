@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+
+# El panel interno y las áreas de cliente no tienen nada que indexar.
+Disallow: /admin
+Disallow: /perfil
+Disallow: /checkout
+
+Sitemap: https://ikigai-clothes.vercel.app/sitemap.xml

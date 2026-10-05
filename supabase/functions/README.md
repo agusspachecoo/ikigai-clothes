@@ -5,7 +5,8 @@ Funciones para el pago con **Mercado Pago** (Checkout Pro) + webhook/IPN.
 ## Funciones
 | Función | Descripción |
 | --- | --- |
-| `create-preference` | Crea la preferencia de pago en Mercado Pago con los ítems del carrito y los datos del cliente. Devuelve `preference_id` e `init_point`. |
+| `crear-orden` | **Única vía para crear una orden.** Recalcula en el servidor el subtotal (leyendo `productos`), el descuento por transferencia y el envío gratis (desde `config_tienda`) y el cupón, e inserta `ordenes` + `orden_items` con `service_role`. El cliente NO envía `monto_total` ni descuentos: se ignoran. Devuelve el desglose real (`monto_total`, `subtotal`, `descuento_transferencia`, `descuento_cupon`, `costo_envio`, `envio_gratis`). |
+| `create-preference` | Crea la preferencia de pago en Mercado Pago. Ignora el `precio_unitario` del cliente y relee los precios de `productos`; el costo de envío lo toma de `ordenes.costo_envio` (ya validado por `crear-orden`), no del body. Rechaza órdenes cuyo `metodo_pago` no sea `mercadopago`. Devuelve `preference_id` e `init_point`. |
 | `mercadopago-webhook` | Recibe las notificaciones (IPN) de Mercado Pago, consulta el estado real del pago, actualiza la orden en Supabase a `pagado` y **descuenta el stock** de las prendas del pedido. |
 | `zippin-envio` | Cotiza el envío de un pedido contra Zipnova (ex Zippin). Recibe un código postal destino y los ítems del carrito, y devuelve las opciones de transporte disponibles (Andreani, Correo Argentino, etc.) con costo y tiempo estimado. |
 | `enviopack-envio` | Cotiza el envío contra la API de EnvíoPack (`GET /cotizar/costo`) y devuelve los carriers disponibles normalizados con el mismo formato que el frontend espera. |
@@ -197,10 +198,61 @@ Aplicá en el SQL Editor de Supabase:
 - `supabase/migrations/004_mercadopago.sql` — agrega a `ordenes`: `mp_preference_id`, `mp_payment_id`, `mp_pago_detalle` y `updated_at`.
 - `supabase/migrations/005_webhook_stock.sql` — agrega `stock_descontado` y la función `descontar_stock(p_orden_id)` (idempotente: descontar el stock una única vez por pedido y nunca negativo).
 - `supabase/migrations/008_zippin_envio.sql` — agrega `ordenes.envio_detalle` (jsonb) para guardar el método de envío seleccionado (carrier, servicio, costo).
+- `supabase/migrations/019_security_fixes.sql` — cierra la escalada de privilegios sobre `perfiles.es_admin`, revoca el EXECUTE de `descontar_stock()` al navegador y restringe el INSERT público de pedidos. **Requiere que `018_admin_rls.sql` esté aplicada antes.**
+
+### `crear-orden`
+Al checkout manda el carrito a esta función y **no** inserta la orden con PostgREST. Antes lo hacía, y como `monto_total` se calculaba en el navegador, era posible mandar `monto_total: 1` y comprar cualquier prenda por transferencia.
+
+Como `019_security_fixes.sql` deja el INSERT público de `ordenes` bloqueado, esta función es la única forma de crear un pedido: usa `service_role`.
+
+```bash
+curl -X POST "$SUPABASE_URL/functions/v1/crear-orden" \
+  -H "apikey: $SUPABASE_ANON_KEY" -H "Content-Type: application/json" \
+  -d '{
+    "cliente_nombre": "Ada Lovelace",
+    "cliente_email": "ada@example.com",
+    "cliente_telefono": "3512345678",
+    "cliente_dni": "30111222",
+    "direccion": "Av. Siempreviva 742",
+    "codigo_postal": "5000",
+    "metodo_pago": "transferencia",
+    "costo_envio": 8000,
+    "cupon_codigo": null,
+    "envio": { "metodo": "envio", "carrier": "Andreani", "costo": 8000 },
+    "items": [{ "producto_id": "<uuid>", "talle": "M", "cantidad": 1, "precio_unitario": 45000 }]
+  }'
+```
+
+Notas:
+- `precio_unitario` y `monto_total` del body se ignoran. Los precios salen de `productos.precio` con `discount_percent` aplicado, igual que el front.
+- El descuento por transferencia sale de `config_tienda.descuento_transferencia` (guardado como porcentaje: `'20'` = 20%).
+- El envío gratis se recalcula contra `umbral_envio_gratis` **sobre el subtotal ya descontado**, que es lo que hace el front. Si aplica, `costo_envio` queda en 0 aunque el body mande la cotización.
+- El costo de envío cotizado se acota a un rango razonable (`COTIZACION_MIN`/`MAX`) porque viene del navegador y no hay tabla de cotizaciones contra la cual validarlo. Para eliminar esa confianza habría que cotizar server-side con el CP del cliente.
+- Valida contra stock real: producto activo, talle existente y cantidad disponible.
+- Devuelve el desglose (`monto_total`, `subtotal`, `descuento_transferencia`, `descuento_cupon`, `costo_envio`, `envio_gratis`) para que el front muestre lo que realmente se cobra.
+
+Deploy:
+```bash
+supabase functions deploy crear-orden
+```
+
+### `admin-estado-orden`
+Cambia el estado de un pedido desde el panel (`PedidosAdmin` → "Actualizar estado").
+
+```bash
+curl -X POST "$SUPABASE_URL/functions/v1/admin-estado-orden" \
+  -H "Authorization: Bearer <JWT del admin>" \
+  -H "apikey: $SUPABASE_ANON_KEY" -H "Content-Type: application/json" \
+  -d '{"orden_id":"<uuid>","estado":"pagado"}'
+```
+
+Cuando `estado` es `pagado` también descuenta el stock y consume un uso del cupón, con service role. Es el camino que permite revocar el EXECUTE de `descontar_stock()` y `usar_cupon()` a `anon`/`authenticated` (ver `016_cupones.sql:78-80` y `019_security_fixes.sql`).
 
 ## Notas de seguridad
 - El webhook **nunca confía en el body**: consulta `GET /v1/payments/{id}` con el Access Token y valida el monto contra `ordenes.monto_total` antes de actualizar.
-- `create-preference` valida el total de los ítems contra el monto guardado en la base antes de crear la preferencia (evita manipulación de precios desde el cliente).
+- `create-preference` valida el total de los ítems contra el monto guardado en la base antes de crear la preferencia. **Ojo:** hoy solo valida consistencia interna, todavía no relee `productos.precio` (ver informe de auditoría).
+- `admin-estado-orden` valida el JWT con `auth.getUser()` y comprueba `perfiles.es_admin` en el servidor: el gate del frontend (`AdminLayout`) es solo UX y se puede saltear desde DevTools.
 - La URL de notificación se genera desde `SUPABASE_URL`
   (`https://TU-PROYECTO.supabase.co/functions/v1/mercadopago-webhook`) y la pasa el frontend en cada creación de preferencia.
 - Para producción, considerá verificar la firma `x-signature` del webhook. La re-consulta a la API de MP ya mitiga la mayor parte del riesgo.
+- `supabase/functions/.env` tiene credenciales reales de los couriers (EnvíoPack, Andreani, OCA). No está en Git, pero conviene moverlas a `supabase secrets set` para que no queden en el disco.

@@ -5,6 +5,7 @@ import { useTienda } from '../context/tienda'
 import { useCierreModal } from '../hooks/useCierreModal'
 import { CouponInput } from './CouponInput'
 import { formatearPrecio, montoCuota } from '../lib/precios'
+import { srcsetImagen } from '../lib/imagenes'
 
 export function CarritoDrawer() {
   const {
@@ -12,9 +13,10 @@ export function CarritoDrawer() {
     count,
     total,
     descuentoCupon,
+    descuentoOutfit,
     totalConDescuento,
-    actualizarCantidad,
     eliminarItem,
+    removerOutfitCompleto,
     carritoAbierto,
     setCarritoAbierto,
   } = useCart()
@@ -92,7 +94,13 @@ export function CarritoDrawer() {
                   >
                     <img
                       src={it.imagen}
-                      alt={it.nombre}
+                      srcSet={srcsetImagen(it.imagen, 64).srcset}
+                      sizes={srcsetImagen(it.imagen, 64).sizes}
+                      alt={`${it.nombre}, talle ${it.talle || 'único'}`}
+                      loading="lazy"
+                      decoding="async"
+                      width={64}
+                      height={80}
                       className="w-16 h-20 object-cover bg-base-200"
                     />
                   </Link>
@@ -110,27 +118,19 @@ export function CarritoDrawer() {
                       ${formatearPrecio(it.precio_unitario * it.cantidad)}
                     </p>
                     <div className="flex items-center gap-2 mt-1.5">
-                      <button
-                        type="button"
-                        className="w-6 h-6 border border-line text-xs leading-none hover:bg-base-200"
-                        aria-label="Disminuir cantidad"
-                        onClick={() => actualizarCantidad(it.producto_id, it.talle, it.cantidad - 1)}
-                      >
-                        −
-                      </button>
-                      <span className="text-xs w-4 text-center">{it.cantidad}</span>
-                      <button
-                        type="button"
-                        className="w-6 h-6 border border-line text-xs leading-none hover:bg-base-200"
-                        aria-label="Aumentar cantidad"
-                        onClick={() => actualizarCantidad(it.producto_id, it.talle, it.cantidad + 1)}
-                      >
-                        +
-                      </button>
+                      {/* Cada prenda es de edición única: no hay selector de
+                          cantidad, solo se puede quitar del carrito. */}
+                      <span className="text-xs opacity-60 border border-line px-2 py-1">
+                        Prenda única
+                      </span>
                       <button
                         type="button"
                         className="text-xs underline opacity-60 ml-1 hover:opacity-100"
-                        onClick={() => eliminarItem(it.producto_id, it.talle)}
+                        onClick={() =>
+                          it.outfitId
+                            ? removerOutfitCompleto(it.outfitId)
+                            : eliminarItem(it.producto_id, it.talle)
+                        }
                       >
                         Eliminar
                       </button>
@@ -149,6 +149,12 @@ export function CarritoDrawer() {
                   <dt className="opacity-60">Subtotal</dt>
                   <dd>${formatearPrecio(total)}</dd>
                 </div>
+                {descuentoOutfit > 0 && (
+                  <div className="flex justify-between text-success">
+                    <dt>Descuento outfit</dt>
+                    <dd>−${formatearPrecio(descuentoOutfit)}</dd>
+                  </div>
+                )}
                 {descuentoCupon > 0 && (
                   <div className="flex justify-between text-success">
                     <dt>Descuento cupón</dt>

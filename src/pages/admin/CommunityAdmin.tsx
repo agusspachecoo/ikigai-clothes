@@ -127,7 +127,12 @@ export function CommunityAdmin() {
             <label className="flex items-center justify-center w-full h-44 border-2 border-dashed border-base-300 rounded-xl cursor-pointer hover:border-primary transition-colors overflow-hidden relative">
               {vistaPrevia ? (
                 <>
-                  <img src={vistaPrevia} alt="Vista previa" className="w-full h-full object-cover" />
+                  <img
+                    src={vistaPrevia}
+                    alt="Vista previa de la foto que vas a subir"
+                    decoding="async"
+                    className="w-full h-full object-cover"
+                  />
                   <button
                     type="button"
                     onClick={() => { setArchivo(null); setVistaPrevia(null) }}
@@ -206,7 +211,15 @@ export function CommunityAdmin() {
                   className={`card bg-base-100 shadow-sm overflow-hidden border ${f.aprobado ? 'border-base-200' : 'border-warning'}`}
                 >
                   <figure className="aspect-[3/4] bg-base-300 overflow-hidden">
-                    <img src={f.imagen_url} alt="" className="w-full h-full object-cover" />
+                    <img
+                      src={f.imagen_url}
+                      alt={`Foto enviada por ${f.nombre_usuario}`}
+                      loading="lazy"
+                      decoding="async"
+                      width={160}
+                      height={213}
+                      className="w-full h-full object-cover"
+                    />
                   </figure>
                   <div className="card-body p-3">
                     <p className="text-sm font-medium truncate">{f.nombre_usuario}</p>

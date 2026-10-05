@@ -1,12 +1,14 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { useCart } from '../context/cart'
+import { useCart, type ItemNuevo } from '../context/cart'
 import { useTienda } from '../context/tienda'
 import { useCierreModal } from '../hooks/useCierreModal'
 import { tallesDisponibles } from '../lib/talles'
 import { formatearPrecio, montoCuota, precioConDescuento, precioTransferencia } from '../lib/precios'
-import { imagenProducto } from '../lib/imagenes'
+import { imagenProducto, srcsetImagen } from '../lib/imagenes'
 import type { ProductoConStock } from '../types/database'
+import { ConflictModal } from './ConflictModal'
+import type { Colision } from '../lib/conflictos'
 
 /** Vista rápida de compra: se abre desde la tarjeta o los resultados de búsqueda. */
 export function QuickshopModal({
@@ -16,28 +18,41 @@ export function QuickshopModal({
   producto: ProductoConStock
   onCerrar: () => void
 }) {
-  const { agregarItem, setCarritoAbierto } = useCart()
+  const { intentarAgregar, reemplazarConflictosYAgregar, setCarritoAbierto } = useCart()
   const { descuento_transferencia, cuotas_sin_interes, umbral_envio_gratis } = useTienda()
   const [talle, setTalle] = useState('')
   const [agregado, setAgregado] = useState(false)
+  const [conflictos, setConflictos] = useState<Colision[]>([])
+  const [modalAbierto, setModalAbierto] = useState(false)
 
   useCierreModal(true, onCerrar)
 
   const precio = precioConDescuento(producto.precio, producto.discount_percent)
+  const srcsetQuickshop = srcsetImagen(producto.imagenes[0], 360)
   const opciones = tallesDisponibles(producto.variaciones_stock)
   const sinTalles = opciones.length === 0
-  const sinStock = !sinTalles && opciones.every((o) => o.stock === 0)
-  const puedeAgregar = sinTalles ? true : Boolean(talle)
+  const stockTotal = opciones.reduce((sum, o) => sum + (o.stock || 0), 0)
+  const stockTalleSeleccionado = sinTalles ? stockTotal : opciones.find((o) => o.talle === talle)?.stock || 0
+  const sinStock = stockTotal <= 0
+  const puedeAgregar = sinTalles ? stockTotal > 0 : Boolean(talle) && stockTalleSeleccionado > 0
 
-  function agregar() {
-    if (!puedeAgregar) return
-    agregarItem({
+  function prendaNueva(): ItemNuevo {
+    return {
       producto_id: producto.id,
       nombre: producto.nombre,
       imagen: imagenProducto(producto.imagenes[0], 0),
       talle: sinTalles ? 'Único' : talle,
       precio_unitario: precio,
-    })
+      cantidad: 1,
+      origen: 'individual',
+      outfitId: null,
+      outfitNombre: null,
+    }
+  }
+
+  function confirmarCarrito() {
+    setModalAbierto(false)
+    setConflictos([])
     setAgregado(true)
     window.setTimeout(() => {
       setAgregado(false)
@@ -46,49 +61,82 @@ export function QuickshopModal({
     }, 550)
   }
 
+  function agregar() {
+    if (!puedeAgregar) return
+    // Con colisión no se muta el estado: solo se abre el aviso.
+    const resultado = intentarAgregar(prendaNueva())
+    if (!resultado.ok) {
+      setConflictos(resultado.colisiones)
+      setModalAbierto(true)
+      return
+    }
+    confirmarCarrito()
+  }
+
+  function confirmarAgregar() {
+    reemplazarConflictosYAgregar(prendaNueva(), conflictos)
+    confirmarCarrito()
+  }
+
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
-      <div className="absolute inset-0 bg-black/50" onClick={onCerrar} />
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onCerrar} />
 
       <div
         role="dialog"
         aria-modal="true"
         aria-label={producto.nombre}
-        className="relative w-full sm:max-w-2xl bg-base-100 border border-line max-h-[90vh] overflow-y-auto"
+        className="relative w-full sm:max-w-2xl bg-base-100 border border-line max-h-[85vh] overflow-y-auto rounded-2xl"
       >
+        <button
+          type="button"
+          onClick={onCerrar}
+          className="absolute top-3 right-3 z-10 btn btn-circle btn-ghost btn-xs sm:btn-sm bg-white/80 backdrop-blur-sm"
+          aria-label="Cerrar"
+        >
+          ✕
+        </button>
         <div className="grid sm:grid-cols-2">
-          <figure className="aspect-[3/4] bg-base-200">
+          <figure className="hidden sm:block aspect-[3/4] bg-base-200">
             {producto.imagenes[0] && (
               <img
-                src={producto.imagenes[0]}
-                alt={producto.nombre}
+                src={imagenProducto(producto.imagenes[0], 0)}
+                srcSet={srcsetQuickshop.srcset}
+                sizes={srcsetQuickshop.sizes}
+                alt={`${producto.nombre} de ${producto.categoria}`}
+                loading="lazy"
+                decoding="async"
+                width={360}
+                height={480}
                 className="w-full h-full object-cover"
               />
             )}
           </figure>
 
-          <div className="p-5 flex flex-col">
-            <p className="text-[11px] uppercase tracking-widest opacity-50">
+          <div className="p-4 sm:p-5 flex flex-col">
+            <p className="text-[10px] sm:text-[11px] uppercase tracking-widest opacity-50">
               {producto.categoria}
             </p>
             <Link
               to={`/producto/${producto.id}`}
               onClick={onCerrar}
-              className="font-display text-lg leading-snug hover:underline"
+              className="font-display text-base sm:text-lg leading-snug hover:underline"
             >
               {producto.nombre}
             </Link>
 
-            <div className="mt-3 space-y-1">
-              <p className="text-xl font-semibold">${formatearPrecio(precio)}</p>
+            <div className="mt-2 sm:mt-3 space-y-0.5 sm:space-y-1">
+              <div className="flex items-baseline gap-2">
+                <p className="text-base sm:text-xl font-semibold">${formatearPrecio(precio)}</p>
+              </div>
               {descuento_transferencia > 0 && (
-                <p className="text-xs text-success">
+                <p className="text-xs text-success font-semibold">
                   ${formatearPrecio(precioTransferencia(precio, descuento_transferencia))}{' '}
                   por transferencia ({Math.round(descuento_transferencia * 100)}% off)
                 </p>
               )}
               {cuotas_sin_interes > 1 && (
-                <p className="text-xs opacity-60">
+                <p className="text-xs text-success">
                   {cuotas_sin_interes} cuotas sin interés de $
                   {formatearPrecio(montoCuota(precio, cuotas_sin_interes))}
                 </p>
@@ -105,7 +153,7 @@ export function QuickshopModal({
                       type="button"
                       disabled={stock === 0}
                       onClick={() => setTalle(t)}
-                      className={`min-w-11 h-9 px-3 border text-sm transition-colors ${
+                      className={`min-w-10 h-10 sm:min-w-11 sm:h-9 px-3 border text-sm transition-colors ${
                         talle === t
                           ? 'bg-neutral text-neutral-content border-neutral'
                           : stock === 0
@@ -126,20 +174,22 @@ export function QuickshopModal({
               </p>
             )}
 
-            <div className="mt-auto pt-5 space-y-2">
+            <div className="mt-auto pt-4 sm:pt-5 space-y-2">
               <button
                 type="button"
                 onClick={agregar}
-                disabled={!puedeAgregar || sinStock || agregado}
-                className="btn btn-primary btn-block btn-sm"
+                disabled={agregado || sinStock || (sinTalles ? stockTotal <= 0 : !talle || stockTalleSeleccionado <= 0)}
+                className="btn btn-neutral btn-block"
               >
                 {agregado
                   ? 'Agregado'
                   : sinStock
-                    ? 'Sin stock'
-                    : puedeAgregar
-                      ? 'Agregar al carrito'
-                      : 'Elegí un talle'}
+                    ? 'Sin Stock'
+                    : !sinTalles && !talle
+                      ? 'Elegí un talle'
+                      : !sinTalles && talle && stockTalleSeleccionado <= 0
+                        ? 'Sin Stock'
+                        : 'AGREGAR AL CARRITO'}
               </button>
               <Link
                 to={`/producto/${producto.id}`}
@@ -152,6 +202,18 @@ export function QuickshopModal({
           </div>
         </div>
       </div>
+      {modalAbierto && (
+        <ConflictModal
+          abierto={modalAbierto}
+          conflictos={conflictos}
+          accionSolicitada="agregar_individual"
+          onConfirmar={confirmarAgregar}
+          onCancelar={() => {
+            setModalAbierto(false)
+            setConflictos([])
+          }}
+        />
+      )}
     </div>
   )
 }

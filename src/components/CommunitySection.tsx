@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import type { ComunidadFoto } from '../types/database'
+import { srcsetImagen } from '../lib/imagenes'
 
 const NOMBRE_USUARIOS = [
   '@lucas.fit',
@@ -27,6 +28,7 @@ const FOTOS_FALLBACK = [
 interface FotoDisplay {
   id: string
   autor: string
+  handle: string | null
   img: string
 }
 
@@ -54,6 +56,7 @@ export function CommunitySection() {
           reales.map((f) => ({
             id: f.id,
             autor: f.nombre_usuario || '@ikigai',
+            handle: f.instagram_handle ?? null,
             img: f.imagen_url,
           })),
         )
@@ -62,6 +65,7 @@ export function CommunitySection() {
           FOTOS_FALLBACK.map((img, i) => ({
             id: `fallback-${i}`,
             autor: NOMBRE_USUARIOS[i] ?? '@ikigai',
+            handle: null,
             img,
           })),
         )
@@ -106,9 +110,18 @@ export function CommunitySection() {
             >
               <img
                 src={foto.img}
-                alt={`Look de ${foto.autor}`}
+                srcSet={srcsetImagen(foto.img, 176).srcset}
+                sizes={srcsetImagen(foto.img, 176).sizes}
+                alt={
+                  foto.handle
+                    ? `Look de la comunidad de ${foto.autor} (${foto.handle})`
+                    : `Look de la comunidad de ${foto.autor}`
+                }
                 className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                 loading="lazy"
+                decoding="async"
+                width={176}
+                height={313}
               />
               <div className="absolute inset-x-0 bottom-0 h-14 bg-gradient-to-t from-black/50 to-transparent" />
               <span className="absolute bottom-2 left-2 text-white text-xs font-semibold drop-shadow">

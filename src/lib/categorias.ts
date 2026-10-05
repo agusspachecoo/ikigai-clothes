@@ -30,5 +30,6 @@ export function categoriasConFallback(cats: Categoria[]): Categoria[] {
     nombre,
     slug: slugify(nombre),
     created_at: '',
+    imagen_url: null,
   }))
 }

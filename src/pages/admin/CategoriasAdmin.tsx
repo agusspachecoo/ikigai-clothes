@@ -1,7 +1,18 @@
 import { useState, useEffect } from 'react'
-import { getCategoriasAdmin, crearCategoria, eliminarCategoria, getProductosAdmin } from '../../lib/adminApi'
+import {
+  actualizarCategoria,
+  crearCategoria,
+  eliminarCategoria,
+  eliminarImagen,
+  getCategoriasAdmin,
+  getProductosAdmin,
+} from '../../lib/adminApi'
+import { ImageUploader } from '../../components/ImageUploader'
 import { slugify } from '../../lib/categorias'
+import { useCierreModal } from '../../hooks/useCierreModal'
 import type { Categoria } from '../../types/database'
+
+const COMPRESION_CATEGORIA = { maxWidth: 1200, quality: 0.82, maxBytes: 250 * 1024 }
 
 export function CategoriasAdmin() {
   const [categorias, setCategorias] = useState<Categoria[]>([])
@@ -11,8 +22,10 @@ export function CategoriasAdmin() {
   const [recarga, setRecarga] = useState(0)
   const [notificacion, setNotificacion] = useState<string | null>(null)
   const [nombre, setNombre] = useState('')
+  const [imagen, setImagen] = useState('')
   const [creando, setCreando] = useState(false)
   const [errorCrear, setErrorCrear] = useState<string | null>(null)
+  const [editando, setEditando] = useState<Categoria | null>(null)
 
   useEffect(() => {
     let activo = true
@@ -57,7 +70,7 @@ export function CategoriasAdmin() {
     }
 
     setCreando(true)
-    const { error: err } = await crearCategoria(valor)
+    const { error: err } = await crearCategoria(valor, imagen || null)
     setCreando(false)
 
     if (err) {
@@ -66,6 +79,7 @@ export function CategoriasAdmin() {
     }
 
     setNombre('')
+    setImagen('')
     setNotificacion('Categoría creada')
     setRecarga((n) => n + 1)
   }
@@ -105,9 +119,9 @@ export function CategoriasAdmin() {
         <div className="alert alert-error text-sm">
           {error}
           <p className="mt-1 text-xs">
-            Ejecutá la migración{' '}
-            <span className="font-mono">003_dynamic_categories.sql</span> en Supabase para crear la
-            tabla de categorías.
+            Ejecutá las migraciones{' '}
+            <span className="font-mono">003_dynamic_categories.sql</span> y{' '}
+            <span className="font-mono">022_comprobantes_privados_y_campos.sql</span> en Supabase.
           </p>
         </div>
       ) : (
@@ -118,6 +132,7 @@ export function CategoriasAdmin() {
               <table className="table">
                 <thead>
                   <tr>
+                    <th>Imagen</th>
                     <th>Categoría</th>
                     <th>Slug</th>
                     <th>Productos</th>
@@ -127,6 +142,21 @@ export function CategoriasAdmin() {
                 <tbody>
                   {categorias.map((c) => (
                     <tr key={c.id}>
+                      <td>
+                        {c.imagen_url ? (
+                          <img
+                            src={c.imagen_url}
+                            alt={`Imagen de la categoría ${c.nombre}`}
+                            loading="lazy"
+                            decoding="async"
+                            width={48}
+                            height={48}
+                            className="w-12 h-12 rounded object-cover border border-base-300"
+                          />
+                        ) : (
+                          <span className="text-xs opacity-40">sin imagen</span>
+                        )}
+                      </td>
                       <td className="font-medium">{c.nombre}</td>
                       <td>
                         <span className="font-mono text-xs opacity-60">{c.slug}</span>
@@ -134,7 +164,13 @@ export function CategoriasAdmin() {
                       <td>
                         <span className="badge badge-outline">{usos[c.nombre] ?? 0}</span>
                       </td>
-                      <td className="text-right">
+                      <td className="text-right whitespace-nowrap">
+                        <button
+                          className="btn btn-xs btn-ghost"
+                          onClick={() => setEditando(c)}
+                        >
+                          Editar
+                        </button>
                         <button
                           className="btn btn-xs btn-ghost text-error"
                           onClick={() => handleEliminar(c)}
@@ -163,6 +199,16 @@ export function CategoriasAdmin() {
               />
             </label>
 
+            <ImageUploader
+              carpeta="categorias"
+              imagenActual={imagen}
+              onUrl={setImagen}
+              proporcion="cuadrado"
+              altoMinimo="h-32"
+              texto="Imagen representativa"
+              compresion={COMPRESION_CATEGORIA}
+            />
+
             <div className="text-xs opacity-60">
               {nombre.trim() && (
                 <p>
@@ -172,7 +218,7 @@ export function CategoriasAdmin() {
               )}
               <p className="mt-1">
                 La categoría aparece automáticamente en los filtros del catálogo y en el menú de la
-                tienda.
+                tienda. La imagen se usa en la grilla de categorías del inicio.
               </p>
             </div>
 
@@ -184,6 +230,109 @@ export function CategoriasAdmin() {
           </form>
         </div>
       )}
+
+      {editando && (
+        <ModalEditarCategoria
+          categoria={editando}
+          onCerrar={() => setEditando(null)}
+          onGuardado={() => {
+            setEditando(null)
+            setNotificacion('Categoría actualizada')
+            setRecarga((n) => n + 1)
+          }}
+        />
+      )}
     </div>
+  )
+}
+
+function ModalEditarCategoria({
+  categoria,
+  onCerrar,
+  onGuardado,
+}: {
+  categoria: Categoria
+  onCerrar: () => void
+  onGuardado: () => void
+}) {
+  const [nombre, setNombre] = useState(categoria.nombre)
+  const [imagen, setImagen] = useState(categoria.imagen_url ?? '')
+  const [guardando, setGuardando] = useState(false)
+  const [errorMsg, setErrorMsg] = useState<string | null>(null)
+
+  useCierreModal(true, onCerrar)
+
+  async function guardar() {
+    if (!nombre.trim()) {
+      setErrorMsg('El nombre no puede quedar vacío.')
+      return
+    }
+
+    setGuardando(true)
+    const { error: err } = await actualizarCategoria(categoria.id, {
+      nombre: nombre.trim(),
+      imagen_url: imagen || null,
+    })
+
+    if (err) {
+      setGuardando(false)
+      setErrorMsg(err)
+      return
+    }
+
+    // La fila ya apunta a la nueva imagen: recién ahora se limpia la anterior.
+    // Si se borrara al subir, cancelar el modal dejaría a la categoría
+    // apuntando a un archivo inexistente.
+    const anterior = categoria.imagen_url
+    if (anterior && anterior !== imagen) {
+      await eliminarImagen(anterior)
+    }
+
+    setGuardando(false)
+    onGuardado()
+  }
+
+  return (
+    <dialog className="modal modal-open" onClose={onCerrar}>
+      <form method="dialog" className="modal-backdrop">
+        <button onClick={onCerrar}>cerrar</button>
+      </form>
+      <div className="modal-box max-w-lg">
+        <h3 className="font-bold text-lg mb-4">Editar categoría</h3>
+
+        <div className="space-y-4">
+          <label className="form-control">
+            <span className="label-text text-sm mb-1">Nombre</span>
+            <input
+              type="text"
+              className="input input-bordered w-full"
+              value={nombre}
+              onChange={(e) => setNombre(e.target.value)}
+            />
+          </label>
+
+          <ImageUploader
+            carpeta="categorias"
+            imagenActual={imagen}
+            onUrl={setImagen}
+            proporcion="cuadrado"
+            altoMinimo="h-40"
+            texto="Imagen representativa"
+            compresion={COMPRESION_CATEGORIA}
+          />
+
+          {errorMsg && <div className="alert alert-error text-sm">{errorMsg}</div>}
+        </div>
+
+        <div className="modal-action">
+          <button className="btn btn-ghost" onClick={onCerrar} type="button">
+            Cancelar
+          </button>
+          <button className="btn btn-primary" onClick={guardar} disabled={guardando}>
+            {guardando ? <span className="loading loading-spinner loading-sm" /> : 'Guardar'}
+          </button>
+        </div>
+      </div>
+    </dialog>
   )
 }

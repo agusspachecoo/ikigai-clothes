@@ -8,9 +8,13 @@ import { CommunitySection } from '../components/CommunitySection'
 import { ReviewsSection } from '../components/ReviewsSection'
 import { CategoryGrid } from '../components/CategoryGrid'
 import { BeneficiosSection } from '../components/BeneficiosSection'
+import { ShowroomSection } from '../components/ShowroomSection'
 import { HeroCarousel } from '../components/HeroCarousel'
+import { useSeo } from '../hooks/useSeo'
 
 export function Home() {
+  useSeo()
+
   const { productos: nuevos, loading: loadingNuevos } = useProductos({ limit: 8 })
   const { outfits } = useOutfits()
   const { productos: masVendidos, loading: loadingVendidos } = useMasVendidos(8)
@@ -24,6 +28,9 @@ export function Home() {
 
   return (
     <div>
+      {/* Único h1 de la home: el resto de secciones usan h2. */}
+      <h1 className="sr-only">Ikigai Clothes · Indumentaria urbana en Oberá, Misiones</h1>
+
       {/* Hero */}
       <HeroCarousel />
 
@@ -83,6 +90,9 @@ export function Home() {
 
       {/* Beneficios (antes del footer) */}
       <BeneficiosSection />
+
+      {/* Showroom (cierre de la home) */}
+      <ShowroomSection />
     </div>
   )
 }

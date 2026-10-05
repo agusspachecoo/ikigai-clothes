@@ -91,19 +91,9 @@ export function Header() {
 
       {/* ────────── HEADER ────────── */}
       <div className="relative w-full z-40 bg-neutral text-neutral-content">
-        <div className="flex items-center h-16 md:h-20 px-4 gap-3">
-          {/* Izquierda */}
-          <div className="flex-1 flex items-center gap-2">
-            <button
-              type="button"
-              onClick={toggleMenu}
-              aria-label="Abrir menú"
-              className="btn btn-ghost btn-circle btn-sm md:hidden shrink-0 text-white hover:bg-white/10"
-            >
-              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
-              </svg>
-            </button>
+        <div className="relative flex items-center h-16 md:h-20 px-4 gap-3">
+          {/* Izquierda: en mobile la navegación vive en la barra inferior */}
+          <div className="flex items-center gap-2 z-10">
             <div className="hidden lg:block w-full max-w-xs">
               <Buscador
                 className="w-full h-9 px-3 bg-white/5 border border-white/15 text-sm text-white placeholder:text-white/40 focus:bg-white/10"
@@ -113,19 +103,22 @@ export function Header() {
           </div>
 
           {/* Centro: logo */}
-          <div className="flex-1 flex justify-center">
+          <div className="absolute inset-x-0 flex justify-center items-center">
             <Link to="/" aria-label="Ikigai Clothes - Inicio" className="flex items-center">
               <img
                 src={logoWhite}
                 alt="Ikigai Clothes"
+                decoding="async"
+                width={500}
+                height={500}
                 className="h-12 md:h-[4.75rem] w-auto max-w-[46vw] object-contain"
               />
             </Link>
           </div>
 
           {/* Derecha */}
-          <div className="flex-1 flex justify-end items-center gap-1">
-            <div className="relative hidden sm:block">
+          <div className="ml-auto flex items-center gap-1 z-10 lg:flex lg:justify-end lg:flex-1">
+            <div className="relative hidden lg:block">
               <button
                 type="button"
                 onClick={() => setPerfilMenuAbierto((v) => !v)}
@@ -157,6 +150,14 @@ export function Header() {
                           className="block px-3 py-2 text-sm hover:bg-base-200"
                         >
                           Mis compras
+                        </Link>
+                        <Link
+                          to="/perfil"
+                          state={{ tab: 'favoritos' }}
+                          onClick={() => setPerfilMenuAbierto(false)}
+                          className="block px-3 py-2 text-sm hover:bg-base-200"
+                        >
+                          Mis favoritos
                         </Link>
                         <Link
                           to="/perfil"
@@ -210,7 +211,7 @@ export function Header() {
               type="button"
               onClick={openCart}
               aria-label="Abrir carrito"
-              className="btn btn-ghost btn-circle btn-sm relative text-white hover:bg-white/10"
+              className="btn btn-ghost btn-circle btn-sm relative text-white hover:bg-white/10 hidden lg:flex"
             >
               <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007z" />
@@ -369,7 +370,7 @@ export function Header() {
       )}
 
       {/* ────────── BARRA INFERIOR MOBILE ────────── */}
-      <nav className="lg:hidden fixed bottom-0 inset-x-0 z-40 bg-base-100 border-t border-line grid grid-cols-5 h-14">
+      <nav className="lg:hidden fixed bottom-0 inset-x-0 z-40 bg-base-100 border-t border-line grid grid-cols-4 h-14">
         <Link to="/" className="flex flex-col items-center justify-center gap-1 text-[10px] uppercase tracking-wider">
           <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
             <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12l8.954-8.955a1.125 1.125 0 011.59 0L21.75 12M4.5 9.75V21h15V9.75" />
@@ -399,33 +400,13 @@ export function Header() {
           Buscar
         </button>
 
-        {user ? (
-          <Link
-            to="/perfil"
-            className="flex flex-col items-center justify-center gap-1 text-[10px] uppercase tracking-wider"
-          >
-            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
-            </svg>
-            Cuenta
-          </Link>
-        ) : (
-          <button
-            type="button"
-            onClick={() => abrirAuthModal()}
-            className="flex flex-col items-center justify-center gap-1 text-[10px] uppercase tracking-wider"
-          >
-            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
-            </svg>
-            Cuenta
-          </button>
-        )}
+        <div className="hidden lg:flex flex-col items-center justify-center gap-1"></div>
+        <div className="hidden lg:flex flex-col items-center justify-center gap-1"></div>
 
         <button
           type="button"
           onClick={openCart}
-          className="flex flex-col items-center justify-center gap-1 text-[10px] uppercase tracking-wider relative"
+          className="flex flex-col items-center justify-center gap-1 text-[10px] uppercase tracking-wider relative col-start-4"
         >
           <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
             <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007z" />

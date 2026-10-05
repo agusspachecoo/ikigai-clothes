@@ -2,19 +2,25 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useOutfits } from '../hooks/useOutfits'
 import { BuyOutfitModal } from '../components/BuyOutfitModal'
-import { imagenOutfit } from '../lib/imagenes'
+import { imagenOutfit, srcsetImagen } from '../lib/imagenes'
 import type { OutfitConItems } from '../types/database'
+import { useSeo } from '../hooks/useSeo'
 
 export function Outfits() {
+  useSeo()
+
   const { outfits, loading } = useOutfits()
   const [outfitSeleccionado, setOutfitSeleccionado] = useState<OutfitConItems | null>(null)
+
+  // Todas las cards de outfit se renderizan al mismo ancho.
+  const srcsetOutfit = (url: string | null | undefined) => srcsetImagen(url, 420)
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
       <h1 className="text-3xl font-bold mb-8">Outfits / Combos</h1>
 
       {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
           {Array.from({ length: 3 }).map((_, i) => (
             <div key={i} className="skeleton h-80 w-full rounded-lg"></div>
           ))}
@@ -24,10 +30,13 @@ export function Outfits() {
           <p className="opacity-60">No hay outfits disponibles</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
           {outfits.map((o) => (
-            <div key={o.id} className="card bg-base-100 shadow-sm overflow-hidden">
-              <figure className="aspect-[4/3] cursor-pointer">
+            <div
+              key={o.id}
+              className="card bg-base-100 border border-line shadow-none overflow-hidden"
+            >
+              <figure className="aspect-[9/16] cursor-pointer bg-base-200 relative">
                 <button
                   onClick={() => setOutfitSeleccionado(o)}
                   aria-label={`Ver detalle del look ${o.nombre}`}
@@ -35,28 +44,37 @@ export function Outfits() {
                 >
                   <img
                     src={imagenOutfit(o.imagen_portada, 0)}
-                    alt={o.nombre}
-                    className="w-full h-full object-cover"
+                    srcSet={srcsetOutfit(o.imagen_portada).srcset}
+                    sizes={srcsetOutfit(o.imagen_portada).sizes}
+                    alt={`Look ${o.nombre}: ${o.outfit_items.length} prendas combinadas`}
+                    loading="lazy"
+                    decoding="async"
+                    width={420}
+                    height={747}
+                    className="w-full h-full object-cover object-center"
                   />
                 </button>
+                <span className="absolute top-3 left-3 z-10 px-2.5 py-1 text-xs font-bold bg-base-100 text-success rounded-full shadow-sm border border-success/20">
+                  -5% OFF
+                </span>
               </figure>
-              <div className="card-body">
-                <h2 className="card-title">{o.nombre}</h2>
-                {o.descripcion && <p className="text-sm opacity-70">{o.descripcion}</p>}
-                <p className="text-sm text-base-content/60 mt-2">
+              <div className="card-body p-3 gap-0.5">
+                <h2 className="card-title text-base">{o.nombre}</h2>
+                {o.descripcion && <p className="text-sm opacity-70 line-clamp-2">{o.descripcion}</p>}
+                <p className="text-sm text-base-content/60 mt-1">
                   Combo: ${o.precio_combo.toLocaleString('es-AR')}
                 </p>
                 <p className="font-bold text-base-content">
                   ${(o.precio_combo * 0.8).toLocaleString('es-AR')}{' '}
                   <span className="text-xs font-medium opacity-60">por Transferencia</span>
                 </p>
-                <p className="inline-flex items-center gap-1.5 self-start rounded-lg bg-green-100 text-green-800 px-2 py-1 text-xs font-semibold">
+                <p className="inline-flex items-center gap-1.5 self-start rounded-sm bg-green-100 text-green-800 px-2 py-1 text-xs font-semibold">
                   <span aria-hidden="true">💳</span>
                   6 cuotas de ${(o.precio_combo / 6).toLocaleString('es-AR')} sin interés
                 </p>
-                <div className="mt-2">
-                  <p className="text-xs font-semibold opacity-60 mb-1">Incluye:</p>
-                  <ul className="text-sm space-y-1">
+                <div className="mt-1">
+                  <p className="text-xs font-semibold opacity-60 mb-0.5">Incluye:</p>
+                  <ul className="text-sm space-y-0.5">
                     {o.outfit_items.map((item) => (
                       <li key={item.id}>
                         <Link
@@ -71,7 +89,7 @@ export function Outfits() {
                 </div>
                 <button
                   onClick={() => setOutfitSeleccionado(o)}
-                  className="btn w-full bg-black text-white hover:bg-neutral-800 border-0 rounded-xl font-bold mt-4 cursor-pointer transition-colors"
+                  className="btn btn-neutral btn-sm btn-block mt-2 cursor-pointer"
                 >
                   Comprar look
                 </button>

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { cotizarEnvio, claveOpcion, nombreTransporte, type OpcionEnvio, type ResultadoCotizacion } from '../lib/enviopack'
+import { cotizarEnvioLocal, claveOpcion, nombreTransporte, type OpcionEnvio, type ResultadoCotizacion } from '../lib/tarifasEnvio'
 import type { CartItem } from '../types/cart'
 
 interface EnvioCalculatorProps {
@@ -17,10 +17,9 @@ export function EnvioCalculator({
 }: EnvioCalculatorProps) {
   const [cp, setCp] = useState('')
   const [resultado, setResultado] = useState<ResultadoCotizacion | null>(null)
-  const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  async function handleCalcular(e: React.FormEvent) {
+  function handleCalcular(e: React.FormEvent) {
     e.preventDefault()
     const limpio = cp.trim().replace(/\D/g, '')
     if (limpio.length < 4) {
@@ -29,17 +28,13 @@ export function EnvioCalculator({
     }
 
     setError(null)
-    setLoading(true)
-    try {
-      const res = await cotizarEnvio(limpio, items)
-      if (res.error) {
-        setError(res.error)
-        setResultado(null)
-      } else {
-        setResultado(res)
-      }
-    } finally {
-      setLoading(false)
+    // Tarifario local, sin red: no hay estado de carga ni timeouts.
+    const res = cotizarEnvioLocal(limpio, items)
+    if (res.error) {
+      setError(res.error)
+      setResultado(null)
+    } else {
+      setResultado(res)
     }
   }
 
@@ -64,10 +59,10 @@ export function EnvioCalculator({
         />
         <button
           type="submit"
-          disabled={loading || !cp.trim()}
+          disabled={!cp.trim()}
           className="btn btn-sm btn-primary rounded-xl whitespace-nowrap"
         >
-          {loading ? <span className="loading loading-spinner loading-xs" /> : 'Calcular Envío'}
+          'Calcular Envío'
         </button>
       </form>
 
@@ -100,7 +95,17 @@ export function EnvioCalculator({
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       {opt.carrier.logo ? (
-                        <img src={opt.carrier.logo} alt="" className="w-5 h-5 rounded" />
+                        <img
+                          src={opt.carrier.logo}
+                          /* El nombre del transporte ya está escrito al lado, así
+                             que el logo es decorativo para el lector de pantalla. */
+                          alt=""
+                          loading="lazy"
+                          decoding="async"
+                          width={20}
+                          height={20}
+                          className="w-5 h-5 rounded"
+                        />
                       ) : (
                         <span className="text-xs font-bold bg-base-200 rounded px-1.5 py-0.5">
                           {nombreTransporte(opt).charAt(0)}

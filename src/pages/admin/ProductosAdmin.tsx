@@ -17,6 +17,7 @@ interface TalleRow {
 interface FormState {
   id?: string
   nombre: string
+  sku: string
   categoria: string
   precio: string
   precio_transferencia: string
@@ -31,6 +32,7 @@ function crearForm(producto: ProductoConStock | null): FormState {
   if (!producto) {
     return {
       nombre: '',
+      sku: '',
       categoria: '',
       precio: '',
       precio_transferencia: '',
@@ -45,6 +47,7 @@ function crearForm(producto: ProductoConStock | null): FormState {
   return {
     id: producto.id,
     nombre: producto.nombre,
+    sku: producto.sku ?? '',
     categoria: producto.categoria,
     precio: String(producto.precio),
     precio_transferencia: producto.precio_transferencia ? String(producto.precio_transferencia) : '',
@@ -97,10 +100,13 @@ export function ProductosAdmin() {
     return () => window.clearTimeout(t)
   }, [notificacion])
 
+  // La búsqueda cubre nombre, SKU y categoría. El SKU va primero porque es lo
+// que se tipea cuando se busca por código interno.
   const filtrados = productos.filter(
     (p) =>
       (!categoria || p.categoria === categoria) &&
       (!busqueda ||
+        (p.sku ?? '').toLowerCase().includes(busqueda.toLowerCase()) ||
         p.nombre.toLowerCase().includes(busqueda.toLowerCase()) ||
         p.categoria.toLowerCase().includes(busqueda.toLowerCase())),
   )
@@ -199,10 +205,22 @@ export function ProductosAdmin() {
                         <div className="flex items-center gap-3">
                           <div className="avatar">
                             <div className="w-10 h-12 rounded-lg bg-base-300">
-                              <img src={imagenProducto(p.imagenes[0], i)} alt="" />
+                              <img
+                                src={imagenProducto(p.imagenes[0], i)}
+                                alt={`Foto de ${p.nombre}`}
+                                loading="lazy"
+                                decoding="async"
+                                width={48}
+                                height={60}
+                              />
                             </div>
                           </div>
-                          <span className="font-medium">{p.nombre}</span>
+                          <div>
+                            <span className="font-medium">{p.nombre}</span>
+                            {p.sku && (
+                              <span className="block font-mono text-[11px] opacity-60">{p.sku}</span>
+                            )}
+                          </div>
                         </div>
                       </td>
                       <td>
@@ -220,6 +238,9 @@ export function ProductosAdmin() {
                         <span className="text-sm">
                           {p.variaciones_stock.length} talles · {stockTotal} uds
                         </span>
+                        {stockTotal === 0 && (
+                          <span className="badge badge-neutral badge-sm ml-2">Sin Stock</span>
+                        )}
                       </td>
                       <td>
                         <span className={`badge ${p.activo ? 'badge-success' : 'badge-neutral'}`}>
@@ -333,6 +354,7 @@ function ProductoFormModal({ producto, categorias, onCerrar, onGuardado }: FormP
     const res = await guardarProducto({
       id: form.id,
       nombre: form.nombre.trim(),
+      sku: form.sku.trim() || null,
       descripcion: form.descripcion || null,
       categoria: form.categoria.trim() || 'Otros',
       precio,
@@ -374,6 +396,17 @@ function ProductoFormModal({ producto, categorias, onCerrar, onGuardado }: FormP
                 value={form.nombre}
                 onChange={(e) => setField('nombre', e.target.value)}
                 required
+              />
+            </label>
+
+            <label className="floating-label">
+              <span>SKU / Código</span>
+              <input
+                type="text"
+                className="input input-bordered w-full font-mono"
+                value={form.sku}
+                onChange={(e) => setField('sku', e.target.value)}
+                placeholder="Ej: IKI-REM-001"
               />
             </label>
 

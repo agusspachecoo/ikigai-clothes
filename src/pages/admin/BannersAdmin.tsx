@@ -5,6 +5,11 @@ import type { BannerInput } from '../../lib/adminApi'
 
 const TAMANIO_INICIAL = 4
 
+// El banner es la primera imagen que ve el visitante: se comprime lo bastante
+// para que la portada no demore en cargar.
+const COMPRESION_DESKTOP = { maxWidth: 1920, quality: 0.82, maxBytes: 350 * 1024 }
+const COMPRESION_MOBILE = { maxWidth: 1080, quality: 0.82, maxBytes: 250 * 1024 }
+
 export function BannersAdmin() {
   const [banners, setBanners] = useState<BannerInput[]>([])
   const [loading, setLoading] = useState(true)
@@ -26,10 +31,13 @@ export function BannersAdmin() {
         } else {
           const existentes = res.data.map((b) => ({
             imagen_url: b.imagen_url,
+            imagen_mobile: b.imagen_mobile ?? '',
             titulo: b.titulo,
             link_url: b.link_url,
           }))
-          while (existentes.length < TAMANIO_INICIAL) existentes.push({ imagen_url: '', titulo: '', link_url: '' })
+          while (existentes.length < TAMANIO_INICIAL) {
+            existentes.push({ imagen_url: '', imagen_mobile: '', titulo: '', link_url: '' })
+          }
           setBanners(existentes)
         }
         setLoading(false)
@@ -51,7 +59,7 @@ export function BannersAdmin() {
   }
 
   function agregarFila() {
-    setBanners((prev) => [...prev, { imagen_url: '', titulo: '', link_url: '' }])
+    setBanners((prev) => [...prev, { imagen_url: '', imagen_mobile: '', titulo: '', link_url: '' }])
   }
 
   function quitarFila(index: number) {
@@ -126,17 +134,38 @@ export function BannersAdmin() {
                 </button>
               </div>
 
-              <div className="flex flex-col md:flex-row gap-4">
-                {/* Imagen del slide */}
-                <div className="w-full md:w-80 shrink-0">
+              <div className="flex flex-col lg:flex-row gap-4">
+                {/* Desktop y mobile, lado a lado, para comparar el encuadre */}
+                <div className="w-full lg:w-72 shrink-0">
+                  <p className="label-text text-xs mb-1 font-semibold">Desktop</p>
                   <ImageUploader
-                    carpeta="productos"
+                    carpeta="banners"
                     imagenActual={banner.imagen_url}
                     onUrl={(url) => setBanner(i, 'imagen_url', url)}
                     proporcion="apaisado"
-                    altoMinimo="h-36"
-                    texto="Elegí o arrastrá la imagen del slide"
+                    altoMinimo="h-32"
+                    texto="Imagen horizontal (desktop)"
+                    compresion={COMPRESION_DESKTOP}
                   />
+                  <p className="text-xs opacity-60 mt-1">
+                    Formato recomendado PC: Ultrapanorámico 21:9 (ej: 1920x820px) o Max. 1920x600px
+                  </p>
+                </div>
+
+                <div className="w-full lg:w-40 shrink-0">
+                  <p className="label-text text-xs mb-1 font-semibold">Mobile</p>
+                  <ImageUploader
+                    carpeta="banners"
+                    imagenActual={banner.imagen_mobile ?? ''}
+                    onUrl={(url) => setBanner(i, 'imagen_mobile', url)}
+                    proporcion="apaisado"
+                    altoMinimo="h-44"
+                    texto="Horizontal 4:3 (Mobile)"
+                    compresion={COMPRESION_MOBILE}
+                  />
+                  <p className="text-xs opacity-60 mt-1">
+                    Formato recomendado Mobile: 4:3 (ej: 800x600px)
+                  </p>
                 </div>
 
                 <div className="flex-1 space-y-3">

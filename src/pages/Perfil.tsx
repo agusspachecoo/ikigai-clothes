@@ -3,10 +3,13 @@ import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/auth'
 import { getMisPedidos, ESTADO_PEDIDO_LABEL, ESTADO_PEDIDO_CLASS } from '../lib/misPedidos'
 import type { OrdenConItems } from '../lib/misPedidos'
-import { imagenProducto } from '../lib/imagenes'
+import { imagenProducto, srcsetImagen } from '../lib/imagenes'
 import { usePerfil, type DatosPerfil } from '../hooks/usePerfil'
+import { listarProductosFavoritos } from '../lib/favoritos'
+import { ProductCard } from '../components/ProductCard'
 import { esDNIValido, esTelefonoValido, MENSAJE_DNI, MENSAJE_TELEFONO } from '../lib/validacion'
-import type { Perfil } from '../types/database'
+import type { Perfil, ProductoConStock } from '../types/database'
+import { useSeo } from '../hooks/useSeo'
 
 function fechaCorta(iso: string) {
   return new Date(iso).toLocaleDateString('es-AR', {
@@ -23,6 +26,8 @@ function nombreIniciales(nombre: string) {
 }
 
 export function Perfil() {
+  useSeo()
+
   const { user, cargando, abrirAuthModal, cerrarSesion } = useAuth()
 
   if (cargando) {
@@ -77,9 +82,10 @@ function PerfilAutenticado({
   const [pedidos, setPedidos] = useState<OrdenConItems[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [tab, setTab] = useState<'pedidos' | 'cuenta'>('pedidos')
+  const [tab, setTab] = useState<'pedidos' | 'favoritos' | 'cuenta'>('pedidos')
   const location = useLocation()
-  const tabDesdeNavegacion = (location.state as { tab?: 'pedidos' | 'cuenta' } | null)?.tab ?? null
+  const tabDesdeNavegacion =
+    (location.state as { tab?: 'pedidos' | 'favoritos' | 'cuenta' } | null)?.tab ?? null
   const [ultimoTab, setUltimoTab] = useState<typeof tabDesdeNavegacion>(tabDesdeNavegacion)
   if (tabDesdeNavegacion && tabDesdeNavegacion !== ultimoTab) {
     setUltimoTab(tabDesdeNavegacion)
@@ -104,6 +110,30 @@ function PerfilAutenticado({
       activo = false
     }
   }, [email])
+
+  // Favoritos: se cargan recién al abrir la pestaña, no en el arranque del perfil.
+  const [productosFav, setProductosFav] = useState<ProductoConStock[]>([])
+  const [cargandoFavs, setCargandoFavs] = useState(false)
+  const [errorFavs, setErrorFavs] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (tab !== 'favoritos') return
+    let activo = true
+
+    async function cargarFavs() {
+      setCargandoFavs(true)
+      const res = await listarProductosFavoritos(userId)
+      if (!activo) return
+      setProductosFav(res.productos)
+      setErrorFavs(res.error)
+      setCargandoFavs(false)
+    }
+
+    void cargarFavs()
+    return () => {
+      activo = false
+    }
+  }, [tab, userId])
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-10">
@@ -134,6 +164,14 @@ function PerfilAutenticado({
           onClick={() => setTab('pedidos')}
         >
           Mis Pedidos
+        </button>
+        <button
+          role="tab"
+          type="button"
+          className={`tab ${tab === 'favoritos' ? 'tab-active' : ''}`}
+          onClick={() => setTab('favoritos')}
+        >
+          Mis Favoritos
         </button>
         <button
           role="tab"
@@ -187,7 +225,13 @@ function PerfilAutenticado({
                         <li key={`${item.orden_id}-${i}`} className="flex items-center gap-3">
                           <img
                             src={imagenProducto(item.producto?.imagenes[0], 0)}
-                            alt={item.producto?.nombre ?? 'Producto'}
+                            srcSet={srcsetImagen(item.producto?.imagenes[0], 48).srcset}
+                            sizes={srcsetImagen(item.producto?.imagenes[0], 48).sizes}
+                            alt={`${item.producto?.nombre ?? 'Producto'}, talle ${item.talle || 'único'}`}
+                            loading="lazy"
+                            decoding="async"
+                            width={48}
+                            height={56}
                             className="w-12 h-14 rounded-lg object-cover bg-base-300 shrink-0"
                           />
                           <div className="flex-1 min-w-0">
@@ -219,6 +263,41 @@ function PerfilAutenticado({
                     </div>
                   </div>
                 </article>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
+
+      {tab === 'favoritos' && (
+        <section>
+          {cargandoFavs ? (
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="skeleton h-80 w-full rounded-lg" />
+              ))}
+            </div>
+          ) : errorFavs ? (
+            <div className="alert alert-error text-sm">{errorFavs}</div>
+          ) : productosFav.length === 0 ? (
+            <div className="card bg-base-100 shadow-sm p-10 text-center">
+              <div className="mx-auto w-14 h-14 rounded-full bg-base-200 flex items-center justify-center mb-4">
+                <svg className="h-7 w-7 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" />
+                </svg>
+              </div>
+              <p className="opacity-70">Todavía no guardaste productos favoritos.</p>
+              <p className="text-xs opacity-50 mt-1">
+                Tocá el corazón en cualquier prenda para verla acá.
+              </p>
+              <Link to="/catalogo" className="btn btn-primary btn-sm mx-auto mt-4 w-fit">
+                Explorar catálogo
+              </Link>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+              {productosFav.map((producto) => (
+                <ProductCard key={producto.id} producto={producto} />
               ))}
             </div>
           )}

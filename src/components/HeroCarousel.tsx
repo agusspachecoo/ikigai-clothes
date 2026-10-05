@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { getBannersPublic } from '../lib/adminApi'
+import { srcsetImagen } from '../lib/imagenes'
 import type { Banner } from '../types/database'
 
 const BANNERS_POR_DEFECTO: Banner[] = [
@@ -8,6 +9,7 @@ const BANNERS_POR_DEFECTO: Banner[] = [
     id: 'default-1',
     imagen_url:
       'https://images.unsplash.com/photo-1523398002811-999ca8dec234?q=80&w=1800&auto=format&fit=crop',
+    imagen_mobile: null,
     titulo: 'Ropa urbana con estilo',
     link_url: '/catalogo',
     orden: 0,
@@ -18,6 +20,7 @@ const BANNERS_POR_DEFECTO: Banner[] = [
     id: 'default-2',
     imagen_url:
       'https://images.unsplash.com/photo-1490481651871-ab68de25d43d?q=80&w=1800&auto=format&fit=crop',
+    imagen_mobile: null,
     titulo: 'Nueva temporada',
     link_url: '/catalogo',
     orden: 1,
@@ -28,6 +31,7 @@ const BANNERS_POR_DEFECTO: Banner[] = [
     id: 'default-3',
     imagen_url:
       'https://images.unsplash.com/photo-1441986300917-64674bd600d8?q=80&w=1800&auto=format&fit=crop',
+    imagen_mobile: null,
     titulo: 'Encontrá tu esencia',
     link_url: '/outfits',
     orden: 2,
@@ -38,6 +42,7 @@ const BANNERS_POR_DEFECTO: Banner[] = [
     id: 'default-4',
     imagen_url:
       'https://images.unsplash.com/photo-1525507119028-ed4c629a60a3?q=80&w=1800&auto=format&fit=crop',
+    imagen_mobile: null,
     titulo: 'Outfits para cada día',
     link_url: '/outfits',
     orden: 3,
@@ -87,9 +92,14 @@ export function HeroCarousel() {
     setActual((index + total) % total)
   }
 
+  // El hero ocupa todo el ancho: el mismo banner va de ~400px en mobile a
+  // ~1900px en desktop, así que necesita el rango completo de variantes.
+  const srcsetHero = (url: string) => srcsetImagen(url, 1600, true)
+  const srcsetHeroMovil = (url: string) => srcsetImagen(url, 640, true)
+
   return (
     <section
-      className="relative h-[380px] md:h-[440px] w-full overflow-hidden bg-base-200"
+      className="relative aspect-[4/3] md:aspect-[21/9] md:max-h-[520px] w-full overflow-hidden bg-base-200"
       onMouseEnter={() => { pausado.current = true }}
       onMouseLeave={() => { pausado.current = false }}
     >
@@ -99,12 +109,45 @@ export function HeroCarousel() {
       >
         {banners.map((banner, i) => (
           <div key={banner.id} className="relative h-full w-full shrink-0">
-            <img
-              src={banner.imagen_url}
-              alt={banner.titulo ?? 'Ikigai Clothes'}
-              loading={i === 0 ? 'eager' : 'lazy'}
-              className="h-full w-full object-cover"
-            />
+            {banner.imagen_mobile ? (
+              <picture>
+                <source
+                  media="(max-width: 767px)"
+                  srcSet={srcsetHeroMovil(banner.imagen_mobile).srcset ?? banner.imagen_mobile}
+                  sizes="100vw"
+                />
+                <source
+                  media="(min-width: 768px)"
+                  srcSet={srcsetHero(banner.imagen_url).srcset ?? banner.imagen_url}
+                  sizes="100vw"
+                />
+                <img
+                  src={banner.imagen_url}
+                  srcSet={srcsetHero(banner.imagen_url).srcset}
+                  sizes="100vw"
+                  alt={banner.titulo ?? 'Ikigai Clothes'}
+                  loading={i === 0 ? 'eager' : 'lazy'}
+                  fetchPriority={i === 0 ? 'high' : 'auto'}
+                  decoding={i === 0 ? 'sync' : 'async'}
+                  width={1920}
+                  height={820}
+                  className="h-full w-full object-cover"
+                />
+              </picture>
+            ) : (
+              <img
+                src={banner.imagen_url}
+                srcSet={srcsetHero(banner.imagen_url).srcset}
+                sizes="100vw"
+                alt={banner.titulo ?? 'Ikigai Clothes'}
+                loading={i === 0 ? 'eager' : 'lazy'}
+                fetchPriority={i === 0 ? 'high' : 'auto'}
+                decoding={i === 0 ? 'sync' : 'async'}
+                width={1920}
+                height={820}
+                className="h-full w-full object-cover"
+              />
+            )}
             <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
 
             {banner.link_url ? (

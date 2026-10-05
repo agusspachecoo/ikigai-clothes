@@ -40,12 +40,29 @@ export function useResenas(productoId: string | null) {
     return () => { cancelled = true }
   }, [productoId])
 
-  async function insertarResena(resena: ResenaInput) {
+  /**
+   * Devuelve `{ ok, error }`. Antes devolvía solo un booleano y el hook se
+   * tragaba el mensaje de Postgres, así que la UI no tenía con qué explicar
+   * un fallo al usuario.
+   */
+  async function insertarResena(
+    resena: ResenaInput,
+  ): Promise<{ ok: boolean; error: string | null }> {
     const { error: err } = await supabase
       .from('resenas')
       .insert([resena])
 
-    return !err
+    if (!err) return { ok: true, error: null }
+
+    // 42501 = RLS bloqueó el insert. Suele ser un token de storage vencido o
+    // una sesión que no coincide con el usuario del comentario.
+    const mensaje =
+      err.code === '42501'
+        ? 'No pudimos publicar tu reseña. Recargá la página e intentá de nuevo.'
+        : err.code === '23514'
+          ? 'Falta completar algún dato de la reseña.'
+          : 'No pudimos guardar tu reseña. Probá de nuevo en unos segundos.'
+    return { ok: false, error: err.message ? `${mensaje} (${err.message})` : mensaje }
   }
 
   return { resenas, loading, error, insertarResena }

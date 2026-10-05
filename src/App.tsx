@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react'
-import { HashRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { StoreLayout } from './layouts/StoreLayout'
 import { Home } from './pages/Home'
 import { Catalogo } from './pages/Catalogo'
@@ -15,6 +15,13 @@ const QuienesSomos = lazy(() =>
 const Devoluciones = lazy(() =>
   import('./pages/Devoluciones').then((m) => ({ default: m.Devoluciones })),
 )
+const PoliticaPrivacidad = lazy(() =>
+  import('./pages/PoliticaPrivacidad').then((m) => ({ default: m.PoliticaPrivacidad })),
+)
+const TerminosCondiciones = lazy(() =>
+  import('./pages/TerminosCondiciones').then((m) => ({ default: m.TerminosCondiciones })),
+)
+const NotFound = lazy(() => import('./pages/NotFound').then((m) => ({ default: m.NotFound })))
 const PreguntasFrecuentes = lazy(() =>
   import('./pages/PreguntasFrecuentes').then((m) => ({ default: m.PreguntasFrecuentes })),
 )
@@ -61,7 +68,7 @@ const ConfigAdmin = lazy(() =>
 
 function App() {
   return (
-    <HashRouter>
+    <BrowserRouter>
       <Suspense
         fallback={
           <div className="flex min-h-[60vh] items-center justify-center">
@@ -81,6 +88,8 @@ function App() {
           <Route path="/quienes-somos" element={<QuienesSomos />} />
           <Route path="/devoluciones" element={<Devoluciones />} />
           <Route path="/preguntas-frecuentes" element={<PreguntasFrecuentes />} />
+          <Route path="/politica-de-privacidad" element={<PoliticaPrivacidad />} />
+          <Route path="/terminos-y-condiciones" element={<TerminosCondiciones />} />
           <Route path="/perfil" element={<Perfil />} />
           <Route path="/checkout" element={<CheckoutGuard />} />
           <Route path="/checkout/success" element={<CheckoutResultado status="success" />} />
@@ -100,10 +109,12 @@ function App() {
             <Route path="newsletter" element={<NewsletterAdmin />} />
             <Route path="config" element={<ConfigAdmin />} />
           </Route>
+
+          <Route path="*" element={<NotFound />} />
         </Route>
-        </Routes>
+      </Routes>
       </Suspense>
-    </HashRouter>
+    </BrowserRouter>
   )
 }
 

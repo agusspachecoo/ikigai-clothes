@@ -9,6 +9,7 @@ export interface Producto {
   imagenes: string[]
   activo: boolean
   created_at: string
+  sku?: string | null
 }
 
 export interface Categoria {
@@ -16,6 +17,7 @@ export interface Categoria {
   nombre: string
   slug: string
   created_at: string
+  imagen_url?: string | null
 }
 
 export interface VariacionStock {
@@ -154,6 +156,7 @@ export interface ComunidadFoto {
 export interface Banner {
   id: string
   imagen_url: string
+  imagen_mobile?: string | null
   titulo: string | null
   link_url: string | null
   orden: number

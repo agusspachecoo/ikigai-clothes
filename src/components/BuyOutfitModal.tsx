@@ -2,9 +2,11 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import type { OutfitConItems } from '../types/database'
 import { useCart } from '../context/cart'
-import { imagenOutfit, imagenProducto } from '../lib/imagenes'
+import { imagenOutfit, imagenProducto, srcsetImagen } from '../lib/imagenes'
 import { useCierreModal } from '../hooks/useCierreModal'
 import { precioConDescuento } from '../lib/precios'
+import { ConflictModal } from './ConflictModal'
+import type { Colision } from '../lib/conflictos'
 
 interface Props {
   outfit: OutfitConItems | null
@@ -28,7 +30,8 @@ export function BuyOutfitModal({ outfit, onClose }: Props) {
 }
 
 function OutfitModalContent({ outfit, onClose }: { outfit: OutfitConItems; onClose: () => void }) {
-  const { agregarItem, setCarritoAbierto } = useCart()
+  const { intentarAgregarOutfit, reemplazarConflictosYAgregarOutfit, setCarritoAbierto } = useCart()
+  const srcsetPortada = srcsetImagen(outfit.imagen_portada, 448)
 
   const tallesIniciales = Object.fromEntries(
     outfit.outfit_items.map((item) => {
@@ -39,21 +42,69 @@ function OutfitModalContent({ outfit, onClose }: { outfit: OutfitConItems; onClo
   )
 
   const [talles, setTalles] = useState<Record<string, string>>(tallesIniciales)
+  const [conflictos, setConflictos] = useState<Colision[]>([])
+  const [modalAbierto, setModalAbierto] = useState(false)
 
-  function agregarAlCarrito() {
-    for (const item of outfit.outfit_items) {
-      const p = item.producto
-      if (!p) continue
-      agregarItem({
-        producto_id: p.id,
-        nombre: p.nombre,
-        imagen: imagenProducto(p.imagenes[0], 0),
-        talle: talles[p.id] ?? '',
-        precio_unitario: precioConDescuento(p.precio, p.discount_percent),
-      })
-    }
+  /** Prendas del combo con el talle elegido en el modal. */
+  function prendasSeleccionadas() {
+    return outfit.outfit_items
+      .filter((item) => item.producto)
+      .map((item) => ({
+        producto_id: item.producto!.id,
+        talle: talles[item.producto!.id] ?? '',
+      }))
+  }
+
+  function detalleDePrendas() {
+    return new Map(
+      outfit.outfit_items
+        .filter((item) => item.producto)
+        .map((item) => {
+          const p = item.producto!
+          return [
+            p.id,
+            {
+              nombre: p.nombre,
+              imagen: imagenProducto(p.imagenes[0], 0),
+              precio_unitario: precioConDescuento(p.precio, p.discount_percent),
+            },
+          ]
+        }),
+    )
+  }
+
+  function cerrarYMostrarCarrito() {
+    setModalAbierto(false)
+    setConflictos([])
     onClose()
     setCarritoAbierto(true)
+  }
+
+  function agregarAlCarrito() {
+    const resultado = intentarAgregarOutfit(
+      outfit.id,
+      outfit.nombre,
+      prendasSeleccionadas(),
+      detalleDePrendas(),
+    )
+    // Si hay colisión, `intentarAgregarOutfit` no tocó el estado: solo avisamos.
+    if (!resultado.ok) {
+      setConflictos(resultado.colisiones)
+      setModalAbierto(true)
+      return
+    }
+    cerrarYMostrarCarrito()
+  }
+
+  function confirmarAgregar() {
+    reemplazarConflictosYAgregarOutfit(
+      outfit.id,
+      outfit.nombre,
+      prendasSeleccionadas(),
+      detalleDePrendas(),
+      conflictos,
+    )
+    cerrarYMostrarCarrito()
   }
 
   return (
@@ -61,7 +112,13 @@ function OutfitModalContent({ outfit, onClose }: { outfit: OutfitConItems; onClo
       <figure className="relative h-52 w-full bg-base-300">
         <img
           src={imagenOutfit(outfit.imagen_portada, 0)}
-          alt={outfit.nombre}
+          srcSet={srcsetPortada.srcset}
+          sizes={srcsetPortada.sizes}
+          alt={`Look ${outfit.nombre}: ${outfit.outfit_items.length} prendas combinadas`}
+          loading="lazy"
+          decoding="async"
+          width={448}
+          height={208}
           className="w-full h-full object-cover"
         />
       </figure>
@@ -96,7 +153,13 @@ function OutfitModalContent({ outfit, onClose }: { outfit: OutfitConItems; onClo
                 >
                   <img
                     src={imagenProducto(p.imagenes[0], i)}
-                    alt={p.nombre}
+                    srcSet={srcsetImagen(p.imagenes[0], 64).srcset}
+                    sizes={srcsetImagen(p.imagenes[0], 64).sizes}
+                    alt={`${p.nombre}, prenda del look ${outfit.nombre}`}
+                    loading="lazy"
+                    decoding="async"
+                    width={56}
+                    height={64}
                     className="w-14 h-16 object-cover rounded-xl hover:opacity-80 transition-opacity"
                   />
                 </Link>
@@ -156,6 +219,18 @@ function OutfitModalContent({ outfit, onClose }: { outfit: OutfitConItems; onClo
           Agregar todo el look
         </button>
       </div>
+      {modalAbierto && (
+        <ConflictModal
+          abierto={modalAbierto}
+          conflictos={conflictos}
+          accionSolicitada="agregar_outfit"
+          onConfirmar={confirmarAgregar}
+          onCancelar={() => {
+            setModalAbierto(false)
+            setConflictos([])
+          }}
+        />
+      )}
     </div>
   )
 }

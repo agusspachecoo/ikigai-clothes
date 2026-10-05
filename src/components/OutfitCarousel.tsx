@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import type { OutfitConItems } from '../types/database'
-import { imagenOutfit } from '../lib/imagenes'
+import { imagenOutfit, srcsetImagen } from '../lib/imagenes'
 import { BuyOutfitModal } from './BuyOutfitModal'
 
 interface Props {
@@ -29,7 +29,7 @@ export function OutfitCarousel({ outfits }: Props) {
     <section className="py-12 md:py-20 bg-base-100 border-t border-base-300">
       <div className="max-w-7xl mx-auto px-4">
         <div className="text-center mb-8 md:mb-10">
-          <h2 className="text-2xl md:text-4xl font-bold">Compra el Conjunto</h2>
+          <h2 className="text-2xl md:text-4xl font-bold">Compra el Conjunto (5% off)</h2>
           <p className="opacity-60 mt-2 text-sm md:text-base">
             {outfits.length > 0
               ? 'Completá tu look con las prendas destacadas'
@@ -50,12 +50,21 @@ export function OutfitCarousel({ outfits }: Props) {
                   >
                     <img
                       src={imagenOutfit(o.imagen_portada, i)}
-                      alt={o.nombre}
+                      srcSet={srcsetImagen(o.imagen_portada, 280).srcset}
+                      sizes={srcsetImagen(o.imagen_portada, 280).sizes}
+                      alt={`Look ${o.nombre} con precio de combo`}
                       className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                      loading="lazy"
+                      decoding="async"
+                      width={280}
+                      height={373}
                       onError={(e) => {
                         const img = e.currentTarget
                         if (!img.dataset.fallback) {
                           img.dataset.fallback = '1'
+                          // Al cambiar el src hay que limpiar el srcset: si no,
+                          // el navegador sigue pidiendo la imagen rota.
+                          img.removeAttribute('srcset')
                           img.src = `https://picsum.photos/seed/ikigai-outfit-${i}/600/800`
                         }
                       }}

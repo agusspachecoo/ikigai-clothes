@@ -11,6 +11,8 @@ export interface ConfigTienda {
   email_contacto: string
   instagram: string
   nombre_tienda: string
+  /** URL de la imagen del bloque de showroom (subida desde el panel) */
+  imagen_showroom: string
 }
 
 export const CONFIG_POR_DEFECTO: ConfigTienda = {
@@ -22,6 +24,7 @@ export const CONFIG_POR_DEFECTO: ConfigTienda = {
   email_contacto: 'ikigaiclothes.contacto@gmail.com',
   instagram: 'https://www.instagram.com/ikigai_clothess/',
   nombre_tienda: 'IKIGAI CLOTHES',
+  imagen_showroom: '',
 }
 
 export const TiendaContexto = createContext<ConfigTienda>(CONFIG_POR_DEFECTO)

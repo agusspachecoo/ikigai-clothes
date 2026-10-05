@@ -32,9 +32,9 @@ export function CouponInput({ className = '' }: { className?: string }) {
   if (cupon) {
     return (
       <div className={`flex items-center justify-between gap-2 ${className}`}>
-        <span className="flex items-center gap-2 text-xs">
-          <span className="badge badge-sm badge-primary">{cupon.codigo}</span>
-          <span className="opacity-70">{cupon.descripcion ?? 'Cupón aplicado'}</span>
+        <span className="flex items-center gap-2 text-xs min-w-0">
+          <span className="badge badge-sm badge-primary shrink-0">{cupon.codigo}</span>
+          <span className="opacity-70 truncate">{cupon.descripcion ?? 'Cupón aplicado'}</span>
         </span>
         <button
           type="button"
@@ -59,12 +59,16 @@ export function CouponInput({ className = '' }: { className?: string }) {
           }}
           placeholder="Cupón de descuento"
           aria-label="Cupón de descuento"
-          className="input input-sm flex-1 rounded-none border-r-0 bg-base-100 uppercase"
+          aria-invalid={estado === 'error'}
+          /* min-w-0: sin esto el input conserva su ancho intrínseco de
+             placeholder y empuja el botón fuera del drawer en pantallas
+             angostas (flex-1 no baja de min-width: auto). */
+          className="input input-sm flex-1 min-w-0 rounded-none border-r-0 bg-base-100 uppercase"
         />
         <button
           type="submit"
           disabled={estado === 'cargando' || !codigo.trim()}
-          className="btn btn-sm btn-outline rounded-none px-4"
+          className="btn btn-sm btn-outline rounded-none px-4 shrink-0"
         >
           {estado === 'cargando' ? <span className="loading loading-spinner loading-xs" /> : 'Aplicar'}
         </button>

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import {
   getOrdenesAdmin,
   actualizarEstadoOrden,
+  comprobanteFirmado,
   ESTADOS_ORDEN,
   ESTADO_LABEL,
   type EstadoOrden,
@@ -28,6 +29,7 @@ export function PedidosAdmin() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [filtro, setFiltro] = useState<'' | EstadoOrden>('')
+  const [busqueda, setBusqueda] = useState('')
   const [detalle, setDetalle] = useState<OrdenConItems | null>(null)
   const [recarga, setRecarga] = useState(0)
   const [notificacion, setNotificacion] = useState<string | null>(null)
@@ -55,7 +57,20 @@ export function PedidosAdmin() {
     return () => window.clearTimeout(t)
   }, [notificacion])
 
-  const filtradas = filtro ? ordenes.filter((o) => o.estado === filtro) : ordenes
+  const filtradas = ordenes.filter((o) => {
+    const cumpleEstado = filtro ? o.estado === filtro : true
+    if (!cumpleEstado) return false
+    if (!busqueda.trim()) return true
+    const q = busqueda.trim().toLowerCase()
+    const idCorto = o.id.slice(0, 8).toLowerCase()
+    const idCompleto = o.id.toLowerCase()
+    return (
+      idCorto.includes(q) ||
+      idCompleto.includes(q) ||
+      o.cliente_nombre?.toLowerCase().includes(q) ||
+      o.cliente_email?.toLowerCase().includes(q)
+    )
+  })
 
   return (
     <div>
@@ -66,6 +81,13 @@ export function PedidosAdmin() {
       )}
 
       <div className="flex flex-wrap items-center gap-3 mb-4">
+        <input
+          type="text"
+          className="input input-bordered w-full sm:w-80"
+          placeholder="Buscar por ID de pedido, nombre o email"
+          value={busqueda}
+          onChange={(e) => setBusqueda(e.target.value)}
+        />
         <select
           className="select select-bordered"
           value={filtro}
@@ -190,6 +212,33 @@ function PedidoDetalle({
   useCierreModal(true, onCerrar)
   useCierreModal(mostrarComprobante, () => setMostrarComprobante(false))
 
+  // El bucket de comprobantes es privado: la URL se pide al abrir el modal y
+  // expira en 5 minutos, así que hay que firmarla de nuevo en cada apertura.
+  const [comprobante, setComprobante] = useState<{ url: string | null; error: string | null }>({
+    url: null,
+    error: null,
+  })
+
+  useEffect(() => {
+    if (!mostrarComprobante) return
+
+    let vigente = true
+    // El reseteo va en `abrirComprobante`, no acá: setState directo en el cuerpo
+    // del efecto dispara un render en cascada.
+    comprobanteFirmado(orden.comprobante_url).then((res) => {
+      if (vigente) setComprobante(res)
+    })
+
+    return () => {
+      vigente = false
+    }
+  }, [mostrarComprobante, orden.comprobante_url])
+
+  function abrirComprobante() {
+    setComprobante({ url: null, error: null })
+    setMostrarComprobante(true)
+  }
+
   const esRetiro = orden.envio_detalle?.metodo === 'retiro' || orden.direccion === 'Retiro en showroom'
 
   async function guardarEstado() {
@@ -308,7 +357,7 @@ function PedidoDetalle({
                 <div className="bg-base-200 rounded-xl p-4">
                   <button
                     type="button"
-                    onClick={() => setMostrarComprobante(true)}
+                    onClick={abrirComprobante}
                     className="btn btn-sm btn-outline btn-primary gap-2"
                   >
                     <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
@@ -378,29 +427,39 @@ function PedidoDetalle({
               <h3 className="font-bold text-gray-900">Comprobante de pago</h3>
             </div>
             <div className="p-4">
-              {orden.comprobante_url.endsWith('.pdf') ? (
+              {comprobante.error ? (
+                <div className="alert alert-error text-sm">
+                  {comprobante.error}
+                </div>
+              ) : !comprobante.url ? (
+                <div className="flex items-center justify-center h-[40vh]">
+                  <span className="loading loading-spinner loading-lg" />
+                </div>
+              ) : comprobante.url.toLowerCase().split('?')[0].endsWith('.pdf') ? (
                 <iframe
-                  src={orden.comprobante_url}
+                  src={comprobante.url}
                   className="w-full h-[70vh] rounded-lg"
                   title="Comprobante"
                 />
               ) : (
                 <img
-                  src={orden.comprobante_url}
+                  src={comprobante.url}
                   alt="Comprobante de pago"
                   className="max-w-full max-h-[70vh] mx-auto rounded-lg object-contain"
                 />
               )}
             </div>
             <div className="p-4 border-t border-base-300 flex justify-end">
-              <a
-                href={orden.comprobante_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="btn btn-sm btn-outline"
-              >
-                Abrir en nueva pestaña
-              </a>
+              {comprobante.url && (
+                <a
+                  href={comprobante.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn btn-sm btn-outline"
+                >
+                  Abrir en nueva pestaña
+                </a>
+              )}
             </div>
           </div>
         </dialog>

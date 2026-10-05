@@ -1,22 +1,28 @@
 import { useState, useRef } from 'react'
-import { comprimirImagen, blobToFile, tamañoEnKB } from '../lib/imageCompression'
-import { subirImagen } from '../lib/adminApi'
-
-type CarpetaSubida = 'productos' | 'outfits' | 'reviews' | 'comunidad'
+import {
+  comprimirImagen,
+  blobToFile,
+  tamañoEnKB,
+  type CompressOptions,
+} from '../lib/imageCompression'
+import { subirImagen, type CarpetaImagen } from '../lib/adminApi'
 
 interface ImageUploaderProps {
-  carpeta: CarpetaSubida
+  carpeta: CarpetaImagen
   imagenActual?: string
   onUrl: (url: string) => void
-  proporcion?: 'cuadrado' | 'retrato' | 'apaisado'
+  proporcion?: 'cuadrado' | 'retrato' | 'apaisado' | 'vertical'
   altoMinimo?: string
   texto?: string
+  /** Ajustes de compresión (ancho máximo, calidad y peso objetivo). */
+  compresion?: CompressOptions
 }
 
 const PROPORCION_TAILWIND: Record<NonNullable<ImageUploaderProps['proporcion']>, string> = {
   cuadrado: 'aspect-square',
   retrato: 'aspect-[3/4]',
   apaisado: 'aspect-[16/9]',
+  vertical: 'aspect-[9/16]',
 }
 
 export function ImageUploader({
@@ -26,6 +32,7 @@ export function ImageUploader({
   proporcion = 'retrato',
   altoMinimo = 'h-44',
   texto = 'Elegí o arrastrá una imagen',
+  compresion,
 }: ImageUploaderProps) {
   const [previewLocal, setPreviewLocal] = useState<string | null>(null)
   const [subiendo, setSubiendo] = useState(false)
@@ -46,10 +53,17 @@ export function ImageUploader({
     setInfo(null)
     setSubiendo(true)
     try {
-      const blob = await comprimirImagen(archivo)
+      const blob = await comprimirImagen(archivo, compresion)
       const archivoFinal = blobToFile(blob, archivo.name)
       setPreviewLocal(URL.createObjectURL(blob))
-      setInfo(`Comprimida a ${tamañoEnKB(blob.size)}`)
+      setInfo(
+        archivo.size > blob.size
+          ? `Comprimida: ${tamañoEnKB(archivo.size)} → ${tamañoEnKB(blob.size)}`
+          : `Optimizada: ${tamañoEnKB(blob.size)}`,
+      )
+      // La imagen anterior se limpia aparte, con `eliminarImagen()`, cuando el
+      // formulario ya la guardó: `imagenActual` es solo el valor actual del
+      // campo, no se borra acá.
       const { url, error: errUpload } = await subirImagen(archivoFinal, carpeta)
       if (errUpload || !url) throw new Error(errUpload ?? 'No se pudo subir la imagen')
       onUrl(url)

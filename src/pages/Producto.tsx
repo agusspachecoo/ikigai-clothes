@@ -1,10 +1,13 @@
 import { useParams } from 'react-router-dom'
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { useProducto } from '../hooks/useProductos'
+import { useSeo, urlAbsoluta } from '../hooks/useSeo'
 import { useResenas } from '../hooks/useResenas'
-import { useCart } from '../context/cart'
+import { useCart, type ItemNuevo } from '../context/cart'
 import { useAuth } from '../context/auth'
 import { imagenProducto } from '../lib/imagenes'
+import { ConflictModal } from '../components/ConflictModal'
+import type { Colision } from '../lib/conflictos'
 import { EnvioCalculator } from '../components/EnvioCalculator'
 import { RatingProducto } from '../components/RatingProducto'
 import { FAQSection } from '../components/FAQSection'
@@ -19,6 +22,7 @@ import { Breadcrumbs } from '../components/Breadcrumbs'
 import { BotonCompartir } from '../components/BotonCompartir'
 import { tallesDisponibles } from '../lib/talles'
 import { slugify } from '../lib/categorias'
+import { srcsetImagen } from '../lib/imagenes'
 import {
   formatearPrecio,
   montoCuota,
@@ -29,13 +33,17 @@ import {
 export function Producto() {
   const { id } = useParams<{ id: string }>()
   const { producto, loading, error } = useProducto(id ?? null)
-  const { agregarItem, setCarritoAbierto } = useCart()
+  const { intentarAgregar, reemplazarConflictosYAgregar, setCarritoAbierto } = useCart()
   const { user, abrirAuthModal } = useAuth()
   const [imagenActiva, setImagenActiva] = useState(0)
   const [talleSeleccionado, setTalleSeleccionado] = useState<string | null>(null)
+  const [conflictos, setConflictos] = useState<Colision[]>([])
+  const [modalConflictoAbierto, setModalConflictoAbierto] = useState(false)
   const [fotoResena, setFotoResena] = useState<File | null>(null)
   const [vistaPreviaResena, setVistaPreviaResena] = useState<string | null>(null)
   const [subiendoResena, setSubiendoResena] = useState(false)
+  const [errorResena, setErrorResena] = useState<string | null>(null)
+  const [exitoResena, setExitoResena] = useState(false)
   const [lightboxResena, setLightboxResena] = useState<{ resenaId: string, url: string } | null>(null)
   const { descuento_transferencia, cuotas_sin_interes, umbral_envio_gratis, envio_gratis_activo } =
     useTienda()
@@ -54,11 +62,38 @@ export function Producto() {
       setFotoResena(null)
       setVistaPreviaResena(null)
       setSubiendoResena(false)
+      setErrorResena(null)
+      setExitoResena(false)
       setLightboxResena(null)
     }
   }, [idProducto])
 
   const { resenas, insertarResena } = useResenas(id ?? null)
+
+  // La galería principal se renderiza a media pantalla en desktop.
+  const srcsetGaleria = srcsetImagen(producto?.imagenes?.[imagenActiva], 600)
+
+  // Metadatos por producto. El título y la descripción se calculan siempre
+  // (también durante el loading) para que crawlers y previews no queden vacíos.
+  const seo = useMemo(() => {
+    if (!producto) return {}
+    const precio = formatearPrecio(
+      precioConDescuento(producto.precio, producto.discount_percent),
+    )
+    const descripcionBase = producto.descripcion?.trim()
+    const descripcion =
+      descripcionBase && descripcionBase.length > 40
+        ? descripcionBase.slice(0, 155).trim() + '…'
+        : `${producto.nombre} en Ikigai Clothes. ${producto.categoria} por ${precio}. Envíos a todo el país desde Oberá, Misiones.`
+    return {
+      title: `${producto.nombre} · ${producto.categoria} | Ikigai Clothes`,
+      description: descripcion,
+      image: urlAbsoluta(producto.imagenes?.[0]),
+      type: 'product',
+    }
+  }, [producto])
+
+  useSeo(seo)
 
   const [formResena, setFormResena] = useState({
     nombre_usuario: '',
@@ -114,6 +149,7 @@ export function Producto() {
   const precioOferta = precioConDescuento(precioOriginal, descuento)
 
   const talles = producto ? tallesDisponibles(producto.variaciones_stock) : []
+  const sinStock = talles.length === 0 || talles.every((t) => t.stock === 0)
   const precioTransferenciaFinal = precioTransferencia(precioOferta, descuento_transferencia)
   const ahorroTransferencia = Math.max(0, precioOferta - precioTransferenciaFinal)
 
@@ -121,15 +157,39 @@ export function Producto() {
     ? Math.round((resenas.reduce((s, r) => s + r.puntuacion, 0) / resenas.length) * 10) / 10
     : 0
 
-  function agregarAlCarrito() {
-    if (!producto || !talleSeleccionado) return
-    agregarItem({
+  function prendaDelProducto(): ItemNuevo | null {
+    if (!producto || !talleSeleccionado) return null
+    return {
       producto_id: producto.id,
       nombre: producto.nombre,
       imagen: imagenProducto(producto.imagenes[0], 0),
       talle: talleSeleccionado,
       precio_unitario: precioOferta,
-    })
+      origen: 'individual',
+      outfitId: null,
+      outfitNombre: null,
+    }
+  }
+
+  function agregarAlCarrito() {
+    const nueva = prendaDelProducto()
+    if (!nueva) return
+    // Stock unitario: si la prenda ya está (suelta o dentro de un look), no se
+    // agrega nada hasta que el usuario confirme el reemplazo en el modal.
+    const resultado = intentarAgregar(nueva)
+    if (!resultado.ok) {
+      setConflictos(resultado.colisiones)
+      setModalConflictoAbierto(true)
+      return
+    }
+    setCarritoAbierto(true)
+  }
+
+  function confirmarReemplazo() {
+    const nueva = prendaDelProducto()
+    if (nueva) reemplazarConflictosYAgregar(nueva, conflictos)
+    setModalConflictoAbierto(false)
+    setConflictos([])
     setCarritoAbierto(true)
   }
 
@@ -137,7 +197,19 @@ export function Producto() {
     e.preventDefault()
     if (!id) return
 
+    if (formResena.nombre_usuario.trim().length < 2) {
+      setErrorResena('Escribí tu nombre para saber quién tukió.')
+      return
+    }
+    if (formResena.comentario.trim().length < 5) {
+      setErrorResena('Contanos un poco más: al menos unas pocas palabras.')
+      return
+    }
+
     setSubiendoResena(true)
+    setErrorResena(null)
+    setExitoResena(false)
+
     try {
       let imagenUrl: string | null = null
       if (fotoResena) {
@@ -146,12 +218,31 @@ export function Producto() {
         imagenUrl = JSON.stringify([url])
       }
 
-      const ok = await insertarResena({ ...formResena, producto_id: id, imagen_url: imagenUrl })
-      if (ok) {
-        setFormResena({ nombre_usuario: '', puntuacion: 5, comentario: '' })
-        setFotoResena(null)
-        setVistaPreviaResena(null)
+      const { ok, error } = await insertarResena({
+        ...formResena,
+        nombre_usuario: formResena.nombre_usuario.trim(),
+        comentario: formResena.comentario.trim(),
+        producto_id: id,
+        imagen_url: imagenUrl,
+      })
+
+      if (!ok) {
+        setErrorResena(error ?? 'No pudimos guardar tu reseña.')
+        return
       }
+
+      setFormResena({ nombre_usuario: '', puntuacion: 5, comentario: '' })
+      setFotoResena(null)
+      setVistaPreviaResena(null)
+      setExitoResena(true)
+    } catch (error) {
+      // Sin este catch, un fallo al subir la fotoPromise quedaba rechazada sin
+      // mostrar nada: el usuario apretaba Enviar y no pasaba nada.
+      setErrorResena(
+        error instanceof Error && error.message
+          ? `No pudimos enviar tu reseña: ${error.message}`
+          : 'No pudimos enviar tu reseña. Probá de nuevo.',
+      )
     } finally {
       setSubiendoResena(false)
     }
@@ -173,9 +264,23 @@ export function Producto() {
         <div>
           <figure className="aspect-[3/4] bg-base-200 overflow-hidden">
             {producto.imagenes[imagenActiva] && (
+              /* Esta es la imagen LCP de la página: eager + fetchpriority high
+                 para que el navegador la empiece a bajar apenas parsea el HTML,
+                 en vez de esperar a que entre en viewport. Las demás van lazy. */
               <img
                 src={producto.imagenes[imagenActiva]}
-                alt={producto.nombre}
+                srcSet={srcsetGaleria.srcset}
+                sizes={srcsetGaleria.sizes}
+                alt={
+                  imagenActiva === 0
+                    ? `${producto.nombre} de ${producto.categoria}, vista frontal`
+                    : `${producto.nombre}, foto ${imagenActiva + 1} de ${producto.imagenes.length}`
+                }
+                loading={imagenActiva === 0 ? 'eager' : 'lazy'}
+                fetchPriority={imagenActiva === 0 ? 'high' : 'auto'}
+                decoding={imagenActiva === 0 ? 'sync' : 'async'}
+                width={600}
+                height={800}
                 className="w-full h-full object-cover"
               />
             )}
@@ -185,13 +290,24 @@ export function Producto() {
               {producto.imagenes.map((img, i) => (
                 <button
                   key={i}
-                  aria-label={`Ver foto ${i + 1}`}
+                  aria-label={`Ver foto ${i + 1} de ${producto.nombre}`}
+                  aria-current={i === imagenActiva}
                   className={`w-16 h-16 border overflow-hidden ${
                     i === imagenActiva ? 'border-neutral' : 'border-line'
                   }`}
                   onClick={() => setImagenActiva(i)}
                 >
-                  <img src={img} alt="" className="w-full h-full object-cover" />
+                  <img
+                    src={img}
+                    srcSet={srcsetImagen(img, 128).srcset}
+                    sizes={srcsetImagen(img, 128).sizes}
+                    alt=""
+                    loading="lazy"
+                    decoding="async"
+                    width={64}
+                    height={64}
+                    className="w-full h-full object-cover"
+                  />
                 </button>
               ))}
             </div>
@@ -263,7 +379,14 @@ export function Producto() {
           {/* Selector de talles */}
           {talles.length > 0 && (
             <div className="mt-6">
-              <p className="text-xs uppercase tracking-widest mb-2">Talle</p>
+              <p className="text-xs uppercase tracking-widest mb-2">
+                Talle
+                {sinStock && (
+                  <span className="ml-2 normal-case tracking-normal opacity-60">
+                    · todos agotados
+                  </span>
+                )}
+              </p>
               <div className="flex flex-wrap gap-2">
                 {talles.map(({ talle: t, stock }) => (
                   <button
@@ -292,10 +415,14 @@ export function Producto() {
             <button
               type="button"
               onClick={agregarAlCarrito}
-              disabled={!talleSeleccionado}
+              disabled={!talleSeleccionado || sinStock}
               className="btn btn-primary rounded-none w-full"
             >
-              {talleSeleccionado ? 'Agregar al carrito' : 'Elegí un talle'}
+              {sinStock
+                ? 'Sin Stock'
+                : talleSeleccionado
+                  ? 'Agregar al carrito'
+                  : 'Elegí un talle'}
             </button>
           </div>
 
@@ -356,7 +483,10 @@ export function Producto() {
               className="input input-bordered"
               placeholder="Tu nombre"
               value={formResena.nombre_usuario}
-              onChange={(e) => setFormResena(f => ({ ...f, nombre_usuario: e.target.value }))}
+              onChange={(e) => {
+                setFormResena(f => ({ ...f, nombre_usuario: e.target.value }))
+                setErrorResena(null)
+              }}
               required
             />
             <div className="flex flex-col items-start gap-2">
@@ -380,7 +510,10 @@ export function Producto() {
             placeholder="Tu comentario..."
             rows={3}
             value={formResena.comentario}
-            onChange={(e) => setFormResena(f => ({ ...f, comentario: e.target.value }))}
+            onChange={(e) => {
+              setFormResena(f => ({ ...f, comentario: e.target.value }))
+              setErrorResena(null)
+            }}
             required
           />
 
@@ -390,7 +523,12 @@ export function Producto() {
             <label className="mt-2 flex items-center justify-center w-full h-24 border-2 border-dashed border-base-300 rounded-xl cursor-pointer hover:border-primary transition-colors overflow-hidden relative">
               {vistaPreviaResena ? (
                 <>
-                  <img src={vistaPreviaResena} alt="Vista previa" className="w-full h-full object-cover" />
+                  <img
+                    src={vistaPreviaResena}
+                    alt="Vista previa de la foto que vas a adjuntar a la reseña"
+                    decoding="async"
+                    className="w-full h-full object-cover"
+                  />
                   <button
                     type="button"
                     onClick={() => { setFotoResena(null); setVistaPreviaResena(null) }}
@@ -418,10 +556,35 @@ export function Producto() {
             </label>
           </div>
 
+          {errorResena && (
+            <div
+              role="alert"
+              className="alert alert-error mt-4 py-2 px-3 text-sm items-start"
+            >
+              <svg className="h-4 w-4 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+              </svg>
+              <span>{errorResena}</span>
+            </div>
+          )}
+
+          {exitoResena && (
+            <div role="status" className="alert alert-success mt-4 py-2 px-3 text-sm items-start">
+              <svg className="h-4 w-4 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span>
+                ¡Gracias {formResena.nombre_usuario.trim().split(' ')[0] || 'por la reseña'}! Se publica
+                apenas la aprobemos.
+              </span>
+            </div>
+          )}
+
           <button
             type="submit"
             className="btn btn-primary mt-4 self-start px-6 py-3 rounded-xl cursor-pointer"
             disabled={subiendoResena}
+            aria-busy={subiendoResena}
           >
             {subiendoResena ? 'Subiendo...' : 'Enviar Reseña'}
           </button>
@@ -480,7 +643,17 @@ export function Producto() {
                           onClick={() => setLightboxResena({ resenaId: r.id, url: foto })}
                           aria-label="Ver foto de la reseña"
                         >
-                          <img src={foto} alt="" className="w-full h-full object-cover" />
+                          <img
+                            src={foto}
+                            srcSet={srcsetImagen(foto, 80).srcset}
+                            sizes={srcsetImagen(foto, 80).sizes}
+                            alt={`Foto de la reseña de ${r.nombre_usuario}`}
+                            loading="lazy"
+                            decoding="async"
+                            width={80}
+                            height={80}
+                            className="w-full h-full object-cover"
+                          />
                         </button>
                       ))}
                     </div>
@@ -503,10 +676,27 @@ export function Producto() {
         >
           <img
             src={lightboxResena.url}
-            alt="Foto de la reseña"
+            srcSet={srcsetImagen(lightboxResena.url, 800).srcset}
+            sizes="(max-width: 1024px) 100vw, 800px"
+            alt="Foto de la reseña ampliada"
+            decoding="async"
             className="max-w-full max-h-[90vh] rounded-lg object-contain"
           />
         </div>
+      )}
+
+      {/* Colisión de stock unitario */}
+      {modalConflictoAbierto && (
+        <ConflictModal
+          abierto={modalConflictoAbierto}
+          conflictos={conflictos}
+          accionSolicitada="agregar_individual"
+          onConfirmar={confirmarReemplazo}
+          onCancelar={() => {
+            setModalConflictoAbierto(false)
+            setConflictos([])
+          }}
+        />
       )}
     </div>
   )

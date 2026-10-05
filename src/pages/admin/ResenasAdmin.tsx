@@ -171,7 +171,11 @@ function ResenasList({
           {r.imagen_url && (
             <img
               src={parseResenaImagenes(r.imagen_url)[0] ?? r.imagen_url}
-              alt=""
+              alt={`Foto enviada por ${r.nombre_usuario} en su reseña`}
+              loading="lazy"
+              decoding="async"
+              width={64}
+              height={80}
               className="w-16 h-20 object-cover rounded-xl bg-base-300 shrink-0"
             />
           )}
@@ -242,7 +246,15 @@ function ComunidadFotosGrid({
     return (
       <div key={f.id} className={`card bg-base-100 shadow-sm overflow-hidden ${f.aprobado ? '' : 'border-2 border-warning'}`}>
         <figure className="aspect-square bg-base-300">
-          <img src={f.imagen_url} alt="" className="w-full h-full object-cover" />
+          <img
+            src={f.imagen_url}
+            alt={`Foto de la comunidad de ${f.nombre_usuario}`}
+            loading="lazy"
+            decoding="async"
+            width={160}
+            height={213}
+            className="w-full h-full object-cover"
+          />
         </figure>
         <div className="card-body p-3">
           <p className="text-sm font-medium">{f.nombre_usuario}</p>

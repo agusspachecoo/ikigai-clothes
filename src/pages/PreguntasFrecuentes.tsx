@@ -2,8 +2,11 @@ import { Link } from 'react-router-dom'
 import { PaginaInstitucional, Pregunta } from '../components/PaginaInstitucional'
 import { useTienda } from '../context/tienda'
 import { formatearPrecio } from '../lib/precios'
+import { useSeo } from '../hooks/useSeo'
 
 export function PreguntasFrecuentes() {
+  useSeo()
+
   const { umbral_envio_gratis, descuento_transferencia, cuotas_sin_interes } = useTienda()
 
   const grupos = [

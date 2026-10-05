@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import type { ProductoConStock } from '../types/database'
-import { imagenProducto } from '../lib/imagenes'
+import { imagenProducto, srcsetImagen } from '../lib/imagenes'
 import { formatearPrecio, precioConDescuento } from '../lib/precios'
 import { QuickshopModal } from './QuickshopModal'
 
@@ -124,7 +124,17 @@ export function Buscador({ className = '', placeholder = 'Buscar prendas...', on
               >
                 <img
                   src={imagenProducto(p.imagenes[0], i)}
-                  alt=""
+                  /* El srcset se calcula por sugerencia, no una sola vez afuera:
+                     cada producto tiene su propia ruta en Storage, asi que un
+                     srcset compartido hacia que todas las miniaturas mostraran
+                     la foto de la primera sugerencia. */
+                  srcSet={srcsetImagen(p.imagenes[0], 40).srcset}
+                  sizes={srcsetImagen(p.imagenes[0], 40).sizes}
+                  alt={`${p.nombre}, ${p.categoria}`}
+                  loading="lazy"
+                  decoding="async"
+                  width={40}
+                  height={48}
                   className="w-10 h-12 object-cover bg-base-200 shrink-0"
                 />
                 <div className="flex-1 min-w-0">

@@ -3,8 +3,11 @@ import { PaginaInstitucional } from '../components/PaginaInstitucional'
 import { useTienda } from '../context/tienda'
 import { NewsletterForm } from '../components/NewsletterForm'
 import { formatearPrecio } from '../lib/precios'
+import { useSeo } from '../hooks/useSeo'
 
 export function QuienesSomos() {
+  useSeo()
+
   const { umbral_envio_gratis, descuento_transferencia, nombre_tienda } = useTienda()
 
   const pilares = [
@@ -50,7 +53,7 @@ export function QuienesSomos() {
       </p>
 
       <div className="border border-line p-6 bg-base-100">
-        <h2 className="font-display text-lg">Sumate al newsletter</h2>
+        <h2 className="font-display text-lg">Sumate a la comunidad</h2>
         <p className="text-sm opacity-70 mt-1 mb-4">
           Drops, ofertas y liquidaciones antes que nadie.
         </p>

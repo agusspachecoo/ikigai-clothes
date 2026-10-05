@@ -39,10 +39,10 @@ export async function crearPreferenciaMP(
     cliente,
     urls: {
       back: {
-        // La app usa HashRouter, así que Mercado Pago debe redirigir a las rutas con `#/`.
-        success: `${base}/#/checkout/success`,
-        failure: `${base}/#/checkout/failure`,
-        pending: `${base}/#/checkout/pending`,
+        // Rutas limpias: la app usa BrowserRouter, así que van sin fragmento.
+        success: `${base}/checkout/success`,
+        failure: `${base}/checkout/failure`,
+        pending: `${base}/checkout/pending`,
       },
       notification: `${FUNCTIONS_URL}/mercadopago-webhook`,
     },

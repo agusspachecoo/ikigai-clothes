@@ -1,7 +1,10 @@
 import { Link } from 'react-router-dom'
 import { PaginaInstitucional, Pregunta } from '../components/PaginaInstitucional'
+import { useSeo } from '../hooks/useSeo'
 
 export function Devoluciones() {
+  useSeo()
+
   return (
     <PaginaInstitucional
       titulo="Política de devolución"
