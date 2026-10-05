@@ -90,7 +90,7 @@ export function Header() {
       </div>
 
       {/* ────────── HEADER ────────── */}
-      <div className="relative w-full z-40 bg-neutral text-neutral-content">
+      <header className="sticky top-0 z-40 w-full bg-neutral text-neutral-content">
         <div className="relative flex items-center h-16 md:h-20 px-4 gap-3">
           {/* Izquierda: en mobile la navegación vive en la barra inferior */}
           <div className="flex items-center gap-2 z-10">
@@ -266,7 +266,7 @@ export function Header() {
             ),
           )}
         </nav>
-      </div>
+      </header>
 
       {/* ────────── MENÚ MOBILE ────────── */}
       {menuOpen && (
