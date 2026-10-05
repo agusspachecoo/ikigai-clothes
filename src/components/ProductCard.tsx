@@ -42,8 +42,6 @@ export function ProductCard({
   const opciones = tallesDisponibles(producto.variaciones_stock)
   const conStock = tallesConStock(producto.variaciones_stock)
   const sinTalles = opciones.length === 0
-  // Un producto sin variations de talle tampoco se puede comprar, así que
-  // cuenta como sin stock igual que uno que tiene talles en cero.
   const sinStock = conStock.length === 0
 
   function prendaConTalle(talleElegido: string): ItemNuevo {
@@ -64,7 +62,6 @@ export function ProductCard({
     const nueva = prendaConTalle(talle)
     const resultado = intentarAgregar(nueva)
     if (!resultado.ok) {
-      // Stock unitario: no se agrega nada hasta que el usuario confirme.
       setConflictos(resultado.colisiones)
       setModalAbierto(true)
       return
@@ -80,64 +77,60 @@ export function ProductCard({
   }
 
   return (
-    <div className="group flex flex-col bg-base-100 border border-line">
+    <div className="group flex flex-col bg-base-100 border border-line h-full">
       {/* Imágenes */}
-      <Link to={`/producto/${producto.id}`} className="block relative bg-white rounded-t-lg">
-        <figure className="w-full aspect-[3/4] overflow-hidden bg-white relative rounded-t-lg">
-          {descuento > 0 && (
-            <span className="absolute top-2 left-2 z-10 bg-oferta text-white text-[10px] font-semibold uppercase tracking-widest px-2 py-1">
-              -{descuento}%
-            </span>
-          )}
-          {sinStock && (
-            <span className="absolute top-2 right-2 z-10 bg-neutral text-neutral-content text-[10px] uppercase tracking-widest px-2 py-1">
-              Sin Stock
-            </span>
-          )}
+      <Link to={`/producto/${producto.id}`} className="block w-full relative bg-white rounded-t-lg overflow-hidden">
+        <figure className="w-full aspect-[3/4] relative bg-neutral-100 m-0 p-0 overflow-hidden">
+  {descuento > 0 && (
+    <span className="absolute top-2 left-2 z-10 bg-oferta text-white text-[10px] font-semibold uppercase tracking-widest px-2 py-1">
+      -{descuento}%
+    </span>
+  )}
+  {sinStock && (
+    <span className="absolute top-2 right-2 z-10 bg-neutral text-neutral-content text-[10px] uppercase tracking-widest px-2 py-1">
+      Sin Stock
+    </span>
+  )}
 
-          {producto.imagenes[0] && (
-            <img
-              src={producto.imagenes[0]}
-              srcSet={srcsetFrente.srcset}
-              sizes={srcsetFrente.sizes}
-              alt={`${producto.nombre} de ${producto.categoria}, vista frontal`}
-              loading="lazy"
-              decoding="async"
-              width={320}
-              height={400}
-              className="w-full h-full object-contain object-center"
-            />
-          )}
-          {producto.imagenes[1] && (
-            /* Segunda foto: es la vista dorsal que aparece al pasar el mouse.
-               Va con alt="" a propósito: no agrega información al lector de
-               pantalla, que ya leyó el nombre del producto en la frontal. */
-            <img
-              src={producto.imagenes[1]}
-              srcSet={srcsetDorso.srcset}
-              sizes={srcsetDorso.sizes}
-              alt=""
-              loading="lazy"
-              decoding="async"
-              width={320}
-              height={400}
-              className="absolute inset-0 w-full h-full object-contain object-center opacity-0 group-hover:opacity-100 transition-opacity duration-500"
-            />
-          )}
+  {producto.imagenes[0] && (
+    <img
+      src={producto.imagenes[0]}
+      alt={`${producto.nombre} de ${producto.categoria}, vista frontal`}
+      loading="lazy"
+      decoding="async"
+      srcSet={srcsetFrente.srcset}
+      sizes={srcsetFrente.sizes}
+      className="absolute inset-0 block w-full h-full object-cover object-[center_20%] transition-transform duration-300 group-hover:scale-105"
+    />
+  )}
+  {producto.imagenes[1] && (
+    <img
+      src={producto.imagenes[1]}
+      alt=""
+      loading="lazy"
+      decoding="async"
+      srcSet={srcsetDorso.srcset}
+      sizes={srcsetDorso.sizes}
+      className="absolute inset-0 block w-full h-full object-cover object-[center_20%] opacity-0 group-hover:opacity-100 transition-all duration-500 group-hover:scale-105"
+    />
+  )}
 
-          {/* Compra rápida */}
-          {!sinStock && (
-            <div className="absolute inset-x-0 bottom-0 hidden md:block translate-y-full group-hover:translate-y-0 transition-transform duration-300">
-              <button
-                type="button"
-                onClick={() => setQuickshop(true)}
-                className="w-full bg-neutral/95 text-neutral-content text-[11px] uppercase tracking-[0.15em] py-3 hover:bg-neutral"
-              >
-                Compra rápida
-              </button>
-            </div>
-          )}
-        </figure>
+  {/* Compra rápida */}
+  {!sinStock && (
+    <div className="absolute inset-x-0 bottom-0 hidden md:block translate-y-full group-hover:translate-y-0 transition-transform duration-300 z-10">
+      <button
+        type="button"
+        onClick={(e) => {
+          e.preventDefault()
+          setQuickshop(true)
+        }}
+        className="w-full bg-neutral/95 text-neutral-content text-[11px] uppercase tracking-[0.15em] py-3 hover:bg-neutral"
+      >
+        Compra rápida
+      </button>
+    </div>
+  )}
+</figure>
       </Link>
 
       {/* Info */}
@@ -145,7 +138,7 @@ export function ProductCard({
         <div className="flex items-start justify-between gap-2">
           <Link
             to={`/producto/${producto.id}`}
-            className="text-sm leading-snug hover:underline"
+            className="text-sm leading-snug hover:underline font-medium"
           >
             {producto.nombre}
           </Link>
@@ -162,7 +155,7 @@ export function ProductCard({
             <span className="text-xs opacity-50 line-through">${formatearPrecio(precio)}</span>
           </div>
         ) : (
-          <span className="text-sm">${formatearPrecio(precio)}</span>
+          <span className="text-sm font-semibold">${formatearPrecio(precio)}</span>
         )}
 
         {descuento_transferencia > 0 && (
@@ -180,9 +173,9 @@ export function ProductCard({
         )}
       </div>
 
-      {/* Selector de talle + agregar (solo desktop, en mobile va dentro del quickshop) */}
+      {/* Selector de talle + agregar (desktop) */}
       {!sinTalles && (
-        <div className="hidden md:block px-3 pb-3">
+        <div className="hidden md:block px-3 pb-3 mt-auto">
           <div className="flex flex-wrap gap-1 mb-2">
             {opciones.map(({ talle: t, stock }) => (
               <button
@@ -215,10 +208,8 @@ export function ProductCard({
         </div>
       )}
 
-      {/* Acción mobile: abre el bottom sheet con talles.
-          Sin stock el botón sigue visible pero deshabilitado, para que se vea
-          que la prenda existe y está agotada. */}
-      <div className="px-3 pb-3 md:hidden">
+      {/* Acción mobile */}
+      <div className="px-3 pb-3 md:hidden mt-auto">
         <button
           type="button"
           onClick={() => setQuickshop(true)}
