@@ -34,9 +34,9 @@ export function Outfits() {
           {outfits.map((o) => (
             <div
               key={o.id}
-              className="card bg-base-100 border border-line shadow-none overflow-hidden"
+              className="card bg-base-100 border border-line shadow-none overflow-hidden pt-3 px-3"
             >
-              <figure className="aspect-[9/16] cursor-pointer bg-base-200 relative">
+              <figure className="relative w-full aspect-video rounded-2xl overflow-hidden bg-neutral-100 cursor-pointer">
                 <button
                   onClick={() => setOutfitSeleccionado(o)}
                   aria-label={`Ver detalle del look ${o.nombre}`}
@@ -50,8 +50,8 @@ export function Outfits() {
                     loading="lazy"
                     decoding="async"
                     width={420}
-                    height={747}
-                    className="w-full h-full object-cover object-center"
+                    height={236}
+                    className="w-full h-full object-cover object-[center_20%]"
                   />
                 </button>
                 <span className="absolute top-3 left-3 z-10 px-2.5 py-1 text-xs font-bold bg-base-100 text-success rounded-full shadow-sm border border-success/20">
