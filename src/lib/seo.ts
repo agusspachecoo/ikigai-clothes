@@ -8,7 +8,7 @@
 import { CONTACTO, SHOWROOM } from './contacto'
 
 /** Dominio canónico. Cambiarlo acá alcanza para canonical, OG y sitemap. */
-const DOMINIO_FALLBACK = 'https://ikigai-store-omega.vercel.app'
+const DOMINIO_FALLBACK = 'https://ikigai-clothes.vercel.app'
 
 export const SITE_URL = (
   import.meta.env.VITE_SITE_URL ?? DOMINIO_FALLBACK

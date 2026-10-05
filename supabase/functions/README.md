@@ -30,7 +30,7 @@ Funciones para el pago con **Mercado Pago** (Checkout Pro) + webhook/IPN.
    Además de `MERCADOPAGO_ACCESS_TOKEN`, configurá la URL de producción de la tienda:
 
    ```bash
-   supabase secrets set STORE_URL=https://ikigai-store-omega.vercel.app
+   supabase secrets set STORE_URL=https://ikigai-clothes.vercel.app
    ```
 
    > `STORE_URL` define la URL de producción de la tienda y también las URLs de retorno de Mercado Pago
