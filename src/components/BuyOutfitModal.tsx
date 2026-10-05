@@ -171,15 +171,18 @@ function OutfitModalContent({ outfit, onClose }: { outfit: OutfitConItems; onClo
               className="flex items-center gap-3 bg-neutral-100/80 p-3 rounded-2xl"
             >
               {/* IMAGEN DE LA PRENDA: shrink-0 y w-16 h-16 obligatorios para evitar colapso */}
-              <div className="w-16 h-16 min-w-[64px] min-h-[64px] shrink-0 aspect-square bg-white rounded-xl overflow-hidden flex items-center justify-center border border-line/50">
+              {/* CONTENEDOR DE IMAGEN ROBUSTO PARA MOBILE */}
+              <div
+                className="w-16 h-16 rounded-xl overflow-hidden bg-white flex items-center justify-center border border-line/50 p-1"
+                style={{ minWidth: '64px', minHeight: '64px', flexShrink: 0 }}
+              >
                 <img
                   src={producto.imagenes[0]}
                   alt={producto.nombre}
                   loading="lazy"
                   decoding="async"
-                  width={64}
-                  height={64}
-                  className="w-full h-full object-contain p-1 block"
+                  className="object-contain"
+                  style={{ width: '100%', height: '100%', maxWidth: 'none' }}
                 />
               </div>
 

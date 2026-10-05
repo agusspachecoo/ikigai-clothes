@@ -89,7 +89,8 @@ export function CarritoDrawer() {
                   <Link
                     to={`/producto/${it.producto_id}`}
                     onClick={cerrar}
-                    className="shrink-0"
+                    className="w-16 h-16 shrink-0 bg-neutral-100 rounded-lg overflow-hidden flex items-center justify-center p-1"
+                    style={{ minWidth: '64px', minHeight: '64px', flexShrink: 0 }}
                     aria-label={`Ver ${it.nombre}`}
                   >
                     <img
@@ -100,8 +101,8 @@ export function CarritoDrawer() {
                       loading="lazy"
                       decoding="async"
                       width={64}
-                      height={80}
-                      className="w-16 h-20 object-cover bg-base-200"
+                      height={64}
+                      className="w-full h-full object-contain"
                     />
                   </Link>
 
