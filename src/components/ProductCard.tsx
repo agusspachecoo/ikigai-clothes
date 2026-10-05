@@ -83,7 +83,7 @@ export function ProductCard({
     <div className="group flex flex-col bg-base-100 border border-line">
       {/* Imágenes */}
       <Link to={`/producto/${producto.id}`} className="block relative bg-white rounded-t-lg">
-        <figure className="relative aspect-[3/4] bg-white p-3 flex items-center justify-center overflow-hidden rounded-t-lg">
+        <figure className="relative aspect-[4/5] bg-white p-2 sm:p-3 flex items-center justify-center overflow-hidden rounded-t-lg">
           {descuento > 0 && (
             <span className="absolute top-2 left-2 z-10 bg-oferta text-white text-[10px] font-semibold uppercase tracking-widest px-2 py-1">
               -{descuento}%
@@ -105,7 +105,7 @@ export function ProductCard({
               decoding="async"
               width={320}
               height={400}
-              className="w-full h-full object-contain object-center"
+              className="max-h-full max-w-full w-auto h-auto object-contain object-top"
             />
           )}
           {producto.imagenes[1] && (
@@ -121,7 +121,7 @@ export function ProductCard({
               decoding="async"
               width={320}
               height={400}
-              className="absolute inset-0 w-full h-full object-contain object-center opacity-0 group-hover:opacity-100 transition-opacity duration-500"
+              className="absolute inset-0 max-h-full max-w-full w-auto h-auto object-contain object-top opacity-0 group-hover:opacity-100 transition-opacity duration-500"
             />
           )}
 
