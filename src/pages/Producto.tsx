@@ -262,7 +262,7 @@ export function Producto() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         {/* Galería */}
         <div>
-          <figure className="aspect-[3/4] bg-base-200 overflow-hidden">
+          <figure className="relative w-full aspect-square md:aspect-[4/3] lg:aspect-[3/4] bg-neutral-100 rounded-xl overflow-hidden flex items-center justify-center">
             {producto.imagenes[imagenActiva] && (
               /* Esta es la imagen LCP de la página: eager + fetchpriority high
                  para que el navegador la empiece a bajar apenas parsea el HTML,
@@ -281,7 +281,7 @@ export function Producto() {
                 decoding={imagenActiva === 0 ? 'sync' : 'async'}
                 width={600}
                 height={800}
-                className="w-full h-full object-cover"
+                className="w-full h-full object-contain p-2 md:p-4 select-none"
               />
             )}
           </figure>
@@ -292,7 +292,7 @@ export function Producto() {
                   key={i}
                   aria-label={`Ver foto ${i + 1} de ${producto.nombre}`}
                   aria-current={i === imagenActiva}
-                  className={`w-16 h-16 border overflow-hidden ${
+                  className={`w-16 h-16 aspect-square bg-neutral-100 rounded-lg overflow-hidden flex items-center justify-center p-1 border ${
                     i === imagenActiva ? 'border-neutral' : 'border-line'
                   }`}
                   onClick={() => setImagenActiva(i)}
@@ -306,7 +306,7 @@ export function Producto() {
                     decoding="async"
                     width={64}
                     height={64}
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-contain rounded"
                   />
                 </button>
               ))}
@@ -527,7 +527,7 @@ export function Producto() {
                     src={vistaPreviaResena}
                     alt="Vista previa de la foto que vas a adjuntar a la reseña"
                     decoding="async"
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-contain rounded"
                   />
                   <button
                     type="button"
@@ -652,7 +652,7 @@ export function Producto() {
                             decoding="async"
                             width={80}
                             height={80}
-                            className="w-full h-full object-cover"
+                            className="w-full h-full object-contain rounded"
                           />
                         </button>
                       ))}
