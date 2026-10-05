@@ -5,7 +5,6 @@ import { useTienda } from '../context/tienda'
 import { useCierreModal } from '../hooks/useCierreModal'
 import { CouponInput } from './CouponInput'
 import { formatearPrecio, montoCuota } from '../lib/precios'
-import { srcsetImagen } from '../lib/imagenes'
 
 export function CarritoDrawer() {
   const {
@@ -86,25 +85,21 @@ export function CarritoDrawer() {
                   key={`${it.producto_id}|${it.talle}`}
                   className="flex gap-3 p-3 items-start"
                 >
-                  <Link
-                    to={`/producto/${it.producto_id}`}
-                    onClick={cerrar}
-                    className="w-16 h-16 shrink-0 bg-neutral-100 rounded-lg overflow-hidden flex items-center justify-center p-1"
+                  {/* CONTENEDOR DE IMAGEN ROBUSTO PARA EL CARRITO */}
+                  <div
+                    className="w-16 h-16 rounded-xl overflow-hidden bg-neutral-100 flex items-center justify-center p-1 border border-line/40"
                     style={{ minWidth: '64px', minHeight: '64px', flexShrink: 0 }}
-                    aria-label={`Ver ${it.nombre}`}
                   >
                     <img
                       src={it.imagen}
-                      srcSet={srcsetImagen(it.imagen, 64).srcset}
-                      sizes={srcsetImagen(it.imagen, 64).sizes}
-                      alt={`${it.nombre}, talle ${it.talle || 'único'}`}
+                      alt={it.nombre}
                       loading="lazy"
                       decoding="async"
                       width={64}
                       height={64}
                       className="w-full h-full object-contain"
                     />
-                  </Link>
+                  </div>
 
                   <div className="flex-1 min-w-0">
                     <Link
