@@ -105,7 +105,10 @@ export function ProductCard({
               decoding="async"
               width={320}
               height={400}
-              className="w-full h-full object-cover"
+              /* object-top ancla el recorte arriba: con object-center una
+                 prenda alta perdia cuello y hombros, que es justo lo que hay
+                 que ver en la grilla. */
+              className="w-full h-full object-cover object-top"
             />
           )}
           {producto.imagenes[1] && (
@@ -121,7 +124,7 @@ export function ProductCard({
               decoding="async"
               width={320}
               height={400}
-              className="absolute inset-0 w-full h-full object-cover opacity-0 group-hover:opacity-100 transition-opacity duration-500"
+              className="absolute inset-0 w-full h-full object-cover object-top opacity-0 group-hover:opacity-100 transition-opacity duration-500"
             />
           )}
 
