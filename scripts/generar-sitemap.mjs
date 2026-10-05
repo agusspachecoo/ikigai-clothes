@@ -14,7 +14,7 @@ import { dirname, resolve } from 'node:path'
 const RAIZ = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 
 const SITE_URL = (
-  process.env.VITE_SITE_URL ?? 'https://ikigai-clothes.vercel.app'
+  process.env.VITE_SITE_URL ?? 'https://ikigai-store-omega.vercel.app'
 ).replace(/\/+$/, '')
 
 const RUTAS_FIJAS = [

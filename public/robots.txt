@@ -6,4 +6,4 @@ Disallow: /admin
 Disallow: /perfil
 Disallow: /checkout
 
-Sitemap: https://ikigai-clothes.vercel.app/sitemap.xml
+Sitemap: https://ikigai-store-omega.vercel.app/sitemap.xml

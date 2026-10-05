@@ -60,7 +60,7 @@ function esUrlPublica(url: string) {
 
 // La app usa BrowserRouter, así que las URLs de retorno van como rutas limpias
 // (`/checkout/success`), sin fragmento hash.
-const STORE_URL_FALLBACK = 'https://ikigai-clothes.vercel.app'
+const STORE_URL_FALLBACK = 'https://ikigai-store-omega.vercel.app'
 
 function obtenerBackUrls(back: { success?: string; failure?: string; pending?: string } | undefined) {
   // STORE_URL es la variable del backend. Si no está, caemos al dominio de
@@ -113,7 +113,7 @@ Deno.serve(async (req) => {
       return json(
         {
           error:
-            'back_urls inválidas. Configurá la secret STORE_URL con la URL de producción en Vercel (ej: https://ikigai-clothes.vercel.app).',
+            'back_urls inválidas. Configurá la secret STORE_URL con la URL de producción en Vercel (ej: https://ikigai-store-omega.vercel.app).',
         },
         { status: 400 },
       )

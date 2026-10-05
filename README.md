@@ -22,7 +22,7 @@ npm run dev
 | `VITE_ENVIOPACK_API_KEY` | No se usa en el frontend. La credencial real vive en las Edge Functions (ver abajo). Se deja como referencia/placeholder. |
 | `VITE_ENVIOPACK_ORIGEN_CP` | Código postal de despacho del local (origen). Se envía a la cotización y se guarda como metadata en el payload de envío de la orden. Si se omite, la Edge Function usa `ENVIOPACK_ORIGEN_CP` (default 3360). Se sigue aceptando la vieja `VITE_ZIPPIN_ORIGIN_CP` por compatibilidad. |
 | `VITE_SHOWROOM_IMAGE_URL` | (opcional) Respaldo de la imagen del bloque de showroom. La fuente real es el panel (ver abajo); esta variable solo se usa si no se subió ninguna foto. |
-| `VITE_SITE_URL` | Dominio canónico sin barra final, para canonical, Open Graph y sitemap. Si se omite se usa `https://ikigai-clothes.vercel.app`. Debe coincidir con el secret `STORE_URL` de las Edge Functions. |
+| `VITE_SITE_URL` | Dominio canónico sin barra final, para canonical, Open Graph y sitemap. Si se omite se usa `https://ikigai-store-omega.vercel.app`. Debe coincidir con el secret `STORE_URL` de las Edge Functions. |
 | `VITE_GA_ID` | (opcional) ID de Google Analytics 4 (`G-XXXXXXXXXX`). Si se omite, GA4 no se inyecta. Vercel Web Analytics se carga siempre, pero descarta los eventos hasta que el visitante acepta cookies. |
 
 ### Supabase Edge Functions (secrets, ver `supabase/functions/.env`)
