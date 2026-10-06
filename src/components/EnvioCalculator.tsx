@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { cotizarEnvioLocal, claveOpcion, nombreTransporte, type OpcionEnvio, type ResultadoCotizacion } from '../lib/tarifasEnvio'
+import { claveOpcion, nombreTransporte, type OpcionEnvio, type ResultadoCotizacion } from '../lib/tarifasEnvio'
+import { cotizarEnvio } from '../lib/cotizacionEnvio'
 import type { CartItem } from '../types/cart'
 
 interface EnvioCalculatorProps {
@@ -18,8 +19,11 @@ export function EnvioCalculator({
   const [cp, setCp] = useState('')
   const [resultado, setResultado] = useState<ResultadoCotizacion | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [cargando, setCargando] = useState(false)
 
-  function handleCalcular(e: React.FormEvent) {
+  // Cotiza contra Correo Argentino con el mismo orquestador que el checkout,
+  // para que la ficha y la caja de pago muestren exactamente lo mismo.
+  async function handleCalcular(e: React.FormEvent) {
     e.preventDefault()
     const limpio = cp.trim().replace(/\D/g, '')
     if (limpio.length < 4) {
@@ -28,13 +32,17 @@ export function EnvioCalculator({
     }
 
     setError(null)
-    // Tarifario local, sin red: no hay estado de carga ni timeouts.
-    const res = cotizarEnvioLocal(limpio, items)
-    if (res.error) {
-      setError(res.error)
-      setResultado(null)
-    } else {
-      setResultado(res)
+    setCargando(true)
+    try {
+      const res = await cotizarEnvio(limpio, items)
+      if (res.error) {
+        setError(res.error)
+        setResultado(null)
+      } else {
+        setResultado(res)
+      }
+    } finally {
+      setCargando(false)
     }
   }
 
@@ -59,10 +67,11 @@ export function EnvioCalculator({
         />
         <button
           type="submit"
-          disabled={!cp.trim()}
+          disabled={!cp.trim() || cargando}
           className="btn btn-sm btn-primary rounded-xl whitespace-nowrap"
         >
-          'Calcular Envío'
+          {cargando && <span className="loading loading-spinner loading-xs" />}
+          Calcular Envío
         </button>
       </form>
 
@@ -70,13 +79,20 @@ export function EnvioCalculator({
         <p className="text-error text-xs mt-2">{error}</p>
       )}
 
-      {resultado && !error && resultado.opciones.length === 0 && (
+      {cargando && (
+        <p className="text-xs opacity-60 mt-3 flex items-center gap-2">
+          <span className="loading loading-spinner loading-xs" />
+          Calculando envío…
+        </p>
+      )}
+
+      {resultado && !error && !cargando && resultado.opciones.length === 0 && (
         <p className="text-xs opacity-60 mt-2">
           No se encontraron opciones de envío para el código postal {resultado.codigo_postal}.
         </p>
       )}
 
-      {resultado && resultado.opciones.length > 0 && (
+      {resultado && !cargando && resultado.opciones.length > 0 && (
         <ul className="mt-3 space-y-2 max-h-56 overflow-y-auto">
           {resultado.opciones.map((opt, idx) => {
             const isSelected = onSelect && selectedCarrierCode === claveOpcion(opt)

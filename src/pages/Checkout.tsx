@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, type FormEvent, type DragEvent } from 'react'
+import { useState, useEffect, useRef, useCallback, type FormEvent, type DragEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { useCart } from '../context/cart'
 import { useAuth } from '../context/auth'
@@ -6,14 +6,8 @@ import { useTienda } from '../context/tienda'
 import { usePerfil } from '../hooks/usePerfil'
 import { crearOrden } from '../lib/ordenes'
 import { crearPreferenciaMP } from '../lib/mercadopago'
-import {
-  cotizarEnvioLocal,
-  claveOpcion,
-  nombreTransporte,
-  ORIGEN_CP,
-  type OpcionEnvio,
-  type ResultadoCotizacion,
-} from '../lib/tarifasEnvio'
+import { claveOpcion, nombreTransporte, ORIGEN_CP, type OpcionEnvio, type ResultadoCotizacion } from '../lib/tarifasEnvio'
+import { cotizarEnvio } from '../lib/cotizacionEnvio'
 import { PASOS_PAGO, TEXTO_METODO, type MetodoPago } from '../lib/pagos'
 import { guardarResumen, type ResumenPedido } from '../lib/resumenPedido'
 import { CouponInput } from '../components/CouponInput'
@@ -136,33 +130,32 @@ export function Checkout() {
   // todavía no eligió nada. Si vale OPCION_SHOWROOM, es retiro en showroom.
   const [opcionEnvio, setOpcionEnvio] = useState<OpcionEnvio | null>(null)
   const [cotizacion, setCotizacion] = useState<ResultadoCotizacion | null>(null)
+  // true mientras cotiza contra MiCorreo (o espera el timeout de 4 s).
+  const [cargandoEnvio, setCargandoEnvio] = useState(false)
+  // CP del que provienen las opciones actuales. Mientras se cotiza otro CP,
+  // las que se muestran son viejas y no hay que dejar elegir con ellas.
+  const [opcionesDeCp, setOpcionesDeCp] = useState<string | null>(null)
   const secuenciaCotizacionRef = useRef(0)
 
   const retiro = opcionEnvio?.id_servicio === OPCION_SHOWROOM.id_servicio
   const costoEnvio = opcionEnvio?.costo ?? 0
 
-  // Cotización de envío automática al ingresar el código postal (con debounce).
-  // Es local (tarifario fijo), sin red: el debounce queda solo para no recalcular
-  // en cada tecla mientras se tipea el CP.
-  useEffect(() => {
-    const cp = digitosCp(form.codigo_postal)
-    if (retiro || cp.length < 4) return
-
-    let cancelled = false
-    const secuencia = ++secuenciaCotizacionRef.current
-    const timer = window.setTimeout(() => {
-      const res = cotizarEnvioLocal(cp, items)
-      if (cancelled || secuencia !== secuenciaCotizacionRef.current) return
-
+  // Aplica una cotización ya resuelta, descartando la que llegó tarde si el
+  // usuario siguió tipeando o cambió el carrito mientras esperaba.
+  const aplicarCotizacion = useCallback(
+    (res: ResultadoCotizacion | null) => {
+      if (!res) return
       if (res.error) {
         setOpcionesEnvio([])
         setOpcionEnvio(null)
         setCotizacion(null)
+        setOpcionesDeCp(null)
         setErrorEnvio(res.error)
         return
       }
       setCotizacion(res)
       setOpcionesEnvio(res.opciones)
+      setOpcionesDeCp(res.codigo_postal)
       setErrorEnvio(res.opciones.length === 0
         ? 'No se encontraron opciones de envío para el código postal ingresado.'
         : null)
@@ -171,12 +164,37 @@ export function Checkout() {
       } else {
         // Si la opción seleccionada ya no está disponible (carrito o CP cambiaron), se limpia.
         setOpcionEnvio((actual: OpcionEnvio | null) => {
-          // El retiro en showroom no viene del tarifario: si sigue elegido, se
+          // El retiro en showroom no viene de la cotización: si sigue elegido, se
           // mantiene aunque las opciones del CP no lo incluyan.
           if (!actual || actual.id_servicio === OPCION_SHOWROOM.id_servicio) return actual
           const sigue = res.opciones.some((o) => o.id_servicio === actual.id_servicio)
           return sigue ? actual : null
         })
+      }
+    },
+    [],
+  )
+
+  // Cotización automática al ingresar el código postal (con debounce).
+  // Cotiza contra Correo Argentino y, si la API no responde en 4 s o no trae
+  // cobertura, cae al tarifario local. El debounce evita un llamado por tecla.
+  useEffect(() => {
+    const cp = digitosCp(form.codigo_postal)
+    if (retiro || cp.length < 4) return
+
+    let cancelled = false
+    const secuencia = ++secuenciaCotizacionRef.current
+
+    const timer = window.setTimeout(async () => {
+      setCargandoEnvio(true)
+      try {
+        const res = await cotizarEnvio(cp, items)
+        if (cancelled || secuencia !== secuenciaCotizacionRef.current) return
+        aplicarCotizacion(res)
+      } finally {
+        // Sólo baja el flag si esta sigue siendo la última cotización en vuelo.
+        // Si el usuario cambio de CP, la siguiente corrida ya tomo el turno.
+        if (secuencia === secuenciaCotizacionRef.current) setCargandoEnvio(false)
       }
     }, 400)
 
@@ -184,7 +202,19 @@ export function Checkout() {
       cancelled = true
       window.clearTimeout(timer)
     }
-  }, [form.codigo_postal, retiro, items])
+  }, [form.codigo_postal, retiro, items, aplicarCotizacion])
+
+  // Derivados de la cotización, en vez de setearlos dentro del effect
+  // (regla `react-hooks/set-state-in-effect`). Mientras se cotiza otro CP,
+  // `opcionesVigentes` queda en false: no se muestran precios de un CP viejo.
+  const cpActual = digitosCp(form.codigo_postal)
+  const cotizando = cargandoEnvio && !retiro && cpActual.length >= 4
+  const opcionesVigentes = opcionesDeCp !== null && opcionesDeCp === cpActual
+
+  // "Correo Argentino Clasico · Entrega a domicilio": con dos opciones del mismo
+  // transporte, sin la modalidad el resumen y la confirmación se ven idénticos.
+  const etiquetaTransporte = (o: OpcionEnvio | null) =>
+    o ? `${nombreTransporte(o)}${o.service_type.name ? ` · ${o.service_type.name}` : ''}` : ''
 
   const esTransferencia = metodoPago === 'transferencia'
   const descuentoTransferencia = esTransferencia ? total * descuento_transferencia : 0
@@ -267,7 +297,7 @@ export function Checkout() {
     )
   }
 
-  function handleCotizarEnvio() {
+  async function handleCotizarEnvio() {
     const limpio = digitosCp(form.codigo_postal)
     if (limpio.length < 4) {
       setErrorEnvio('El código postal debe tener al menos 4 dígitos.')
@@ -276,21 +306,15 @@ export function Checkout() {
     setErrorEnvio(null)
     setOpcionEnvio(null)
 
-    // Local: sin red, sin estado de carga.
-    const res = cotizarEnvioLocal(limpio, items)
-    if (res.error) {
-      setErrorEnvio(res.error)
-      setOpcionesEnvio([])
-      setCotizacion(null)
-      return
+    // Invalida cualquier cotizacion automatica que este en vuelo.
+    ++secuenciaCotizacionRef.current
+    setCargandoEnvio(true)
+    try {
+      const res = await cotizarEnvio(limpio, items)
+      aplicarCotizacion(res)
+    } finally {
+      setCargandoEnvio(false)
     }
-    setCotizacion(res)
-    setOpcionesEnvio(res.opciones)
-    setErrorEnvio(
-      res.opciones.length === 0
-        ? 'No se encontraron opciones de envío para el código postal ingresado.'
-        : null,
-    )
   }
 
   async function handleSubmit(e: FormEvent) {
@@ -325,7 +349,7 @@ export function Checkout() {
     const nombreCompleto = `${form.nombre.trim()} ${form.apellido.trim()}`.trim()
     const envioLabel = retiro
       ? 'Retiro en showroom'
-      : `${nombreTransporte(opcionEnvio)} · $${formatearPrecio(costoEnvio)}`
+      : `${etiquetaTransporte(opcionEnvio)} · $${formatearPrecio(costoEnvio)}`
 
     const res = await crearOrden({
       cliente_nombre: nombreCompleto,
@@ -557,22 +581,36 @@ export function Checkout() {
                   />
                   <button
                     type="button"
-                    disabled={digitosCp(form.codigo_postal).length < 4}
+                    disabled={digitosCp(form.codigo_postal).length < 4 || cotizando}
                     onClick={handleCotizarEnvio}
                     className="btn btn-outline btn-sm mt-2"
                   >
+                    {cotizando && <span className="loading loading-spinner loading-xs" />}
                     Calcular envío
                   </button>
 
                   {errorEnvio && <p className="text-error text-xs mt-2">{errorEnvio}</p>}
 
-                  {opcionesEnvio.length === 0 && digitosCp(form.codigo_postal).length >= 4 && !errorEnvio && (
-                    <p className="text-xs opacity-60 mt-2">
-                      Calculamos el envío automáticamente. Elegí una opción para continuar.
+                  {cotizando && !errorEnvio && (
+                    <p className="text-xs opacity-60 mt-2 flex items-center gap-2">
+                      <span className="loading loading-spinner loading-xs" />
+                      Calculando envío…
                     </p>
                   )}
 
-                  {opcionesEnvio.length > 0 && (
+                  {!cotizando &&
+                    !errorEnvio &&
+                    opcionesEnvio.length === 0 &&
+                    cpActual.length >= 4 && (
+                      <p className="text-xs opacity-60 mt-2">
+                        Calculamos el envío automáticamente. Elegí una opción para continuar.
+                      </p>
+                    )}
+
+                  {/* Se ocultan mientras cotiza: con red hay una ventana en la
+                      que las opciones viejas (de otro CP) seguirían visibles y
+                      el usuario podría elegir un precio que ya no aplica. */}
+                  {!cotizando && opcionesVigentes && opcionesEnvio.length > 0 && (
                     <ul className="mt-3 space-y-2 max-h-52 overflow-y-auto">
                       {opcionesEnvio.map((opt, idx) => {
                         const isSelected = claveOpcion(opcionEnvio) === claveOpcion(opt)
@@ -592,7 +630,15 @@ export function Checkout() {
                               } ${!opt.selectable ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}
                             >
                               <div className="flex items-center justify-between">
-                                <span className="font-semibold text-sm">{nombreTransporte(opt)}</span>
+                                <span className="font-semibold text-sm">
+                                  {nombreTransporte(opt)}
+                                  {opt.service_type.name && (
+                                    <span className="text-xs font-normal opacity-60">
+                                      {' '}
+                                      · {opt.service_type.name}
+                                    </span>
+                                  )}
+                                </span>
                                 <span className="font-bold text-sm text-primary">
                                   ${opt.costo.toLocaleString('es-AR')}
                                 </span>
@@ -743,7 +789,7 @@ export function Checkout() {
                     : correspondeEnvioGratis
                       ? 'Gratis'
                       : opcionEnvio
-                        ? `${nombreTransporte(opcionEnvio)} · $${formatearPrecio(costoEnvio)}`
+                        ? `${etiquetaTransporte(opcionEnvio)} · $${formatearPrecio(costoEnvio)}`
                         : 'Calculá tu envío'}
                 </span>
               </div>

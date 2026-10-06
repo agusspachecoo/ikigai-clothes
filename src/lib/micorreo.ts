@@ -47,6 +47,10 @@ export interface OpcionMicorreo {
   /** Alias de `price`, en pesos */
   costo: number | null
   tiempo_estimado: string | null
+  /** Rango de entrega en días hábiles. Llegan del spread de la Edge Function:
+   *  no los documenta el tipo de respuesta pero sí los devuelve la API. */
+  deliveryTimeMin?: number | string | null
+  deliveryTimeMax?: number | string | null
 }
 
 export type ResultadoCotizacionMicorreo =
