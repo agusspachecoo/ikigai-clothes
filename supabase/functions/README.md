@@ -12,6 +12,7 @@ Funciones para el pago con **Mercado Pago** (Checkout Pro) + webhook/IPN.
 | `enviopack-envio` | Cotiza el envío contra la API de EnvíoPack (`GET /cotizar/costo`) y devuelve los carriers disponibles normalizados con el mismo formato que el frontend espera. |
 | `andreani-envio` | Cotiza el envío **directamente** contra la API de Andreani PYME (`https://apis.andreani.com`) enviando el DNI/CUIT registrado en el campo `contrato`. Respuesta en el mismo formato uniforme del frontend. |
 | `oca-envio` | Cotiza el envío **directamente** contra el Web Service público de OCA `Tarifar_Envio_Corporativo` (webservice de e-Pak). Solo necesita un CUIT registrado (sin credenciales de usuario) y devuelve las opciones de OCA (a domicilio y a sucursal) en el mismo formato uniforme. |
+| `micorreo-envio` | Integración con la API **MiCorreo de Correo Argentino** (`api.correoargentino.com.ar/micorreo/v1`). Tres acciones vía campo `action`: `rates` (cotización), `shipping/import` (alta de envío) y `shipping/tracking` (seguimiento). Autentica con HTTP Basic y cachea el JWT en Deno KV. **Todavía no la consume el checkout** (sigue con el tarifario local de `tarifasEnvio.ts`); el cliente está en `src/lib/micorreo.ts`. |
 
 ## Dónde configurar los tokens de Mercado Pago
 
@@ -192,6 +193,47 @@ Al igual que las demás integraciones, si OCA no responde o no devuelve opciones
 función **no corta el flujo de compra**: responde con opciones de referencia
 (`mock: true`) — Estándar a Domicilio $4.500, Exprés a Sucursal $3.200 y Retiro en
 Local $0.
+
+## Correo Argentino / MiCorreo (`micorreo-envio`)
+
+Función lista para reemplazar el tarifario local **cuando se decida el swap**
+(hoy `cotizarEnvioLocal()` en `src/lib/tarifasEnvio.ts` sigue siendo la fuente
+del checkout y no se tocó). La invocación desde el frontend queda en
+`src/lib/micorreo.ts`:
+
+```ts
+import { cotizarMicorreo } from './micorreo'
+const r = await cotizarMicorreo({ postalCodeDestination: '1425', deliveredType: 'ambos' })
+if (r.ok) console.log(r.rates) // [{ productName, price, costo, tiempo_estimado, ... }]
+```
+
+Acciones (siempre por `body.action`):
+
+| `action` | Endpoint | Uso |
+| --- | --- | --- |
+| `rates` | `POST /rates` | Cotización. Devuelve `rates[]` con el `price` original + `costo` y `tiempo_estimado` (null si la API no informa ETA). Sin `deliveredType` devuelve domicilio y sucursal juntos. |
+| `shipping/import` | `POST /shipping/import` | Da de alta el envío. Acepta `recipient` y `shipping` en distintos formatos (nombre+apellido, `direccion` libre, provincia por nombre o código) y los normaliza al contrato de MiCorreo. |
+| `shipping/tracking` | `GET /shipping/tracking` | Seguimiento por `shippingId` (acepta GET con query param o POST con body). |
+
+Autenticación: `POST /token` con HTTP Basic. El JWT se cachea en **Deno KV**
+(clave `micorreo/token`) y se renueva 1 minuto antes de vencer; si el runtime
+local no expone KV, hace fallback a caché en memoria de la instancia.
+
+### Secrets requeridos en Supabase
+```bash
+supabase secrets set CORREO_ARGENTINO_USER=usuario
+supabase secrets set CORREO_ARGENTINO_PASS=contraseña
+supabase secrets set CORREO_ARGENTINO_CUSTOMER_ID=1984194
+# opcionales:
+# supabase secrets set CORREO_ARGENTINO_CP_ORIGEN=3360   # CP de despacho (default 3360, Oberá)
+```
+> Son server-side a propósito: **no** llevan prefijo `VITE_`, porque Vite
+> incrustaría cualquier `VITE_*` en el bundle del navegador.
+
+### Deploy
+```bash
+supabase functions deploy micorreo-envio
+```
 
 ## Migración de base de datos
 Aplicá en el SQL Editor de Supabase:
