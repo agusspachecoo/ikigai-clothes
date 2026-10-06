@@ -85,21 +85,27 @@ export function CarritoDrawer() {
                   key={`${it.producto_id}|${it.talle}`}
                   className="flex gap-3 p-3 items-start"
                 >
-                  {/* CONTENEDOR DE IMAGEN ROBUSTO PARA EL CARRITO */}
-                  <div
-                    className="w-16 h-16 rounded-xl overflow-hidden bg-neutral-100 flex items-center justify-center p-1 border border-line/40"
+                  {/* CONTENEDOR DE IMAGEN ROBUSTO PARA EL CARRITO.
+                      Al pasar a `<div>` para poder fijar el tamaño se perdió la
+                      navegación a la ficha: se devuelve como `<Link>` conservando
+                      las clases que hacen que la miniatura no se deforme. */}
+                  <Link
+                    to={`/producto/${it.producto_id}`}
+                    onClick={cerrar}
+                    aria-label={`Ver ${it.nombre}`}
+                    className="w-16 h-16 rounded-xl overflow-hidden bg-neutral-100 flex items-center justify-center p-1 border border-line/40 shrink-0 hover:border-primary/50 transition-colors"
                     style={{ minWidth: '64px', minHeight: '64px', flexShrink: 0 }}
                   >
                     <img
                       src={it.imagen}
-                      alt={it.nombre}
+                      alt=""
                       loading="lazy"
                       decoding="async"
                       width={64}
                       height={64}
                       className="w-full h-full object-contain"
                     />
-                  </div>
+                  </Link>
 
                   <div className="flex-1 min-w-0">
                     <Link

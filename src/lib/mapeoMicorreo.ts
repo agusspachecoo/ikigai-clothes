@@ -27,6 +27,15 @@ function modalidad(rate: OpcionMicorreo): ModalidadEnvio {
   return rate.deliveredType === 'S' ? 'sucursal' : 'domicilio'
 }
 
+/**
+ * Nombre del transportista tal cual lo escribe el cliente. La API devuelve
+ * `Correo Argentino Clasico` sin tilde, y la fila del checkout se lee junto a
+ * la modalidad ("Correo Argentino Clásico · Entrega a Domicilio").
+ */
+function nombreTransportista(rate: OpcionMicorreo): string {
+  return (rate.productName?.trim() || 'Correo Argentino').replace(/Clasico/g, 'Clásico')
+}
+
 function aDias(valor: unknown): number | null {
   if (valor === null || valor === undefined || valor === '') return null
   const n = Number(valor)
@@ -76,13 +85,13 @@ export function rateAOpcionEnvio(rate: OpcionMicorreo): OpcionEnvio | null {
     correo_id: 'CORREO_ARGENTINO',
     carrier: {
       id: null,
-      name: rate.productName?.trim() || 'Correo Argentino',
+      name: nombreTransportista(rate),
       rating: null,
       logo: null,
     },
     service_type: {
       code: esDomicilio ? 'DOMICILIO' : 'SUCURSAL',
-      name: esDomicilio ? 'Entrega a domicilio' : 'Retiro en sucursal',
+      name: esDomicilio ? 'Entrega a Domicilio' : 'Retiro en Sucursal',
     },
     costo: precio,
     tiempo_estimado: plazo || null,

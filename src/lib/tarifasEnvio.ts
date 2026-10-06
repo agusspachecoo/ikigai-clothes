@@ -219,14 +219,17 @@ function opcion(
   costo: number,
 ): OpcionEnvio {
   const esDomicilio = modalidad === 'domicilio'
-  const etiqueta = esDomicilio ? 'Entrega a domicilio' : 'Retiro en sucursal'
+  const etiqueta = esDomicilio ? 'Entrega a Domicilio' : 'Retiro en Sucursal'
 
   return {
     id_servicio: `local-${zona.nombre.toLowerCase().replace(/\s+/g, '-')}-${modalidad}`,
     correo_id: 'LOCAL',
     carrier: {
       id: null,
-      name: 'Envío a medida (tarifario local)',
+      // Nombre visible para el cliente. "Tarifario local" es un detalle
+      // interno que no le dice nada (y rompe la idea de que el fallback sea
+      // invisible): el admin igual distingue esa cotización por `mock: true`.
+      name: 'Correo Argentino',
       rating: null,
       logo: null,
     },

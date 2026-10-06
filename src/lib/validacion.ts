@@ -1,4 +1,5 @@
 const RE_DNI = /^\d{7,8}$/
+const RE_CUIT = /^\d{11}$/
 const RE_TELEFONO = /^\d{10,11}$/
 // Con prefijo +54 quedan 10 dígitos (landline) o 11 (celular, que conserva el
 // 15). Antes pedía exactamente 10, así que un celular como +54 9 3755 73-2335
@@ -14,8 +15,14 @@ const RE_EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/
 const RE_CP = /^\d{4}$/
 const RE_CP_CPA = /^[A-Z]\d{4}[A-Z]{3}$/
 
+/**
+ * DNI (7 u 8 dígitos) o CUIT (11). El formulario lo llama "DNI / CUIT", así que
+ * la validación tiene que aceptar los dos: si sólo admitiera el DNI, quien
+ * escribiera el CUIT quedaría trabado en un error que no puede resolver.
+ */
 export function esDNIValido(dni: string): boolean {
-  return RE_DNI.test(dni.trim())
+  const v = dni.trim()
+  return RE_DNI.test(v) || RE_CUIT.test(v)
 }
 
 export function esTelefonoValido(telefono: string): boolean {
@@ -44,7 +51,7 @@ export function esTextoValido(valor: string, minimo = 3): boolean {
 }
 
 export const MENSAJE_DNI =
-  'El DNI debe tener entre 7 y 8 dígitos numéricos, sin puntos ni letras.'
+  'Ingresá el DNI (7 u 8 dígitos) o el CUIT (11 dígitos), sin puntos ni letras.'
 
 export const MENSAJE_TELEFONO =
   'Ingresá un teléfono válido: 10 u 11 dígitos, por ejemplo 1155551234, o con prefijo +54.'
@@ -126,7 +133,7 @@ export function validarCampo(
     case 'dni':
       if (!v) return MENSAJE_OBLIGATORIO
       if (v.replace(/\D/g, '').length < 7) {
-        return 'Te faltan dígitos: son 7 u 8.'
+        return 'Te faltan dígitos: el DNI lleva 7 u 8 y el CUIT 11.'
       }
       if (!esDNIValido(v)) return MENSAJE_DNI
       return undefined

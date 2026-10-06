@@ -211,7 +211,7 @@ export function Checkout() {
   const cotizando = cargandoEnvio && !retiro && cpActual.length >= 4
   const opcionesVigentes = opcionesDeCp !== null && opcionesDeCp === cpActual
 
-  // "Correo Argentino Clasico · Entrega a domicilio": con dos opciones del mismo
+  // "Correo Argentino Clásico · Entrega a Domicilio": con dos opciones del mismo
   // transporte, sin la modalidad el resumen y la confirmación se ven idénticos.
   const etiquetaTransporte = (o: OpcionEnvio | null) =>
     o ? `${nombreTransporte(o)}${o.service_type.name ? ` · ${o.service_type.name}` : ''}` : ''
@@ -266,12 +266,23 @@ export function Checkout() {
     if (checked) {
       setOpcionEnvio(OPCION_SHOWROOM)
       setOpcionesEnvio([])
+      setOpcionesDeCp(null)
       setErrorEnvio(null)
       setCotizacion(null)
     } else {
       setOpcionEnvio(null)
     }
     setErrorMsg(null)
+  }
+
+  /**
+   * Cambia entre retiro y envío. Si el modo no cambia no hace nada: sin ese
+   * guard, volver a clickear "Envío por correo" ya elegido limpiaría
+   * `opcionEnvio` y dejaría al usuario sin método de envío seleccionado.
+   */
+  function elegirModoEnvio(querido: boolean) {
+    if (querido === retiro) return
+    cambiarRetiro(querido)
   }
 
   if (items.length === 0 && !confirmacion) {
@@ -501,7 +512,7 @@ export function Checkout() {
                 onBlur={() => marcarTocado('email')}
               />
               <Campo
-                etiqueta="Teléfono"
+                etiqueta="Teléfono / WhatsApp"
                 campo="telefono"
                 tipo="tel"
                 valor={form.telefono}
@@ -509,20 +520,20 @@ export function Checkout() {
                 autoComplete="tel"
                 inputMode="tel"
                 placeholder="1155551234"
-                ayuda="Para coordinar la entrega por WhatsApp."
+                ayuda="Para coordinar la entrega"
                 onChange={(v) => actualizar('telefono', v)}
                 onBlur={() => marcarTocado('telefono')}
               />
               <div className="sm:col-span-2">
                 <Campo
-                  etiqueta="DNI"
+                  etiqueta="DNI / CUIT"
                   campo="dni"
                   valor={form.dni}
                   error={errorVisible('dni')}
                   inputMode="numeric"
-                  maxLength={8}
-                  placeholder="12345678"
-                  ayuda="Sin puntos ni letras. Lo necesita la pasarela de pago."
+                  maxLength={11}
+                  placeholder="12345678 o 30123456789"
+                  ayuda="Requerido para la pasarela de pago y envío"
                   onChange={(v) => actualizar('dni', v)}
                   onBlur={() => marcarTocado('dni')}
                 />
@@ -531,21 +542,56 @@ export function Checkout() {
           </fieldset>
 
           <fieldset className="bg-base-200 rounded-2xl p-5">
-            <legend className="font-semibold text-sm px-2 mb-1">
-              {retiro ? 'Retiro en showroom' : 'Envío a domicilio'}
-            </legend>
+            <legend className="font-semibold text-sm px-2 mb-1">Entrega</legend>
 
-            <label className="flex items-center gap-3 cursor-pointer mb-4">
-              <input
-                type="checkbox"
-                className="checkbox checkbox-primary"
-                checked={retiro}
-                onChange={(e) => cambiarRetiro(e.target.checked)}
-              />
-              <span className="text-sm font-medium">
-                Retiro en showroom (sin cargo) — Oberá, Misiones
-              </span>
-            </label>
+            {/* Dos tarjetas mutuamente excluyentes. El checkbox anterior no dejaba
+                ver a simple vista en qué modo estaba el checkout, ni separaba el
+                retiro (sin cargo, Oberá) de la opción que después cotiza por CP. */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+              <button
+                type="button"
+                aria-pressed={retiro}
+                onClick={() => elegirModoEnvio(true)}
+                className={`rounded-xl border-2 p-4 text-left transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-base-200 ${
+                  retiro
+                    ? 'border-primary bg-primary/10'
+                    : 'border-base-300 bg-base-100 hover:border-primary/40'
+                }`}
+              >
+                <span className="flex items-start justify-between gap-2">
+                  <span className="text-sm font-semibold">Retiro en showroom</span>
+                  <span className={`badge badge-sm shrink-0 ${retiro ? 'badge-primary' : 'badge-ghost'}`}>
+                    Sin cargo
+                  </span>
+                </span>
+                <span className="mt-1 block text-xs opacity-60">Oberá, Misiones</span>
+                <span className="mt-2 block text-xs opacity-60">
+                  No hace falta la dirección. Coordinamos día y horario por WhatsApp.
+                </span>
+              </button>
+
+              <button
+                type="button"
+                aria-pressed={!retiro}
+                onClick={() => elegirModoEnvio(false)}
+                className={`rounded-xl border-2 p-4 text-left transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-base-200 ${
+                  !retiro
+                    ? 'border-primary bg-primary/10'
+                    : 'border-base-300 bg-base-100 hover:border-primary/40'
+                }`}
+              >
+                <span className="flex items-start justify-between gap-2">
+                  <span className="text-sm font-semibold">Envío por correo</span>
+                  <span className={`badge badge-sm shrink-0 ${!retiro ? 'badge-primary' : 'badge-ghost'}`}>
+                    Según destino
+                  </span>
+                </span>
+                <span className="mt-1 block text-xs opacity-60">A domicilio o para retirar en sucursal</span>
+                <span className="mt-2 block text-xs opacity-60">
+                  Ingresá tu código postal para ver el costo y los plazos.
+                </span>
+              </button>
+            </div>
 
             {retiro ? (
               <p className="text-sm opacity-70 bg-base-100 rounded-xl p-4">
@@ -633,7 +679,7 @@ export function Checkout() {
                                 <span className="font-semibold text-sm">
                                   {nombreTransporte(opt)}
                                   {opt.service_type.name && (
-                                    <span className="text-xs font-normal opacity-60">
+                                    <span className="text-xs font-medium opacity-70">
                                       {' '}
                                       · {opt.service_type.name}
                                     </span>
@@ -873,35 +919,41 @@ function Campo({
   onChange: (valor: string) => void
   onBlur: () => void
 }) {
+  const idInput = `campo-${campo}`
+  const idAyuda = `ayuda-${campo}`
+  const hayAyuda = Boolean(error ?? ayuda)
+
+  // Etiqueta SIEMPRE visible arriba. Con `floating-label` de DaisyUI el span
+  // arranca en opacity 0 y sólo aparece al enfocar o si el campo tiene valor,
+  // lo que deja los campos vacíos sin rótulo.
   return (
     <div>
-      <label className="floating-label">
-        <span>
-          {etiqueta} <span className="text-error">*</span>
-        </span>
-        <input
-          type={tipo}
-          className={`input input-bordered w-full ${error ? 'input-error' : ''}`}
-          value={valor}
-          onChange={(e) => onChange(e.target.value)}
-          onBlur={onBlur}
-          inputMode={inputMode}
-          autoComplete={autoComplete}
-          placeholder={placeholder}
-          maxLength={maxLength}
-          aria-invalid={!!error}
-          aria-describedby={`ayuda-${campo}`}
-        />
+      <label htmlFor={idInput} className="block text-sm font-medium mb-1.5">
+        {etiqueta} <span className="text-error">*</span>
       </label>
+      <input
+        id={idInput}
+        type={tipo}
+        className={`input w-full ${error ? 'input-error' : ''}`}
+        value={valor}
+        onChange={(e) => onChange(e.target.value)}
+        onBlur={onBlur}
+        inputMode={inputMode}
+        autoComplete={autoComplete}
+        placeholder={placeholder}
+        maxLength={maxLength}
+        aria-invalid={!!error}
+        aria-describedby={hayAyuda ? idAyuda : undefined}
+      />
       {error ? (
-        <p id={`ayuda-${campo}`} className="text-error text-xs mt-1 flex items-center gap-1">
+        <p id={idAyuda} className="text-error text-xs mt-1 flex items-center gap-1">
           <svg className="h-3.5 w-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
           {error}
         </p>
       ) : ayuda ? (
-        <p id={`ayuda-${campo}`} className="text-xs opacity-50 mt-1">{ayuda}</p>
+        <p id={idAyuda} className="text-xs opacity-50 mt-1">{ayuda}</p>
       ) : null}
     </div>
   )

@@ -130,9 +130,16 @@ Deno.serve(async (req) => {
       )
     }
 
-    if (dni.length < 7 || dni.length > 8) {
+    // DNI (7 u 8 dígitos) o CUIT (11). El formulario lo presenta como
+    // "DNI / CUIT" y Mercado Pago acepta los dos como identification.number.
+    const esDni = dni.length >= 7 && dni.length <= 8
+    const esCuit = dni.length === 11
+    if (!esDni && !esCuit) {
       return json(
-        { error: 'El DNI debe tener 7 u 8 dígitos, sin puntos ni letras.' },
+        {
+          error:
+            'Ingresá el DNI (7 u 8 dígitos) o el CUIT (11 dígitos), sin puntos ni letras.',
+        },
         { status: 400 },
       )
     }
