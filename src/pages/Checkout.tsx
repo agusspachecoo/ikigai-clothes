@@ -544,51 +544,88 @@ export function Checkout() {
           <fieldset className="bg-base-200 rounded-2xl p-5">
             <legend className="font-semibold text-sm px-2 mb-1">Entrega</legend>
 
-            {/* Dos tarjetas mutuamente excluyentes. El checkbox anterior no dejaba
-                ver a simple vista en qué modo estaba el checkout, ni separaba el
-                retiro (sin cargo, Oberá) de la opción que después cotiza por CP. */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+            {/* Dos tarjetas mutuamente excluyentes con forma de radio button.
+                El checkbox anterior no dejaba ver a simple vista en qué modo
+                estaba el checkout, ni separaba el retiro (sin cargo, Oberá) de
+                la opción que después cotiza por CP. */}
+            <div
+              role="radiogroup"
+              aria-label="Tipo de entrega"
+              className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4"
+            >
               <button
                 type="button"
-                aria-pressed={retiro}
+                role="radio"
+                aria-checked={retiro}
                 onClick={() => elegirModoEnvio(true)}
-                className={`rounded-xl border-2 p-4 text-left transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-base-200 ${
+                className={`h-full rounded-xl border-2 p-4 text-left transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 ${
                   retiro
-                    ? 'border-primary bg-primary/10'
-                    : 'border-base-300 bg-base-100 hover:border-primary/40'
+                    ? 'border-black bg-white shadow-sm'
+                    : 'border-neutral-200 bg-neutral-50 hover:border-neutral-300'
                 }`}
               >
-                <span className="flex items-start justify-between gap-2">
-                  <span className="text-sm font-semibold">Retiro en showroom</span>
-                  <span className={`badge badge-sm shrink-0 ${retiro ? 'badge-primary' : 'badge-ghost'}`}>
-                    Sin cargo
+                <span className="flex items-start gap-3">
+                  <span
+                    aria-hidden="true"
+                    className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border-2 ${
+                      retiro ? 'border-black' : 'border-neutral-300'
+                    }`}
+                  >
+                    {retiro && <span className="h-2 w-2 rounded-full bg-black" />}
                   </span>
-                </span>
-                <span className="mt-1 block text-xs opacity-60">Oberá, Misiones</span>
-                <span className="mt-2 block text-xs opacity-60">
-                  No hace falta la dirección. Coordinamos día y horario por WhatsApp.
+
+                  <span className="min-w-0 flex-1">
+                    <span className="flex items-start justify-between gap-2">
+                      <span className="text-sm font-semibold text-neutral-900">Retiro en showroom</span>
+                      <span className="shrink-0 rounded-full bg-black px-3 py-1 text-[11px] font-semibold tracking-wide text-white">
+                        SIN CARGO
+                      </span>
+                    </span>
+                    <span className="mt-1 block text-xs text-neutral-500 leading-relaxed">
+                      Oberá, Misiones
+                    </span>
+                    <span className="mt-1 block text-xs text-neutral-500 leading-relaxed">
+                      No hace falta la dirección. Coordinamos día y horario por WhatsApp.
+                    </span>
+                  </span>
                 </span>
               </button>
 
               <button
                 type="button"
-                aria-pressed={!retiro}
+                role="radio"
+                aria-checked={!retiro}
                 onClick={() => elegirModoEnvio(false)}
-                className={`rounded-xl border-2 p-4 text-left transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-base-200 ${
+                className={`h-full rounded-xl border-2 p-4 text-left transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 ${
                   !retiro
-                    ? 'border-primary bg-primary/10'
-                    : 'border-base-300 bg-base-100 hover:border-primary/40'
+                    ? 'border-black bg-white shadow-sm'
+                    : 'border-neutral-200 bg-neutral-50 hover:border-neutral-300'
                 }`}
               >
-                <span className="flex items-start justify-between gap-2">
-                  <span className="text-sm font-semibold">Envío por correo</span>
-                  <span className={`badge badge-sm shrink-0 ${!retiro ? 'badge-primary' : 'badge-ghost'}`}>
-                    Según destino
+                <span className="flex items-start gap-3">
+                  <span
+                    aria-hidden="true"
+                    className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border-2 ${
+                      !retiro ? 'border-black' : 'border-neutral-300'
+                    }`}
+                  >
+                    {!retiro && <span className="h-2 w-2 rounded-full bg-black" />}
                   </span>
-                </span>
-                <span className="mt-1 block text-xs opacity-60">A domicilio o para retirar en sucursal</span>
-                <span className="mt-2 block text-xs opacity-60">
-                  Ingresá tu código postal para ver el costo y los plazos.
+
+                  <span className="min-w-0 flex-1">
+                    <span className="flex items-start justify-between gap-2">
+                      <span className="text-sm font-semibold text-neutral-900">Envío por correo</span>
+                      <span className="shrink-0 rounded-full bg-neutral-100 px-3 py-1 text-[11px] font-semibold tracking-wide text-neutral-700 border border-neutral-200">
+                        SEGÚN DESTINO
+                      </span>
+                    </span>
+                    <span className="mt-1 block text-xs text-neutral-500 leading-relaxed">
+                      A domicilio o para retirar en sucursal
+                    </span>
+                    <span className="mt-1 block text-xs text-neutral-500 leading-relaxed">
+                      Ingresá tu código postal para ver el costo y los plazos.
+                    </span>
+                  </span>
                 </span>
               </button>
             </div>
