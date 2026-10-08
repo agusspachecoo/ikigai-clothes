@@ -42,7 +42,12 @@ export async function cotizarEnvio(
   destinoCp: string,
   items: CartItem[],
 ): Promise<ResultadoCotizacion> {
-  const cp = String(destinoCp ?? '').replace(/\D/g, '')
+  const cp = String(destinoCp ?? '').trim().replace(/\D/g, '')
+
+  // OVERRIDE DIRECTO - Envío gratis para Oberá (CP 3360)
+  if (cp === '3360') {
+    return cotizarEnvioLocal(cp, items)
+  }
 
   // El CP corto es un error de tipeo, no un fallo del carrier: sin red.
   if (cp.length < 4) {

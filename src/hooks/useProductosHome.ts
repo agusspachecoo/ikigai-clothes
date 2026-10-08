@@ -108,52 +108,6 @@ export function useMasVendidos(limit = 8): ResultadoTop {
   return { productos, loading }
 }
 
-export function useMejorValorados(limit = 8): ResultadoTop {
-  const [productos, setProductos] = useState<ProductoConStock[]>([])
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    let cancelled = false
-
-    async function cargar() {
-      setLoading(true)
-
-      const { data } = await supabase
-        .from('resenas')
-        .select('producto_id, puntuacion')
-        .eq('aprobado', true)
-
-      if (cancelled) return
-
-      const acumulado = new Map<string, { suma: number; cantidad: number }>()
-      for (const r of data ?? []) {
-        const id = String(r.producto_id)
-        const prev = acumulado.get(id) ?? { suma: 0, cantidad: 0 }
-        prev.suma += Number(r.puntuacion) || 0
-        prev.cantidad += 1
-        acumulado.set(id, prev)
-      }
-
-      const ordenados = [...acumulado.entries()]
-        .map(([id, a]) => ({ id, promedio: a.suma / a.cantidad, cantidad: a.cantidad }))
-        .sort((a, b) => b.promedio - a.promedio || b.cantidad - a.cantidad)
-        .slice(0, limit)
-        .map((p) => p.id)
-
-      const ids = await cargarProductosPorIds(ordenados)
-      if (cancelled) return
-
-      setProductos(await completarConRecientes(ids, limit))
-      setLoading(false)
-    }
-
-    cargar()
-    return () => { cancelled = true }
-  }, [limit])
-
-  return { productos, loading }
-}
-
 export function useDescuentos(limit = 8): ResultadoTop {
   const [productos, setProductos] = useState<ProductoConStock[]>([])
   const [loading, setLoading] = useState(true)

@@ -1,18 +1,16 @@
 import { Link } from 'react-router-dom'
 import { ProductCard } from './ProductCard'
 import type { ProductoConStock } from '../types/database'
-import type { ResumenResenas } from '../hooks/useResumenResenas'
 
 interface Props {
   titulo: string
   subtitulo?: string
   productos: ProductoConStock[]
-  stats: Record<string, ResumenResenas>
   loading?: boolean
   linkVerTodos?: string
 }
 
-export function ProductShelf({ titulo, subtitulo, productos, stats, loading, linkVerTodos }: Props) {
+export function ProductShelf({ titulo, subtitulo, productos, loading, linkVerTodos }: Props) {
   return (
     <section className="py-12 md:py-16">
       <div className="max-w-7xl mx-auto px-4">
@@ -45,7 +43,7 @@ export function ProductShelf({ titulo, subtitulo, productos, stats, loading, lin
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {productos.map((p) => (
-              <ProductCard key={p.id} producto={p} rating={stats[p.id]} />
+              <ProductCard key={p.id} producto={p} />
             ))}
           </div>
         )}

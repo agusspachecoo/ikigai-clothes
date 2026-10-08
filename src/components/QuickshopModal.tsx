@@ -4,7 +4,7 @@ import { useCart, type ItemNuevo } from '../context/cart'
 import { useTienda } from '../context/tienda'
 import { useCierreModal } from '../hooks/useCierreModal'
 import { tallesDisponibles } from '../lib/talles'
-import { formatearPrecio, montoCuota, precioConDescuento, precioTransferencia } from '../lib/precios'
+import { formatearPrecio, precioConDescuento, precioTransferencia } from '../lib/precios'
 import { imagenProducto, srcsetImagen } from '../lib/imagenes'
 import type { ProductoConStock } from '../types/database'
 import { ConflictModal } from './ConflictModal'
@@ -19,7 +19,7 @@ export function QuickshopModal({
   onCerrar: () => void
 }) {
   const { intentarAgregar, reemplazarConflictosYAgregar, setCarritoAbierto } = useCart()
-  const { descuento_transferencia, cuotas_sin_interes, umbral_envio_gratis } = useTienda()
+  const { descuento_transferencia, umbral_envio_gratis } = useTienda()
   const [talle, setTalle] = useState('')
   const [agregado, setAgregado] = useState(false)
   const [conflictos, setConflictos] = useState<Colision[]>([])
@@ -92,7 +92,7 @@ export function QuickshopModal({
           type="button"
           onClick={onCerrar}
           className="absolute top-3 right-3 z-10 btn btn-circle btn-ghost btn-xs sm:btn-sm bg-white/80 backdrop-blur-sm"
-          aria-label="Cerrar"
+          aria-label="Cerrar modal"
         >
           ✕
         </button>
@@ -126,21 +126,27 @@ export function QuickshopModal({
             </Link>
 
             <div className="mt-2 sm:mt-3 space-y-0.5 sm:space-y-1">
-              <div className="flex items-baseline gap-2">
-                <p className="text-base sm:text-xl font-semibold">${formatearPrecio(precio)}</p>
-              </div>
               {descuento_transferencia > 0 && (
-                <p className="text-xs text-success font-semibold">
-                  ${formatearPrecio(precioTransferencia(precio, descuento_transferencia))}{' '}
-                  por transferencia ({Math.round(descuento_transferencia * 100)}% off)
-                </p>
+                <div className="leading-tight">
+                  <p className="text-lg sm:text-xl font-bold text-success">
+                    ${formatearPrecio(precioTransferencia(precio, descuento_transferencia))}
+                  </p>
+                  <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-success/80">
+                    {Math.round(descuento_transferencia * 100)}% OFF por transferencia
+                  </p>
+                </div>
               )}
-              {cuotas_sin_interes > 1 && (
-                <p className="text-xs text-success">
-                  {cuotas_sin_interes} cuotas sin interés de $
-                  {formatearPrecio(montoCuota(precio, cuotas_sin_interes))}
+              <div className="flex items-baseline gap-2">
+                <p
+                  className={
+                    descuento_transferencia > 0
+                      ? 'text-sm opacity-60'
+                      : 'text-base sm:text-xl font-semibold'
+                  }
+                >
+                  ${formatearPrecio(precio)}
                 </p>
-              )}
+              </div>
             </div>
 
             {!sinTalles && (

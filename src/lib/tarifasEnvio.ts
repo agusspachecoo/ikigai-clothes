@@ -281,10 +281,46 @@ export function cotizarEnvioLocal(destinoCp: string, items: CartItem[]): Resulta
   }
 
   const zona = zonaPorCP(cp)
-  const opciones = [
-    opcion(zona, 'domicilio', costoEnvio(zona, bultos, 'domicilio')),
-    opcion(zona, 'sucursal', costoEnvio(zona, bultos, 'sucursal')),
-  ]
+  const opciones = []
+
+  // Envío local gratis para Oberá (CP 3360) - Mostrar claramente
+  if (cp === '3360') {
+    opciones.push({
+      id_servicio: 'local-obera-gratis',
+      correo_id: 'LOCAL',
+      carrier: {
+        id: null,
+        name: 'Envío gratis',
+        rating: null,
+        logo: null,
+      },
+      service_type: {
+        code: 'GRATIS',
+        name: 'Envío gratis',
+      },
+      costo: 0,
+      tiempo_estimado: 'Inmediato',
+      modalidad: 'domicilio' as const,
+      despacho: null,
+      horas_entrega: 0,
+      cumplimiento: null,
+      anomalos: null,
+      logistic_type: 'PUERTA_A_PUERTA' as const,
+      estimado: {
+        minimo_dias: 0,
+        maximo_dias: 0,
+        estimado: null,
+        leyenda: 'Inmediato',
+      },
+      tags: ['cheapest', 'fastest'],
+      selectable: true,
+    })
+  } else {
+    opciones.push(
+      opcion(zona, 'domicilio', costoEnvio(zona, bultos, 'domicilio')),
+      opcion(zona, 'sucursal', costoEnvio(zona, bultos, 'sucursal')),
+    )
+  }
 
   // Mismo criterio de UI que la API: marcar la más barata y la más rápida.
   const menorCosto = Math.min(...opciones.map((o) => o.costo))

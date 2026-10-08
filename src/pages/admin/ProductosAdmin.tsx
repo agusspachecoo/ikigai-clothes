@@ -7,7 +7,25 @@ import { CATEGORIAS_FALLBACK } from '../../lib/categorias'
 import { useCierreModal } from '../../hooks/useCierreModal'
 import type { ProductoConStock } from '../../types/database'
 
-const TALLES_SUGERIDOS = ['S', 'M', 'L', 'XL', 'XXL']
+const TALLES_SUGERIDOS = ['S', 'M', 'L', 'XL', 'XXL', '38', '40', '42', '44', '46', '48']
+
+const LABEL_CLS =
+  'block text-xs font-semibold text-neutral-700 uppercase tracking-wider mb-1'
+const INPUT_CLS =
+  'w-full border border-neutral-300 rounded-lg bg-white px-3 py-2.5 text-sm text-neutral-900 placeholder:text-neutral-400 focus:border-black focus:ring-1 focus:ring-black outline-none'
+const INPUT_SM_CLS =
+  'border border-neutral-300 rounded-lg bg-white px-2.5 py-2 text-sm text-neutral-900 placeholder:text-neutral-400 focus:border-black focus:ring-1 focus:ring-black outline-none'
+const TITULO_SECCION_CLS =
+  'text-xs font-bold uppercase tracking-[0.15em] text-neutral-500 mb-4 pb-2 border-b border-neutral-200'
+
+function SeccionForm({ titulo, children }: { titulo: string; children: React.ReactNode }) {
+  return (
+    <section>
+      <h3 className={TITULO_SECCION_CLS}>{titulo}</h3>
+      {children}
+    </section>
+  )
+}
 
 interface TalleRow {
   talle: string
@@ -378,126 +396,163 @@ function ProductoFormModal({ producto, categorias, onCerrar, onGuardado }: FormP
   }
 
   return (
-    <dialog className="modal modal-open" onClose={onCerrar}>
-      <div className="modal-box max-w-3xl p-0 overflow-hidden rounded-3xl">
-        <div className="flex items-center justify-between p-5 border-b border-base-300">
-          <h2 className="text-lg font-bold text-gray-900">
+    <dialog
+      className="modal modal-open"
+      onClose={onCerrar}
+      aria-label={producto ? 'Editar producto' : 'Nuevo producto'}
+    >
+      <div className="modal-box w-full max-w-2xl max-h-[90vh] sm:max-h-[85vh] p-0 overflow-hidden rounded-2xl flex flex-col">
+        <div className="flex items-center justify-between gap-3 px-4 sm:px-6 py-4 border-b border-neutral-200 shrink-0">
+          <h2 className="text-lg font-bold text-neutral-900">
             {producto ? 'Editar producto' : 'Nuevo producto'}
           </h2>
+          <button
+            type="button"
+            onClick={onCerrar}
+            aria-label="Cerrar"
+            className="btn btn-ghost btn-sm btn-circle"
+          >
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+            </svg>
+          </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-5 space-y-5 max-h-[75vh] overflow-y-auto">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <label className="floating-label">
-              <span>Nombre</span>
-              <input
-                type="text"
-                className="input input-bordered w-full"
-                value={form.nombre}
-                onChange={(e) => setField('nombre', e.target.value)}
-                required
-              />
-            </label>
+        <form
+          onSubmit={handleSubmit}
+          className="flex-1 min-h-0 overflow-y-auto px-4 sm:px-6 py-5 space-y-6 pb-20 sm:pb-6"
+        >
+          {/* Bloque 1: Información básica */}
+          <SeccionForm titulo="Información básica">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <label className={LABEL_CLS}>
+                Nombre
+                <input
+                  type="text"
+                  className={INPUT_CLS}
+                  placeholder="Ej: Remera Oversize Ikigai"
+                  value={form.nombre}
+                  onChange={(e) => setField('nombre', e.target.value)}
+                  required
+                />
+              </label>
 
-            <label className="floating-label">
-              <span>SKU / Código</span>
-              <input
-                type="text"
-                className="input input-bordered w-full font-mono"
-                value={form.sku}
-                onChange={(e) => setField('sku', e.target.value)}
-                placeholder="Ej: IKI-REM-001"
-              />
-            </label>
+              <label className={LABEL_CLS}>
+                SKU / Código (opcional)
+                <input
+                  type="text"
+                  className={`${INPUT_CLS} font-mono`}
+                  placeholder="Ej: IKI-REM-001"
+                  value={form.sku}
+                  onChange={(e) => setField('sku', e.target.value)}
+                />
+              </label>
 
-            <label className="floating-label">
-              <span>Categoría</span>
-              <input
-                type="text"
-                list="categorias"
-                className="input input-bordered w-full"
-                value={form.categoria}
-                onChange={(e) => setField('categoria', e.target.value)}
-                placeholder="Ej: Remeras"
-                required
-              />
-              <datalist id="categorias">
-                {categorias.map((c) => (
-                  <option key={c} value={c} />
-                ))}
-              </datalist>
-            </label>
+              <label className={LABEL_CLS}>
+                Categoría
+                <input
+                  type="text"
+                  list="categorias"
+                  className={INPUT_CLS}
+                  placeholder="Ej: Remeras"
+                  value={form.categoria}
+                  onChange={(e) => setField('categoria', e.target.value)}
+                  required
+                />
+                <datalist id="categorias">
+                  {categorias.map((c) => (
+                    <option key={c} value={c} />
+                  ))}
+                </datalist>
+              </label>
 
-            <label className="floating-label">
-              <span>Precio ($)</span>
-              <input
-                type="number"
-                min="0"
-                step="0.01"
-                className="input input-bordered w-full"
-                value={form.precio}
-                onChange={(e) => setField('precio', e.target.value)}
-                required
-              />
-            </label>
+              <label className={`${LABEL_CLS} sm:col-span-2`}>
+                Descripción
+                <textarea
+                  className={INPUT_CLS}
+                  rows={3}
+                  placeholder="Material, calce, detalles de la prenda..."
+                  value={form.descripcion}
+                  onChange={(e) => setField('descripcion', e.target.value)}
+                />
+              </label>
+            </div>
+          </SeccionForm>
 
-            <label className="floating-label">
-              <span>Precio transferencia ($, opcional)</span>
-              <input
-                type="number"
-                min="0"
-                step="0.01"
-                className="input input-bordered w-full"
-                value={form.precio_transferencia}
-                onChange={(e) => setField('precio_transferencia', e.target.value)}
-              />
-            </label>
+          {/* Bloque 2: Precios y descuentos */}
+          <SeccionForm titulo="Precios y descuentos">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <label className={LABEL_CLS}>
+                Precio de Lista ($)
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  className={INPUT_CLS}
+                  placeholder="Ej: 59500"
+                  value={form.precio}
+                  onChange={(e) => setField('precio', e.target.value)}
+                  required
+                />
+              </label>
 
-            <label className="floating-label">
-              <span>Descuento (%%)</span>
-              <input
-                type="number"
-                min="0"
-                max="100"
-                className="input input-bordered w-full"
-                value={form.discount_percent}
-                onChange={(e) => setField('discount_percent', e.target.value)}
-                placeholder="0 = sin descuento"
-              />
-            </label>
+              <label className={LABEL_CLS}>
+                Precio Transferencia ($, opcional)
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  className={INPUT_CLS}
+                  placeholder="Ej: 47600"
+                  value={form.precio_transferencia}
+                  onChange={(e) => setField('precio_transferencia', e.target.value)}
+                />
+              </label>
 
-            {(() => {
-              const base = Number(form.precio) || 0
-              const desc = Math.max(0, Math.min(100, Number(form.discount_percent) || 0))
-              if (base <= 0 || desc <= 0) return null
-              const promo = Math.round(base * (100 - desc)) / 100
-              return (
-                <p className="text-xs text-success font-semibold md:col-span-2">
-                  Precio original ${base.toLocaleString('es-AR')} → Precio promocional{' '}
-                  ${promo.toLocaleString('es-AR')} (ahorro ${(base - promo).toLocaleString('es-AR')})
-                </p>
-              )
-            })()}
-          </div>
+              <label className={LABEL_CLS}>
+                Descuento (%)
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  className={INPUT_CLS}
+                  placeholder="0 = sin descuento"
+                  value={form.discount_percent}
+                  onChange={(e) => setField('discount_percent', e.target.value)}
+                />
+              </label>
 
-          <label className="floating-label">
-            <span>Descripción</span>
-            <textarea
-              className="textarea textarea-bordered w-full"
-              rows={2}
-              value={form.descripcion}
-              onChange={(e) => setField('descripcion', e.target.value)}
-            />
-          </label>
+              {(() => {
+                const base = Number(form.precio) || 0
+                const desc = Math.max(0, Math.min(100, Number(form.discount_percent) || 0))
+                if (base <= 0 || desc <= 0) return null
+                const promo = Math.round(base * (100 - desc)) / 100
+                return (
+                  <p className="text-xs text-success font-semibold self-end pb-2">
+                    Precio original ${base.toLocaleString('es-AR')} → Precio promocional{' '}
+                    ${promo.toLocaleString('es-AR')} (ahorro $
+                    {(base - promo).toLocaleString('es-AR')})
+                  </p>
+                )
+              })()}
+            </div>
+          </SeccionForm>
 
-          {/* Imágenes */}
-          <div>
-            <p className="font-semibold text-sm mb-2 text-gray-900">Imágenes (frente, dorso, detalles)</p>
+          {/* Bloque 3: Imágenes */}
+          <SeccionForm titulo="Imágenes">
+            <p className="text-xs text-neutral-500 mb-3">
+              Formatos permitidos: JPG, PNG, WEBP. Recomendado: formato vertical (3:4) o
+              cuadrado, máx 5MB por imagen. Se comprime y convierte a WebP automáticamente
+              (máx 800 KB) antes de subirse.
+            </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {form.imagenes.map((img, i) => (
                 <div key={i} className="space-y-1">
                   <div className="flex items-center justify-between gap-2">
-                    <p className="text-xs opacity-60">Imagen {i + 1}</p>
+                    <p className="text-xs text-neutral-500 font-medium">
+                      Imagen {i + 1}
+                      {i === 0 && <span className="ml-1 text-neutral-400">(principal)</span>}
+                    </p>
                     {form.imagenes.length > 1 && (
                       <button
                         type="button"
@@ -518,29 +573,30 @@ function ProductoFormModal({ producto, categorias, onCerrar, onGuardado }: FormP
                 </div>
               ))}
             </div>
-            <button type="button" className="btn btn-outline btn-sm mt-2" onClick={addImagen}>
+            <button type="button" className="btn btn-outline btn-sm mt-3" onClick={addImagen}>
               Agregar imagen
             </button>
-          </div>
+          </SeccionForm>
 
-          {/* Stock por talle */}
-          <div>
-            <p className="font-semibold text-sm mb-2 text-gray-900">Stock por talle</p>
+          {/* Bloque 4: Stock y visibilidad */}
+          <SeccionForm titulo="Stock por talle y visibilidad">
             <div className="space-y-2">
               {form.talles.map((t, i) => (
                 <div key={i} className="flex items-center gap-2">
                   <input
                     type="text"
-                    className="input input-bordered input-sm w-24"
+                    className={`${INPUT_SM_CLS} w-24`}
                     placeholder="Talle"
+                    aria-label={`Talle ${i + 1}`}
                     value={t.talle}
                     onChange={(e) => setTalle(i, 'talle', e.target.value)}
                   />
                   <input
                     type="number"
                     min="0"
-                    className="input input-bordered input-sm w-32"
+                    className={`${INPUT_SM_CLS} w-32`}
                     placeholder="Stock"
+                    aria-label={`Stock del talle ${i + 1}`}
                     value={t.stock_disponible}
                     onChange={(e) => setTalle(i, 'stock_disponible', e.target.value)}
                   />
@@ -570,23 +626,37 @@ function ProductoFormModal({ producto, categorias, onCerrar, onGuardado }: FormP
                 </button>
               ))}
             </div>
-          </div>
 
-          <label className="flex items-center gap-3 cursor-pointer">
-            <input
-              type="checkbox"
-              className="toggle toggle-primary"
-              checked={form.activo}
-              onChange={(e) => setField('activo', e.target.checked)}
-            />
-            <span className="text-sm font-medium text-gray-900">Visible en el catálogo</span>
-          </label>
+            <label className="flex items-center gap-3 cursor-pointer mt-4">
+              <input
+                type="checkbox"
+                className="toggle toggle-primary"
+                checked={form.activo}
+                onChange={(e) => setField('activo', e.target.checked)}
+              />
+              <span className="text-sm font-medium text-neutral-900">
+                Visible en el catálogo
+              </span>
+            </label>
+          </SeccionForm>
 
-          {errorMsg && <div className="alert alert-error text-sm">{errorMsg}</div>}
+          {errorMsg && (
+            <div className="alert alert-error text-sm" role="alert">
+              {errorMsg}
+            </div>
+          )}
 
-          <div className="flex justify-end gap-2 pt-2">
+          {/* Acciones fijas al final del scroll */}
+          <div className="sticky bottom-0 -mx-4 sm:-mx-6 px-4 sm:px-6 py-3 bg-white border-t border-neutral-200 flex flex-col-reverse sm:flex-row gap-2 sm:justify-end">
+            <button type="button" className="btn btn-outline" onClick={onCerrar}>
+              Cancelar
+            </button>
             <button type="submit" className="btn btn-primary" disabled={guardando}>
-              {guardando ? <span className="loading loading-spinner loading-sm" /> : 'Guardar'}
+              {guardando ? (
+                <span className="loading loading-spinner loading-sm" />
+              ) : (
+                'Guardar producto'
+              )}
             </button>
           </div>
         </form>

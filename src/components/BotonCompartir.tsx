@@ -24,6 +24,7 @@ export function BotonCompartir({ titulo, texto }: { titulo: string; texto?: stri
     <button
       type="button"
       onClick={compartir}
+      aria-label="Compartir producto"
       className="inline-flex items-center gap-2 text-xs uppercase tracking-widest opacity-70 hover:opacity-100 transition-opacity"
     >
       <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">

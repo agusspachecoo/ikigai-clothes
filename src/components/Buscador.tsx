@@ -102,6 +102,7 @@ export function Buscador({ className = '', placeholder = 'Buscar prendas...', on
       >
         <input
           type="text"
+          aria-label="Buscar productos"
           className="grow outline-none bg-transparent resize-none placeholder:text-current placeholder:opacity-40"
           placeholder={placeholder}
           value={term}

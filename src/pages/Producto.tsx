@@ -331,13 +331,13 @@ export function Producto() {
               </span>
             )}
 
-            <div className="flex items-baseline gap-2">
-              <span className="text-2xl font-semibold">${formatearPrecio(precioOferta)}</span>
+            <div className="flex items-baseline gap-2 mt-2">
               {descuento > 0 && (
                 <span className="text-sm opacity-50 line-through">
                   ${formatearPrecio(precioOriginal)}
                 </span>
               )}
+              <span className="text-base opacity-70">${formatearPrecio(precioOferta)}</span>
             </div>
 
             {descuento > 0 && (
@@ -347,12 +347,15 @@ export function Producto() {
             )}
 
             {descuento_transferencia > 0 && (
-              <div className="border border-success/40 bg-success/5 px-3 py-2 mt-3">
-                <p className="text-sm font-semibold text-success">
-                  Pagando por transferencia: ${formatearPrecio(precioTransferenciaFinal)}
+              <div className="border-2 border-emerald-600 bg-emerald-50 px-4 py-3 mt-4 rounded-lg shadow-sm">
+                <p className="text-base font-semibold text-emerald-700 mb-1">
+                  Pagando por transferencia
+                </p>
+                <p className="text-2xl md:text-3xl font-extrabold text-emerald-600">
+                  ${formatearPrecio(precioTransferenciaFinal)}
                 </p>
                 {ahorroTransferencia > 0 && (
-                  <p className="text-xs text-success/80">
+                  <p className="text-sm text-emerald-700 mt-1">
                     Ahorrás ${formatearPrecio(ahorroTransferencia)} (
                     {Math.round(descuento_transferencia * 100)}% off)
                   </p>

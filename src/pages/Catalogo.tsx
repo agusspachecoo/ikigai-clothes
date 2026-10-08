@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useCatalogo } from '../hooks/useCatalogo'
-import { useResumenResenas } from '../hooks/useResumenResenas'
 import { useCategorias } from '../hooks/useCategorias'
 import { useProductos } from '../hooks/useProductos'
 import { useCierreModal } from '../hooks/useCierreModal'
@@ -69,8 +68,6 @@ export function Catalogo() {
     buscar: busqueda,
     descuentos,
   })
-
-  const { stats } = useResumenResenas(productos)
 
   function handleSearch(e: React.FormEvent) {
     e.preventDefault()
@@ -213,7 +210,7 @@ export function Catalogo() {
             <>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                 {productos.map((p) => (
-                  <ProductCard key={p.id} producto={p} rating={stats[p.id]} />
+                  <ProductCard key={p.id} producto={p} />
                 ))}
               </div>
 

@@ -26,6 +26,37 @@ export function EnvioCalculator({
   async function handleCalcular(e: React.FormEvent) {
     e.preventDefault()
     const limpio = cp.trim().replace(/\D/g, '')
+    if (limpio === '3360') {
+      setError(null)
+      setCargando(false)
+      setResultado({
+        codigo_postal: '3360',
+        origen_cp: null,
+        provincia: 'Misiones',
+        destino: { city: null, state: 'Misiones' },
+        paquetes: '',
+        peso: 0,
+          opciones: [{
+            id_servicio: 'local-obera-gratis',
+            correo_id: 'LOCAL',
+            carrier: { id: null, name: 'Envío gratis', rating: null, logo: null },
+            service_type: { code: 'GRATIS', name: 'Envío gratis' },
+            costo: 0,
+            tiempo_estimado: 'Inmediato',
+            modalidad: 'domicilio',
+            despacho: null,
+            horas_entrega: 0,
+            cumplimiento: null,
+            anomalos: null,
+            logistic_type: 'PUERTA_A_PUERTA',
+            estimado: { minimo_dias: 0, maximo_dias: 0, estimado: null, leyenda: 'Inmediato' },
+            tags: ['cheapest'],
+            selectable: true,
+          }],
+          mock: false,
+        })
+      return
+    }
     if (limpio.length < 4) {
       setError('El código postal debe tener al menos 4 dígitos.')
       return
@@ -61,7 +92,42 @@ export function EnvioCalculator({
           className="input input-bordered input-sm flex-1 rounded-xl"
           value={cp}
           onChange={(e) => {
-            setCp(e.target.value.replace(/\D/g, ''))
+            const val = e.target.value
+            console.log('CP INGRESADO:', val)
+            if (String(val).trim() === '3360') {
+              alert('¡CP 3360 DETECTADO EN EL COMPONENTE!')
+            }
+            const clean = val.replace(/\D/g, '')
+            setCp(clean)
+            if (clean === '3360') {
+              setError(null)
+              setResultado({
+                codigo_postal: '3360',
+                origen_cp: null,
+                provincia: 'Misiones',
+                destino: { city: null, state: 'Misiones' },
+                paquetes: '',
+                peso: 0,
+                opciones: [{
+                  id_servicio: 'local-obera-gratis',
+                  correo_id: 'LOCAL',
+                  carrier: { id: null, name: 'Envío gratis', rating: null, logo: null },
+                  service_type: { code: 'GRATIS', name: 'Envío gratis' },
+                  costo: 0,
+                  tiempo_estimado: 'Inmediato',
+                  modalidad: 'domicilio',
+                  despacho: null,
+                  horas_entrega: 0,
+                  cumplimiento: null,
+                  anomalos: null,
+                  logistic_type: 'PUERTA_A_PUERTA',
+                  estimado: { minimo_dias: 0, maximo_dias: 0, estimado: null, leyenda: 'Inmediato' },
+                  tags: ['cheapest'],
+                  selectable: true,
+                }],
+                mock: false,
+              })
+            }
             setError(null)
           }}
         />
@@ -93,71 +159,74 @@ export function EnvioCalculator({
       )}
 
       {resultado && !cargando && resultado.opciones.length > 0 && (
-        <ul className="mt-3 space-y-2 max-h-56 overflow-y-auto">
-          {resultado.opciones.map((opt, idx) => {
-            const isSelected = onSelect && selectedCarrierCode === claveOpcion(opt)
-            return (
-              <li key={`${opt.carrier.id ?? idx}-${opt.service_type.code}`}>
-                <button
-                  type="button"
-                  onClick={() => onSelect?.(opt)}
-                  disabled={!opt.selectable}
-                  className={`w-full text-left rounded-xl p-3 border-2 transition-all ${
-                    isSelected
-                      ? 'border-primary bg-primary/5'
-                      : 'border-base-300 hover:border-primary/50'
-                  } ${!opt.selectable ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      {opt.carrier.logo ? (
-                        <img
-                          src={opt.carrier.logo}
-                          /* El nombre del transporte ya está escrito al lado, así
-                             que el logo es decorativo para el lector de pantalla. */
-                          alt=""
-                          loading="lazy"
-                          decoding="async"
-                          width={20}
-                          height={20}
-                          className="w-5 h-5 rounded"
-                        />
-                      ) : (
-                        <span className="text-xs font-bold bg-base-200 rounded px-1.5 py-0.5">
-                          {nombreTransporte(opt).charAt(0)}
+        <>
+          {resultado.codigo_postal === '3360' && (
+            <div className="mt-3 rounded-xl bg-emerald-50 border-2 border-emerald-600 p-3 text-center">
+              <p className="text-lg font-extrabold text-emerald-700">¡Envío gratis!</p>
+              <p className="text-xs text-emerald-600 mt-1">Envío local en Oberá (CP 3360)</p>
+            </div>
+          )}
+          <ul className="mt-3 space-y-2 max-h-56 overflow-y-auto">
+            {resultado.opciones.map((opt, idx) => {
+              const isSelected = onSelect && selectedCarrierCode === claveOpcion(opt)
+              return (
+                <li key={`${opt.carrier.id ?? idx}-${opt.service_type.code}`}>
+                  <button
+                    type="button"
+                    onClick={() => onSelect?.(opt)}
+                    disabled={!opt.selectable}
+                    className={`w-full text-left rounded-xl p-3 border-2 transition-all ${
+                      isSelected
+                        ? 'border-primary bg-primary/5'
+                        : 'border-base-300 hover:border-primary/50'
+                    } ${!opt.selectable ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        {opt.carrier.logo ? (
+                          <img
+                            src={opt.carrier.logo}
+                            alt=""
+                            loading="lazy"
+                            decoding="async"
+                            width={20}
+                            height={20}
+                            className="w-5 h-5 rounded"
+                          />
+                        ) : (
+                          <span className="text-xs font-bold bg-base-200 rounded px-1.5 py-0.5">
+                            {nombreTransporte(opt).charAt(0)}
+                          </span>
+                        )}
+                        <div>
+                          <span className="font-semibold text-sm">{opt.service_type.name || nombreTransporte(opt)}</span>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <span className="font-bold text-sm text-emerald-600">
+                          {opt.costo === 0 ? 'Gratis' : `$${opt.costo.toLocaleString('es-AR')}`}
                         </span>
-                      )}
-                      <div>
-                        <span className="font-semibold text-sm">{nombreTransporte(opt)}</span>
-                        {opt.service_type.name && (
-                          <span className="text-xs opacity-60 ml-1">· {opt.service_type.name}</span>
+                        {opt.estimado.leyenda && (
+                          <span className="block text-xs opacity-60">{opt.estimado.leyenda}</span>
                         )}
                       </div>
                     </div>
-                    <div className="text-right">
-                      <span className="font-bold text-sm">
-                        ${opt.costo.toLocaleString('es-AR')}
-                      </span>
-                      {opt.estimado.leyenda && (
-                        <span className="block text-xs opacity-60">{opt.estimado.leyenda}</span>
-                      )}
-                    </div>
-                  </div>
-                  {(opt.tags.includes('cheapest') || opt.tags.includes('fastest')) && (
-                    <div className="flex flex-wrap gap-1.5 mt-1">
-                      {opt.tags.includes('cheapest') && (
-                        <span className="badge badge-success badge-xs">Más barato</span>
-                      )}
-                      {opt.tags.includes('fastest') && (
-                        <span className="badge badge-info badge-xs">Más rápido</span>
-                      )}
-                    </div>
-                  )}
-                </button>
-              </li>
-            )
-          })}
-        </ul>
+                    {(opt.tags.includes('cheapest') || opt.tags.includes('fastest')) && (
+                      <div className="flex flex-wrap gap-1.5 mt-1">
+                        {opt.tags.includes('cheapest') && (
+                          <span className="badge badge-success badge-xs">Más barato</span>
+                        )}
+                        {opt.tags.includes('fastest') && (
+                          <span className="badge badge-info badge-xs">Más rápido</span>
+                        )}
+                      </div>
+                    )}
+                  </button>
+                </li>
+              )
+            })}
+          </ul>
+        </>
       )}
 
       {seleccionado && (

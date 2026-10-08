@@ -99,11 +99,13 @@ export function ImageUploader({
         }}
         onDragLeave={() => setDragActivo(false)}
         onDrop={manejarDrop}
-        className={`relative w-full ${altoMinimo} ${PROPORCION_TAILWIND[proporcion]} ${
-          dragActivo ? 'border-primary bg-primary/5' : 'border-base-300'
-        } border-2 border-dashed rounded-xl overflow-hidden cursor-pointer transition-colors hover:border-primary ${
-          subiendo ? 'opacity-70 pointer-events-none' : ''
-        }`}
+        className={`relative w-full ${altoMinimo} ${PROPORCION_TAILWIND[proporcion]} border-2 rounded-xl overflow-hidden cursor-pointer transition-colors ${
+          mostrarImagen
+            ? 'border-neutral-200 bg-white'
+            : dragActivo
+              ? 'border-dashed border-black bg-neutral-100'
+              : 'border-dashed border-neutral-300 bg-neutral-50 hover:bg-neutral-100'
+        } ${subiendo ? 'opacity-70 pointer-events-none' : ''}`}
       >
         <input
           ref={inputRef}
@@ -120,13 +122,13 @@ export function ImageUploader({
         {mostrarImagen ? (
           <img src={mostrarImagen} alt="" className="w-full h-full object-cover" />
         ) : (
-          <span className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 text-sm opacity-60 text-center px-3">
+          <span className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-center px-4">
             <svg
-              className="h-7 w-7"
+              className="h-8 w-8 text-neutral-400"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
-              strokeWidth="1.8"
+              strokeWidth="1.5"
             >
               <path
                 strokeLinecap="round"
@@ -134,7 +136,10 @@ export function ImageUploader({
                 d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3.75 21h16.5A1.5 1.5 0 0021.75 19.5V4.5A1.5 1.5 0 0020.25 3H3.75A1.5 1.5 0 002.25 4.5v15A1.5 1.5 0 003.75 21z"
               />
             </svg>
-            {texto}
+            <span className="text-xs font-medium text-neutral-600">{texto}</span>
+            <span className="text-xs font-semibold text-neutral-900 underline underline-offset-2 decoration-neutral-300 hover:decoration-black">
+              Seleccionar archivo
+            </span>
           </span>
         )}
 

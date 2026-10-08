@@ -1,8 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import type { ProductoConStock } from '../types/database'
-import type { ResumenResenas } from '../hooks/useResumenResenas'
-import { RatingProducto } from './RatingProducto'
 import { QuickshopModal } from './QuickshopModal'
 import { BotonFavorito } from './BotonFavorito'
 import { useCart, type ItemNuevo } from '../context/cart'
@@ -12,20 +10,13 @@ import { ConflictModal } from './ConflictModal'
 import type { Colision } from '../lib/conflictos'
 import {
   formatearPrecio,
-  montoCuota,
   precioConDescuento,
   precioTransferencia,
 } from '../lib/precios'
 
-export function ProductCard({
-  producto,
-  rating,
-}: {
-  producto: ProductoConStock
-  rating?: ResumenResenas
-}) {
+export function ProductCard({ producto }: { producto: ProductoConStock }) {
   const { intentarAgregar, reemplazarConflictosYAgregar } = useCart()
-  const { descuento_transferencia, cuotas_sin_interes } = useTienda()
+  const { descuento_transferencia } = useTienda()
   const [quickshop, setQuickshop] = useState(false)
   const [talle, setTalle] = useState('')
   const [conflictos, setConflictos] = useState<Colision[]>([])
@@ -115,6 +106,7 @@ export function ProductCard({
             <div className="absolute inset-x-0 bottom-0 hidden md:block translate-y-full group-hover:translate-y-0 transition-transform duration-300 z-10">
               <button
                 type="button"
+                aria-label={`Compra rápida de ${producto.nombre}`}
                 onClick={(e) => {
                   e.preventDefault()
                   setQuickshop(true)
@@ -140,31 +132,22 @@ export function ProductCard({
           <BotonFavorito productoId={producto.id} />
         </div>
 
-        {rating && (
-          <RatingProducto promedio={rating.promedio} cantidad={rating.cantidad} />
-        )}
-
-        {descuento > 0 ? (
-          <div className="flex items-baseline gap-2">
-            <span className="text-oferta font-semibold">${formatearPrecio(precioOferta)}</span>
-            <span className="text-xs opacity-50 line-through">${formatearPrecio(precio)}</span>
-          </div>
-        ) : (
-          <span className="text-sm">${formatearPrecio(precio)}</span>
-        )}
+        <div className="flex items-baseline gap-2 mt-1">
+          {descuento > 0 && (
+            <span className="text-[11px] opacity-40 line-through">${formatearPrecio(precio)}</span>
+          )}
+          <span className="text-xs opacity-70">${formatearPrecio(descuento > 0 ? precioOferta : precio)}</span>
+        </div>
 
         {descuento_transferencia > 0 && (
-          <p className="text-xs text-success">
-            ${formatearPrecio(precioTransferencia(precioOferta, descuento_transferencia))} por
-            transferencia
-          </p>
-        )}
-
-        {cuotas_sin_interes > 1 && (
-          <p className="text-xs opacity-60">
-            {cuotas_sin_interes} cuotas de ${formatearPrecio(montoCuota(precioOferta, cuotas_sin_interes))}
-            s/interés
-          </p>
+          <div className="mt-2">
+            <p className="text-[11px] text-emerald-700 font-medium uppercase tracking-wider">
+              Transferencia
+            </p>
+            <p className="text-xl font-extrabold text-emerald-600 leading-tight">
+              ${formatearPrecio(precioTransferencia(precioOferta, descuento_transferencia))}
+            </p>
+          </div>
         )}
       </div>
 

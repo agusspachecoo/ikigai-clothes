@@ -1,7 +1,6 @@
 import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { useProductos } from '../hooks/useProductos'
-import { useResumenResenas } from '../hooks/useResumenResenas'
 import { ProductCard } from './ProductCard'
 
 interface Props {
@@ -16,7 +15,6 @@ export function ProductosRelacionados({ categoria, productoId }: Props) {
     () => productos.filter((p) => p.id !== productoId).slice(0, 4),
     [productos, productoId],
   )
-  const { stats } = useResumenResenas(relacionados)
 
   if (!loading && relacionados.length === 0) return null
 
@@ -43,7 +41,7 @@ export function ProductosRelacionados({ categoria, productoId }: Props) {
       ) : (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {relacionados.map((p) => (
-            <ProductCard key={p.id} producto={p} rating={stats[p.id]} />
+            <ProductCard key={p.id} producto={p} />
           ))}
         </div>
       )}

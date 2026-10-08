@@ -138,7 +138,6 @@ export function Checkout() {
   const secuenciaCotizacionRef = useRef(0)
 
   const retiro = opcionEnvio?.id_servicio === OPCION_SHOWROOM.id_servicio
-  const costoEnvio = opcionEnvio?.costo ?? 0
 
   // Aplica una cotización ya resuelta, descartando la que llegó tarde si el
   // usuario siguió tipeando o cambió el carrito mientras esperaba.
@@ -208,6 +207,8 @@ export function Checkout() {
   // (regla `react-hooks/set-state-in-effect`). Mientras se cotiza otro CP,
   // `opcionesVigentes` queda en false: no se muestran precios de un CP viejo.
   const cpActual = digitosCp(form.codigo_postal)
+  let costoEnvio = !retiro && cpActual === '3360' ? 0 : (opcionEnvio?.costo ?? 0)
+  if (cpActual === '3360') costoEnvio = 0
   const cotizando = cargandoEnvio && !retiro && cpActual.length >= 4
   const opcionesVigentes = opcionesDeCp !== null && opcionesDeCp === cpActual
 
@@ -226,7 +227,8 @@ export function Checkout() {
   // Envío gratis por monto: se evalúa sobre el subtotal ya descontado.
   const correspondeEnvioGratis =
     envio_gratis_activo && umbral_envio_gratis > 0 && subtotalConDescuento >= umbral_envio_gratis
-  const costoEnvioCobrado = retiro || correspondeEnvioGratis ? 0 : costoEnvio
+  const esEnvioGratisObera = !retiro && cpActual === '3360'
+  const costoEnvioCobrado = retiro || esEnvioGratisObera || correspondeEnvioGratis || costoEnvio === 0 ? 0 : costoEnvio
   const totalFinal = subtotalConDescuento + costoEnvioCobrado
 
   // Errores de todo el formulario, recalculados en cada tecla.
@@ -310,6 +312,29 @@ export function Checkout() {
 
   async function handleCotizarEnvio() {
     const limpio = digitosCp(form.codigo_postal)
+    if (limpio === '3360') {
+      console.log('INPUT ACTUALIZADO EN PANTALLA: 3360 (botón)')
+      setErrorEnvio(null)
+      setOpcionEnvio({
+        id_servicio: 'local-obera-gratis',
+        correo_id: 'LOCAL',
+        carrier: { id: null, name: 'Envío gratis', rating: null, logo: null },
+        service_type: { code: 'GRATIS', name: 'Envío gratis' },
+        costo: 0,
+        tiempo_estimado: 'Inmediato',
+        modalidad: 'domicilio',
+        despacho: null,
+        horas_entrega: 0,
+        cumplimiento: null,
+        anomalos: null,
+        logistic_type: 'PUERTA_A_PUERTA',
+        estimado: { minimo_dias: 0, maximo_dias: 0, estimado: null, leyenda: 'Inmediato' },
+        tags: ['cheapest'],
+        selectable: true,
+      } as OpcionEnvio)
+      setOpcionesDeCp(limpio)
+      return
+    }
     if (limpio.length < 4) {
       setErrorEnvio('El código postal debe tener al menos 4 dígitos.')
       return
@@ -360,7 +385,11 @@ export function Checkout() {
     const nombreCompleto = `${form.nombre.trim()} ${form.apellido.trim()}`.trim()
     const envioLabel = retiro
       ? 'Retiro en showroom'
-      : `${etiquetaTransporte(opcionEnvio)} · $${formatearPrecio(costoEnvio)}`
+      : (!retiro && cpActual === '3360')
+        ? 'Envío gratis · GRATIS'
+        : costoEnvio === 0
+          ? `${etiquetaTransporte(opcionEnvio)} · GRATIS`
+          : `${etiquetaTransporte(opcionEnvio)} · $${formatearPrecio(costoEnvio)}`
 
     const res = await crearOrden({
       cliente_nombre: nombreCompleto,
@@ -659,9 +688,17 @@ export function Checkout() {
                     maxLength={8}
                     placeholder="3360 o N3360ABC"
                     ayuda="4 dígitos (3360) o CPA completo (N3360ABC)."
-                    onChange={(v) => actualizar('codigo_postal', v)}
+                    onChange={(v) => {
+                      console.log('INPUT ACTUALIZADO EN PANTALLA:', v)
+                      const cpTest = String(v).trim()
+                      if (cpTest === '3360') {
+                        alert('¡CP 3360 DETECTADO EN EL COMPONENTE!')
+                      }
+                      actualizar('codigo_postal', v)
+                    }}
                     onBlur={() => marcarTocado('codigo_postal')}
                   />
+                  <div className="text-red-600 font-bold text-sm mt-1">EDITANDO CHECKOUT REAL</div>
                   <button
                     type="button"
                     disabled={digitosCp(form.codigo_postal).length < 4 || cotizando}
@@ -869,11 +906,15 @@ export function Checkout() {
                 <span className="font-medium">
                   {retiro
                     ? 'Sin cargo'
-                    : correspondeEnvioGratis
-                      ? 'Gratis'
-                      : opcionEnvio
-                        ? `${etiquetaTransporte(opcionEnvio)} · $${formatearPrecio(costoEnvio)}`
-                        : 'Calculá tu envío'}
+                    : (!retiro && cpActual === '3360')
+                      ? 'Envío gratis · GRATIS'
+                      : correspondeEnvioGratis || costoEnvio === 0
+                        ? opcionEnvio
+                          ? `${etiquetaTransporte(opcionEnvio)} · GRATIS`
+                          : 'Gratis'
+                        : opcionEnvio
+                          ? `${etiquetaTransporte(opcionEnvio)} · $${formatearPrecio(costoEnvio)}`
+                          : 'Calculá tu envío'}
                 </span>
               </div>
 
