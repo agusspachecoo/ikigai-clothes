@@ -692,7 +692,6 @@ export function Checkout() {
                     }}
                     onBlur={() => marcarTocado('codigo_postal')}
                   />
-                  <div className="text-red-600 font-bold text-sm mt-1">EDITANDO CHECKOUT REAL</div>
                   <button
                     type="button"
                     disabled={digitosCp(form.codigo_postal).length < 4 || cotizando}
