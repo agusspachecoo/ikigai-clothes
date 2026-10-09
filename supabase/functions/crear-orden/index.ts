@@ -337,10 +337,17 @@ Deno.serve(async (req) => {
       round2(subtotalReal - descuentoTransferencia - descuentoCupon - descuentoOutfit),
     )
 
+    // Normalizar CP para override Oberá
+    const codigoPostalRaw = String(body.codigo_postal ?? '').trim()
+    const codigoPostalDigits = codigoPostalRaw.replace(/\D/g, '')
+
+    const esOberaGratis = !esRetiro && codigoPostalDigits === '3360'
+
     const correspondeEnvioGratis =
-      envioGratisActivo &&
-      umbralEnvioGratis > 0 &&
-      subtotalConDescuento >= umbralEnvioGratis
+      esOberaGratis ||
+      (envioGratisActivo &&
+        umbralEnvioGratis > 0 &&
+        subtotalConDescuento >= umbralEnvioGratis)
 
     // El retiro siempre es gratis. Si no corresponde envío gratis, el costo
     // sale de la cotización del carrier que el cliente eligió con su CP.
@@ -355,7 +362,9 @@ Deno.serve(async (req) => {
 
     let costoEnvioFinal = 0
 
-    if (!esRetiro && !correspondeEnvioGratis) {
+    if (correspondeEnvioGratis) {
+      costoEnvioFinal = 0
+    } else if (!esRetiro) {
       const cotizado = Number(envio?.costo ?? costo_envio) || 0
 
       if (cotizado <= 0) {
