@@ -93,10 +93,6 @@ export function EnvioCalculator({
           value={cp}
           onChange={(e) => {
             const val = e.target.value
-            console.log('CP INGRESADO:', val)
-            if (String(val).trim() === '3360') {
-              alert('¡CP 3360 DETECTADO EN EL COMPONENTE!')
-            }
             const clean = val.replace(/\D/g, '')
             setCp(clean)
             if (clean === '3360') {

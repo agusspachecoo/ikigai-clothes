@@ -313,7 +313,6 @@ export function Checkout() {
   async function handleCotizarEnvio() {
     const limpio = digitosCp(form.codigo_postal)
     if (limpio === '3360') {
-      console.log('INPUT ACTUALIZADO EN PANTALLA: 3360 (botón)')
       setErrorEnvio(null)
       setOpcionEnvio({
         id_servicio: 'local-obera-gratis',
@@ -689,11 +688,6 @@ export function Checkout() {
                     placeholder="3360 o N3360ABC"
                     ayuda="4 dígitos (3360) o CPA completo (N3360ABC)."
                     onChange={(v) => {
-                      console.log('INPUT ACTUALIZADO EN PANTALLA:', v)
-                      const cpTest = String(v).trim()
-                      if (cpTest === '3360') {
-                        alert('¡CP 3360 DETECTADO EN EL COMPONENTE!')
-                      }
                       actualizar('codigo_postal', v)
                     }}
                     onBlur={() => marcarTocado('codigo_postal')}
