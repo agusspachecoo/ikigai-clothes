@@ -166,6 +166,9 @@ export function Checkout() {
           // El retiro en showroom no viene de la cotización: si sigue elegido, se
           // mantiene aunque las opciones del CP no lo incluyan.
           if (!actual || actual.id_servicio === OPCION_SHOWROOM.id_servicio) return actual
+          // Auto-seleccionar envío gratis para Oberá (CP 3360)
+          const gratis = res.opciones.find((o) => o.costo === 0 || o.service_type?.code === 'GRATIS')
+          if (gratis) return gratis
           const sigue = res.opciones.some((o) => o.id_servicio === actual.id_servicio)
           return sigue ? actual : null
         })
@@ -374,7 +377,9 @@ export function Checkout() {
       return
     }
 
-    if (!opcionEnvio) {
+    const cpValidar = digitosCp(form.codigo_postal)
+    const esGratisValidar = retiro || cpValidar === '3360' || costoEnvio === 0
+    if (!opcionEnvio && !esGratisValidar) {
       setErrorMsg('Seleccioná un método de envío para continuar.')
       return
     }
