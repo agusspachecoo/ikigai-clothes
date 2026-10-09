@@ -341,10 +341,11 @@ Deno.serve(async (req) => {
     const codigoPostalRaw = String(body.codigo_postal ?? '').trim()
     const codigoPostalDigits = codigoPostalRaw.replace(/\D/g, '')
 
-    const esOberaGratis = !esRetiro && codigoPostalDigits === '3360'
+    const esOberaGratis = !esRetiro && (codigoPostalDigits === '3360' || codigoPostalRaw.replace(/\D/g, '') === '3360')
 
     const correspondeEnvioGratis =
       esOberaGratis ||
+      Number(costo_envio) === 0 && !esRetiro && codigoPostalDigits === '3360' ||
       (envioGratisActivo &&
         umbralEnvioGratis > 0 &&
         subtotalConDescuento >= umbralEnvioGratis)
