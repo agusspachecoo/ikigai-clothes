@@ -128,7 +128,7 @@ Deno.serve(async (req) => {
     // Validar que el pedido exista y que el monto coincida
     const { data: orden } = await supabase
       .from('ordenes')
-      .select('monto_total, costo_envio, metodo_pago, cliente_nombre, cliente_email, cliente_telefono, cliente_dni, envio_detalle, cupon_codigo, descuento_cupon, descuento_outfit')
+      .select('monto_total, costo_envio, metodo_pago, cliente_nombre, cliente_email, cliente_telefono, cliente_dni, codigo_postal, envio_detalle, cupon_codigo, descuento_cupon, descuento_outfit')
       .eq('id', ordenId)
       .maybeSingle()
 
@@ -280,20 +280,37 @@ Deno.serve(async (req) => {
 
     // El envío gratis solo puede venir del retiro en el local o del umbral de la
     // tienda: si el cliente pide envío gratis sin cumplir, se rechaza.
+    //
+    // Excepción: el envío gratis local de Oberá (CP 3360) y la opción de envío
+    // gratuita local no están sujetos al mínimo de compra. El umbral de
+    // $150.000 aplica únicamente a envíos nacionales por correo fuera de Oberá.
     if (costoEnvioNum <= 0 && carrierEnvioOrden) {
-      const { data: config } = await supabase
-        .from('config_tienda')
-        .select('clave, valor')
-        .in('clave', ['envio_gratis_activo', 'umbral_envio_gratis'])
+      const envioDetalle = (orden.envio_detalle as {
+        codigo_postal?: string
+        service_type?: string
+      } | null) ?? null
 
-      const activo = config?.find((c) => c.clave === 'envio_gratis_activo')?.valor === 'true'
-      const umbral = Number(config?.find((c) => c.clave === 'umbral_envio_gratis')?.valor ?? 0)
+      const cpOrden = String(envioDetalle?.codigo_postal ?? orden.codigo_postal ?? '')
+        .replace(/\D/g, '')
+      const tipoServicio = String(envioDetalle?.service_type ?? '').toUpperCase()
 
-      if (activo && umbral > 0 && subtotalReal < umbral) {
-        return json(
-          { error: `El envío gratis se aplica a compras desde $${umbral.toLocaleString('es-AR')}.` },
-          { status: 409 },
-        )
+      const esEnvioLocalGratis = cpOrden === '3360' || tipoServicio === 'GRATIS'
+
+      if (!esEnvioLocalGratis) {
+        const { data: config } = await supabase
+          .from('config_tienda')
+          .select('clave, valor')
+          .in('clave', ['envio_gratis_activo', 'umbral_envio_gratis'])
+
+        const activo = config?.find((c) => c.clave === 'envio_gratis_activo')?.valor === 'true'
+        const umbral = Number(config?.find((c) => c.clave === 'umbral_envio_gratis')?.valor ?? 0)
+
+        if (activo && umbral > 0 && subtotalReal < umbral) {
+          return json(
+            { error: `El envío gratis se aplica a compras desde $${umbral.toLocaleString('es-AR')}.` },
+            { status: 409 },
+          )
+        }
       }
     }
 
