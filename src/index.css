@@ -95,13 +95,6 @@
   --text-6xl--line-height: 2.875rem;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .animate-marquee {
-    animation: none;
-    will-change: auto;
-  }
-}
-
 @layer base {
   :root {
     /* Estética plana: esquinas mínimas y sin profundidad */
@@ -154,10 +147,30 @@
   }
 }
 
-/* Marquesina: pista de composicion para que el translateX no dispare
-   repaint en cada frame. */
+/* Marquesina: pista de composición robusta y acelerada por GPU.
+   El ancho se declara en CSS (no solo con la utilidad `w-max`) y con
+   `flex-shrink: 0`, porque dentro de un contenedor flex algunos navegadores
+   móviles y de escritorio colapsaban la pista al ancho del contenedor y la
+   animación quedaba congelada. */
 .animate-marquee {
+  display: flex;
+  width: max-content;
+  flex-shrink: 0;
   will-change: transform;
+  /* Fuerza una capa propia y evita subpíxeles que traban el repintado. */
+  transform: translate3d(0, 0, 0);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+/* Respaldo para dispositivos con restricciones de movimiento: se detiene la
+   animación y queda visible el primer mensaje, sin texto cortado a mitad. */
+@media (prefers-reduced-motion: reduce) {
+  .animate-marquee {
+    animation: none;
+    will-change: auto;
+    transform: none;
+  }
 }
 
 /* La pausa al pasar el mouse solo tiene sentido con puntero fino. En touch

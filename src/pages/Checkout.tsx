@@ -243,6 +243,13 @@ export function Checkout() {
     primeraFalta(['nombre', 'apellido', 'email', 'telefono', 'dni']) ??
     (retiro ? undefined : primeraFalta(['direccion', 'codigo_postal']))
 
+  // El botón de pago queda deshabilitado hasta que los datos obligatorios estén
+  // completos y válidos (incluido el teléfono) y haya una forma de entrega
+  // resuelta. Con todo listo, vuelve a su estilo activo de siempre.
+  const datosCompletos = Object.keys(errores).length === 0
+  const envioResuelto = retiro || Boolean(opcionEnvio) || costoEnvio === 0
+  const puedePagar = datosCompletos && envioResuelto
+
   function actualizar(campo: Campo, valor: string) {
     let limpio = SOLO_DIGITOS[campo] ? valor.replace(/\D/g, '') : valor
     // El CPA se escribe con letras; se pasan a mayúsculas y se descarta lo que
@@ -946,8 +953,14 @@ export function Checkout() {
             </div>
             <button
               type="submit"
-              disabled={enviando}
-              className={`btn btn-block mt-5 ${esTransferencia ? 'btn-success' : 'btn-primary'}`}
+              disabled={enviando || !puedePagar}
+              className={`btn btn-block mt-5 disabled:pointer-events-auto disabled:cursor-not-allowed disabled:opacity-50 ${
+                puedePagar
+                  ? esTransferencia
+                    ? 'btn-success'
+                    : 'btn-primary'
+                  : 'bg-base-300 text-base-content/50 border-base-300'
+              }`}
             >
               {enviando ? (
                 <span className="loading loading-spinner loading-sm" />
