@@ -1,10 +1,7 @@
 const RE_DNI = /^\d{7,8}$/
 const RE_CUIT = /^\d{11}$/
-const RE_TELEFONO = /^\d{10,11}$/
-// Con prefijo +54 quedan 10 dígitos (landline) o 11 (celular, que conserva el
-// 15). Antes pedía exactamente 10, así que un celular como +54 9 3755 73-2335
-// se rechazaba.
-const RE_TELEFONO_PREFIJO = /^\+54\d{10,11}$/
+// Un teléfono con TODOS los dígitos iguales ("1111111111") es un dato falso típico.
+const RE_TELEFONO_REPETIDO = /^(\d)\1+$/
 
 // Deliberadamente simple: no sirve para decidir si una casilla es real, solo para
 // detectar que alguien wrote algo que no puede llegar a ser un email (falta el @,
@@ -25,9 +22,61 @@ export function esDNIValido(dni: string): boolean {
   return RE_DNI.test(v) || RE_CUIT.test(v)
 }
 
+/**
+ * Deja solo los dígitos del teléfono: descarta espacios, guiones, paréntesis,
+ * el signo '+' y cualquier otro carácter.
+ */
+export function limpiarTelefono(telefono: string): string {
+  return telefono.replace(/\D/g, '')
+}
+
+/**
+ * Detecta números falsos obvios: todos los dígitos iguales ("1111111111") o una
+ * secuencia consecutiva completa ("1234567890" / "0987654321").
+ *
+ * Se evalúa sobre los 10 dígitos netos, no sobre el prefijo internacional.
+ */
+function esTelefonoFalso(digitos: string): boolean {
+  if (RE_TELEFONO_REPETIDO.test(digitos)) return true
+
+  // Secuencia completa ascendente ("1234567890") o descendente ("0987654321").
+  // Se usa aritmética módulo 10 para contemplar el salto 9 -> 0.
+  let ascendente = true
+  let descendente = true
+  for (let i = 1; i < digitos.length; i++) {
+    const actual = digitos.charCodeAt(i) - 48
+    const previo = digitos.charCodeAt(i - 1) - 48
+    if (((actual - previo + 10) % 10) !== 1) ascendente = false
+    if (((previo - actual + 10) % 10) !== 1) descendente = false
+  }
+  return ascendente || descendente
+}
+
+/**
+ * Valida un teléfono argentino con criterio estricto:
+ *
+ *  - 10 dígitos netos (código de área + número local), ej. 3755732335;
+ *  - prefijo internacional de celular '549' + 10 dígitos (13 en total);
+ *  - prefijo internacional de fijo '54' + 10 dígitos (12 en total).
+ *
+ * Antes de validar se limpia el número. Se rechazan los patrones falsos
+ * evidentes (dígitos repetidos o secuencias consecutivas).
+ */
 export function esTelefonoValido(telefono: string): boolean {
-  const t = telefono.trim()
-  return RE_TELEFONO.test(t) || RE_TELEFONO_PREFIJO.test(t)
+  const digitos = limpiarTelefono(telefono)
+
+  let netos: string
+  if (digitos.length === 10) {
+    netos = digitos
+  } else if (digitos.length === 13 && digitos.startsWith('549')) {
+    netos = digitos.slice(3)
+  } else if (digitos.length === 12 && digitos.startsWith('54')) {
+    netos = digitos.slice(2)
+  } else {
+    return false
+  }
+
+  return !esTelefonoFalso(netos)
 }
 
 export function esEmailValido(email: string): boolean {
@@ -54,7 +103,7 @@ export const MENSAJE_DNI =
   'Ingresá el DNI (7 u 8 dígitos) o el CUIT (11 dígitos), sin puntos ni letras.'
 
 export const MENSAJE_TELEFONO =
-  'Ingresá un teléfono válido: 10 u 11 dígitos, por ejemplo 1155551234, o con prefijo +54.'
+  'Ingresá un teléfono válido de 10 dígitos (código de área + número), por ejemplo 1155551234 o 3755732335. También se acepta con prefijo +54 o +549.'
 
 export const MENSAJE_EMAIL =
   'Revisá el email: le falta el @ o el dominio no es válido. Ej: nombre@mail.com'
@@ -122,13 +171,15 @@ export function validarCampo(
       if (!esEmailValido(v)) return MENSAJE_EMAIL
       return undefined
 
-    case 'telefono':
+    case 'telefono': {
       if (!v) return MENSAJE_OBLIGATORIO
-      if (v.replace(/\D/g, '').length < 10) {
-        return 'Te faltan dígitos: son 10 u 11.'
+      const digitos = limpiarTelefono(v)
+      if (digitos.length < 10) {
+        return `Te faltan dígitos: van ${digitos.length} de 10.`
       }
       if (!esTelefonoValido(v)) return MENSAJE_TELEFONO
       return undefined
+    }
 
     case 'dni':
       if (!v) return MENSAJE_OBLIGATORIO

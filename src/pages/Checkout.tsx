@@ -373,7 +373,14 @@ export function Checkout() {
 
     const found = validarFormulario(form, { retiro })
     if (Object.keys(found).length > 0) {
-      setErrorMsg('Revisá los campos marcados en rojo para continuar.')
+      // El teléfono es el dato que llega peor tipeado: si fue el problema,
+      // mostramos su mensaje puntual en vez del genérico. Aplica antes de
+      // procesar cualquier método de pago (Mercado Pago o transferencia).
+      setErrorMsg(
+        found.telefono && form.telefono.trim()
+          ? found.telefono
+          : 'Revisá los campos marcados en rojo para continuar.',
+      )
       return
     }
 
