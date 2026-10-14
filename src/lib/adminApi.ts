@@ -501,7 +501,8 @@ export async function getBannersAdmin() {
 }
 
 export async function guardarBanners(items: BannerInput[]) {
-  const { error: errDel } = await supabase.from('banners').delete().neq('id', '0');
+  // Agregamos un filtro válido para que Supabase permita el borrado general
+  const { error: errDel } = await supabase.from('banners').delete().not('id', 'is', null)
   if (errDel) return { error: errDel.message }
 
   const limpios = items.filter((i) => i.imagen_url.trim() !== '')
