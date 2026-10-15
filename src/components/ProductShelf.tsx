@@ -13,10 +13,11 @@ interface Props {
   variante?: 'carrusel' | 'grilla'
 }
 
-// Ancho de cada tarjeta: en mobile entran ~2, y en desktop hasta 6, para que
-// el carrusel ocupe todo el ancho de la pantalla como en la referencia.
+// Ancho de cada tarjeta: ~2 en mobile, ~4 en tablet y exactamente 5 visibles
+// en desktop (descontando los 4 gaps de 1rem = 0.8rem por tarjeta). El carrusel
+// ocupa todo el ancho de la pantalla.
 const ITEM_CLS =
-  'shrink-0 snap-start w-[46%] sm:w-[31%] md:w-[23.5%] lg:w-[19%] xl:w-[15.5%]'
+  'shrink-0 snap-start w-[46%] sm:w-[31%] md:w-[23%] lg:w-[calc(20%_-_0.8rem)]'
 
 const FLECHA_CLS =
   'absolute top-1/2 -translate-y-1/2 z-20 hidden md:flex h-11 w-11 items-center justify-center rounded-full bg-white/90 text-neutral-800 shadow-md ring-1 ring-black/5 backdrop-blur transition hover:bg-white hover:scale-105 active:scale-95'

@@ -3,12 +3,7 @@ import { Link } from 'react-router-dom'
 import type { ProductoConStock } from '../types/database'
 import { QuickshopModal } from './QuickshopModal'
 import { BotonFavorito } from './BotonFavorito'
-import { useCart, type ItemNuevo } from '../context/cart'
 import { useTienda } from '../context/tienda'
-import { tallesConStock, tallesDisponibles } from '../lib/talles'
-import { useTalles } from '../hooks/useTalles'
-import { ConflictModal } from './ConflictModal'
-import type { Colision } from '../lib/conflictos'
 import {
   formatearPrecio,
   precioConDescuento,
@@ -16,62 +11,29 @@ import {
 } from '../lib/precios'
 
 export function ProductCard({ producto }: { producto: ProductoConStock }) {
-  const { intentarAgregar, reemplazarConflictosYAgregar } = useCart()
   const { descuento_transferencia } = useTienda()
-  const { orden: ordenTalles } = useTalles()
   const [quickshop, setQuickshop] = useState(false)
-  const [talle, setTalle] = useState('')
-  const [conflictos, setConflictos] = useState<Colision[]>([])
-  const [modalAbierto, setModalAbierto] = useState(false)
 
   const descuento = Number(producto.discount_percent) || 0
   const precio = Number(producto.precio) || 0
   const precioOferta = precioConDescuento(precio, descuento)
 
-  const opciones = tallesDisponibles(producto.variaciones_stock, ordenTalles)
-  const conStock = tallesConStock(producto.variaciones_stock, ordenTalles)
-  const sinTalles = opciones.length === 0
-  // Un producto sin variations de talle tampoco se puede comprar, así que
-  // cuenta como sin stock igual que uno que tiene talles en cero.
-  const sinStock = conStock.length === 0
-
-  function prendaConTalle(talleElegido: string): ItemNuevo {
-    return {
-      producto_id: producto.id,
-      nombre: producto.nombre,
-      imagen: producto.imagenes[0] ?? '',
-      talle: talleElegido,
-      precio_unitario: precioOferta,
-      origen: 'individual',
-      outfitId: null,
-      outfitNombre: null,
-    }
-  }
-
-  function agregarRapido() {
-    if (!talle) return
-    const nueva = prendaConTalle(talle)
-    const resultado = intentarAgregar(nueva)
-    if (!resultado.ok) {
-      // Stock unitario: no se agrega nada hasta que el usuario confirme.
-      setConflictos(resultado.colisiones)
-      setModalAbierto(true)
-      return
-    }
-    setTalle('')
-  }
-
-  function confirmarReemplazo() {
-    reemplazarConflictosYAgregar(prendaConTalle(talle), conflictos)
-    setModalAbierto(false)
-    setConflictos([])
-    setTalle('')
-  }
+  const stockTotal = (producto.variaciones_stock ?? []).reduce(
+    (suma, v) => suma + (v.stock_disponible ?? 0),
+    0,
+  )
+  const sinStock = stockTotal <= 0
 
   return (
     <div className="group relative flex flex-col bg-base-100">
-      {/* Imagen: protagonista, limpia */}
-      <Link to={`/producto/${producto.id}`} className="block relative bg-white">
+      {/* Imagen: protagonista y limpia. Al hacer click abre la vista rápida
+          (selección de talle + agregar) en un modal, igual que en mobile. */}
+      <button
+        type="button"
+        onClick={() => setQuickshop(true)}
+        aria-label={`Vista rápida de ${producto.nombre}`}
+        className="block w-full text-left bg-white"
+      >
         <figure className="w-full aspect-[3/4] relative bg-neutral-100 m-0 p-0 overflow-hidden">
           {producto.imagenes[0] && (
             <img
@@ -92,14 +54,6 @@ export function ProductCard({ producto }: { producto: ProductoConStock }) {
             />
           )}
 
-          {/* Descuento: esquina superior derecha */}
-          {descuento > 0 && (
-            <span className="absolute top-2 right-2 z-10 bg-oferta text-white text-[10px] font-semibold uppercase tracking-widest px-2 py-1">
-              -{descuento}%
-            </span>
-          )}
-
-          {/* Sin stock: velo centrado */}
           {sinStock && (
             <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/45">
               <span className="bg-neutral text-neutral-content text-[10px] uppercase tracking-widest px-3 py-1.5">
@@ -107,33 +61,17 @@ export function ProductCard({ producto }: { producto: ProductoConStock }) {
               </span>
             </div>
           )}
-
-          {!sinStock && (
-            <div className="absolute inset-x-0 bottom-0 hidden md:block translate-y-full group-hover:translate-y-0 transition-transform duration-300 z-10">
-              <button
-                type="button"
-                aria-label={`Compra rápida de ${producto.nombre}`}
-                onClick={(e) => {
-                  e.preventDefault()
-                  setQuickshop(true)
-                }}
-                className="w-full bg-neutral/95 text-neutral-content text-[11px] uppercase tracking-[0.15em] py-3 hover:bg-neutral"
-              >
-                Compra rápida
-              </button>
-            </div>
-          )}
         </figure>
-      </Link>
+      </button>
 
-      {/* Favorito: esquina superior izquierda sobre la foto (fuera del Link
-          para que el click no navegue al producto). */}
+      {/* Favorito: único ícono sobre la foto, arriba a la izquierda (fuera del
+          botón para que el click no abra el modal). */}
       <div className="absolute top-2 left-2 z-20 flex h-9 w-9 items-center justify-center rounded-full bg-white/85 shadow-sm ring-1 ring-black/5 backdrop-blur transition hover:bg-white">
         <BotonFavorito productoId={producto.id} />
       </div>
 
-      {/* Info compacta */}
-      <div className="pt-3 pb-1 flex flex-col gap-1 grow">
+      {/* Info: título + precios, compacto */}
+      <div className="pt-3 flex flex-col gap-0.5 grow">
         <Link
           to={`/producto/${producto.id}`}
           className="text-[13px] leading-snug font-medium hover:underline line-clamp-2"
@@ -141,87 +79,37 @@ export function ProductCard({ producto }: { producto: ProductoConStock }) {
           {producto.nombre}
         </Link>
 
-        <div className="flex items-baseline gap-2">
-          {descuento > 0 && (
-            <span className="text-[11px] opacity-40 line-through">${formatearPrecio(precio)}</span>
-          )}
-          <span className="text-sm font-semibold">
-            ${formatearPrecio(descuento > 0 ? precioOferta : precio)}
-          </span>
-        </div>
-
-        {descuento_transferencia > 0 && (
-          <p className="text-xs text-emerald-700">
-            ${formatearPrecio(precioTransferencia(precioOferta, descuento_transferencia))}{' '}
-            <span className="opacity-70">con Transferencia</span>
-          </p>
-        )}
-      </div>
-
-      {/* Selector de talle + agregar (solo desktop, en mobile va dentro del quickshop) */}
-      {!sinTalles && (
-        <div className="hidden md:block pt-2 pb-1">
-          <div className="flex flex-wrap gap-1 mb-2">
-            {opciones.map(({ talle: t, stock }) => (
-              <button
-                key={t}
-                type="button"
-                disabled={stock === 0}
-                onClick={() => setTalle(t)}
-                aria-pressed={talle === t}
-                className={`min-w-9 h-8 px-2 border text-xs transition-colors ${
-                  talle === t
-                    ? 'bg-neutral text-neutral-content border-neutral'
-                    : stock === 0
-                      ? 'border-line opacity-40 line-through cursor-not-allowed'
-                      : 'border-line hover:border-neutral'
-                }`}
-              >
-                {t}
-              </button>
-            ))}
+        {descuento_transferencia > 0 ? (
+          /* El precio por transferencia es el protagonista. */
+          <div className="flex flex-col gap-0.5 mt-0.5">
+            <span
+              className={`text-xs ${
+                descuento > 0 ? 'opacity-40 line-through' : 'text-base-content/50'
+              }`}
+            >
+              ${formatearPrecio(precio)}
+            </span>
+            <span className="text-xl font-extrabold text-emerald-600 leading-none">
+              ${formatearPrecio(precioTransferencia(precioOferta, descuento_transferencia))}
+            </span>
+            <span className="text-[11px] font-semibold uppercase tracking-wide text-emerald-700/80">
+              con transferencia
+            </span>
           </div>
-
-          <button
-            type="button"
-            onClick={agregarRapido}
-            disabled={!talle || sinStock}
-            className="btn btn-outline btn-sm btn-block"
-          >
-            {sinStock ? 'Sin Stock' : talle ? 'Agregar' : 'Elegí talle'}
-          </button>
-        </div>
-      )}
-
-      {/* Acción mobile: abre el bottom sheet con talles.
-          Sin stock el botón sigue visible pero deshabilitado, para que se vea
-          que la prenda existe y está agotada. */}
-      <div className="pt-2 md:hidden">
-        <button
-          type="button"
-          onClick={() => setQuickshop(true)}
-          disabled={sinStock}
-          className="btn btn-outline btn-sm btn-block"
-        >
-          {sinStock ? 'Sin Stock' : sinTalles ? 'Agregar' : 'Elegí talle'}
-        </button>
+        ) : (
+          <div className="flex items-baseline gap-2 mt-0.5">
+            {descuento > 0 && (
+              <span className="text-xs opacity-40 line-through">${formatearPrecio(precio)}</span>
+            )}
+            <span className="text-lg font-bold">
+              ${formatearPrecio(descuento > 0 ? precioOferta : precio)}
+            </span>
+          </div>
+        )}
       </div>
 
       {quickshop && (
         <QuickshopModal producto={producto} onCerrar={() => setQuickshop(false)} />
-      )}
-
-      {modalAbierto && (
-        <ConflictModal
-          abierto={modalAbierto}
-          conflictos={conflictos}
-          accionSolicitada="agregar_individual"
-          onConfirmar={confirmarReemplazo}
-          onCancelar={() => {
-            setModalAbierto(false)
-            setConflictos([])
-          }}
-        />
       )}
     </div>
   )
