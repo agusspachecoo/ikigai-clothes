@@ -1,6 +1,17 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
+import { DROP_EMBED, esDropFuturo, filtrarDropsFuturos } from '../lib/drops'
 import type { ProductoConStock } from '../types/database'
+
+type ProductoProximo = Omit<ProductoConStock, 'variaciones_stock' | 'bloqueado'>
+
+function enmascararProximos(data: unknown): ProductoConStock[] {
+  return ((data ?? []) as ProductoProximo[]).map((p) => ({
+    ...p,
+    variaciones_stock: [],
+    bloqueado: true,
+  }))
+}
 
 interface UseProductosOptions {
   categoria?: string
@@ -32,7 +43,7 @@ export function useProductos(options: UseProductosOptions = {}): UseProductosRes
 
       let query = supabase
         .from('productos')
-        .select('*, variaciones_stock(*)', { count: 'exact' })
+        .select(`*, variaciones_stock(*), ${DROP_EMBED}`, { count: 'exact' })
         .eq('activo', true)
         .order('created_at', { ascending: false })
 
@@ -44,28 +55,43 @@ export function useProductos(options: UseProductosOptions = {}): UseProductosRes
         query = query.gt('discount_percent', 0)
       }
 
-      if (options.buscar) {
-        // Limpiar caracteres que rompen la sintaxis del `.or()` de Supabase
-        // (las comas y paréntesis son separadores de cláusula) además de los
-        // comodines LIKE. Sin esto, buscar "remera, manga" genera una query inválida.
-        const termino = options.buscar.replace(/["'%\\,()]/g, '').trim()
-        if (termino) {
-          query = query.or(`nombre.ilike.%${termino}%,categoria.ilike.%${termino}%`)
-        }
+      // Limpiar caracteres que rompen la sintaxis del `.or()` de Supabase
+      // (las comas y paréntesis son separadores de cláusula) además de los
+      // comodines LIKE. Sin esto, buscar "remera, manga" genera una query inválida.
+      const termino = options.buscar
+        ? options.buscar.replace(/["'%\\,()]/g, '').trim()
+        : ''
+
+      if (termino) {
+        query = query.or(`nombre.ilike.%${termino}%,categoria.ilike.%${termino}%`)
       }
 
       if (options.limit) {
         query = query.range(options.offset ?? 0, (options.offset ?? 0) + options.limit - 1)
       }
 
-      const { data, error: err, count } = await query
+      // Drops futuros: se traen enmascarados por RPC (la RLS los sigue ocultando).
+      // No corresponden en la vista "Ofertas", porque aún no tienen descuento.
+      const proximos = options.descuentos
+        ? Promise.resolve({ data: [] })
+        : supabase.rpc('productos_proximos', {
+            p_categoria: options.categoria ?? null,
+            p_buscar: termino || null,
+          })
+
+      const [{ data, error: err, count }, prox] = await Promise.all([query, proximos])
+      const pendientes = enmascararProximos(prox?.data)
 
       if (!cancelled) {
         if (err) {
           setError(err.message)
         } else {
-          setProductos(data as ProductoConStock[])
-          setTotal(count ?? 0)
+          // La tabla trae TODOS los productos activos; descartamos los de drops
+          // futuros y los volvemos a agregar enmascarados vía el RPC.
+          const reales = filtrarDropsFuturos((data ?? []) as ProductoConStock[])
+          const descartados = (data?.length ?? 0) - reales.length
+          setProductos([...reales, ...pendientes])
+          setTotal(Math.max(0, (count ?? 0) - descartados + pendientes.length))
         }
         setLoading(false)
       }
@@ -92,13 +118,17 @@ export function useProducto(id: string | null) {
       setLoading(true)
       const { data, error: err } = await supabase
         .from('productos')
-        .select('*, variaciones_stock(*)')
+        .select(`*, variaciones_stock(*), ${DROP_EMBED}`)
         .eq('id', id as string)
         .single()
 
       if (!cancelled) {
+        const encontrado = data as ProductoConStock | null
         if (err) setError(err.message)
-        else setProducto(data as ProductoConStock)
+        else if (encontrado && esDropFuturo(encontrado)) {
+          // Enlace directo a un producto de un drop aún no lanzado: no se revela.
+          setError('Este producto forma parte de un próximo lanzamiento.')
+        } else setProducto(encontrado)
         setLoading(false)
       }
     }

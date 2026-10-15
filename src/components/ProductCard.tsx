@@ -11,6 +11,42 @@ import {
 export function ProductCard({ producto }: { producto: ProductoConStock }) {
   const { descuento_transferencia } = useTienda()
 
+  // Producto de un drop futuro: se muestra difuminado, sin precio y sin enlace.
+  if (producto.bloqueado) {
+    return (
+      <div className="relative flex h-full flex-col bg-base-100">
+        <div className="flex grow flex-col">
+          <figure className="w-full aspect-[3/4] relative bg-neutral-100 m-0 p-0 overflow-hidden shrink-0">
+            {producto.imagenes[0] && (
+              <img
+                src={producto.imagenes[0]}
+                alt="Vista previa de un próximo lanzamiento"
+                loading="lazy"
+                decoding="async"
+                aria-hidden="true"
+                className="absolute inset-0 block w-full h-full object-cover object-[center_20%] scale-110 blur-[6px]"
+              />
+            )}
+            <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/25">
+              <span className="flex items-center gap-1.5 bg-neutral/95 text-neutral-content text-[10px] uppercase tracking-widest px-3 py-1.5">
+                <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+                </svg>
+                Próximamente
+              </span>
+            </div>
+          </figure>
+
+          <div className="pt-3 flex grow flex-col gap-0.5">
+            <p className="text-[13px] leading-snug font-medium min-h-[2.75em] text-base-content/60">
+              Próximamente...
+            </p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   const descuento = Number(producto.discount_percent) || 0
   const precio = Number(producto.precio) || 0
   const precioOferta = precioConDescuento(precio, descuento)

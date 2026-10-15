@@ -36,8 +36,25 @@ export interface Talle {
   created_at: string
 }
 
+export interface DropResumen {
+  id: string
+  fecha_lanzamiento: string
+  activo: boolean
+}
+
 export interface ProductoConStock extends Producto {
   variaciones_stock: VariacionStock[]
+  /**
+   * Drop embebido en las consultas públicas. Permite descartar en el
+   * frontend los productos de drops futuros aunque la RLS no los oculte.
+   */
+  drop?: DropResumen | null
+  /**
+   * `true` cuando el producto pertenece a un drop que todavía no se lanzó.
+   * El dato viene enmascarado desde `productos_proximos()` (nombre "Próximamente..."
+   * y precio 0), así que la tarjeta debe renderizarlo bloqueada y no cliqueable.
+   */
+  bloqueado?: boolean
 }
 
 export interface Drop {

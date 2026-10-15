@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
+import { DROP_EMBED, filtrarDropsFuturos } from '../lib/drops'
 import type { ProductoConStock } from '../types/database'
 
 const ESTADOS_PAGADOS = ['pagado', 'enviado', 'entregado']
@@ -16,11 +17,11 @@ async function cargarProductosPorIds(ids: string[]): Promise<ProductoConStock[]>
   for (let i = 0; i < unicos.length; i += 100) {
     const { data, error } = await supabase
       .from('productos')
-      .select('*, variaciones_stock(*)')
+      .select(`*, variaciones_stock(*), ${DROP_EMBED}`)
       .in('id', unicos.slice(i, i + 100))
 
     if (error) continue
-    for (const p of data as ProductoConStock[]) {
+    for (const p of filtrarDropsFuturos((data ?? []) as ProductoConStock[])) {
       mapa.set(p.id, p)
     }
   }
@@ -31,12 +32,12 @@ async function cargarProductosPorIds(ids: string[]): Promise<ProductoConStock[]>
 async function crearFallback(limit: number): Promise<ProductoConStock[]> {
   const { data } = await supabase
     .from('productos')
-    .select('*, variaciones_stock(*)')
+    .select(`*, variaciones_stock(*), ${DROP_EMBED}`)
     .eq('activo', true)
     .order('created_at', { ascending: false })
     .limit(limit)
 
-  return (data ?? []) as ProductoConStock[]
+  return filtrarDropsFuturos((data ?? []) as ProductoConStock[])
 }
 
 async function completarConRecientes(
@@ -51,13 +52,13 @@ async function completarConRecientes(
   if (actuales.length > 0) {
     const { data } = await supabase
       .from('productos')
-      .select('*, variaciones_stock(*)')
+      .select(`*, variaciones_stock(*), ${DROP_EMBED}`)
       .eq('activo', true)
       .not('id', 'in', `(${actuales.map((p) => p.id).join(',')})`)
       .order('created_at', { ascending: false })
       .limit(faltantes)
 
-    completados = [...actuales, ...((data ?? []) as ProductoConStock[])]
+    completados = [...actuales, ...filtrarDropsFuturos((data ?? []) as ProductoConStock[])]
   } else {
     completados = await crearFallback(limit)
   }
@@ -119,7 +120,7 @@ export function useDescuentos(limit = 8): ResultadoTop {
       setLoading(true)
       const { data } = await supabase
         .from('productos')
-        .select('*, variaciones_stock(*)')
+        .select(`*, variaciones_stock(*), ${DROP_EMBED}`)
         .eq('activo', true)
         .gt('discount_percent', 0)
         .order('discount_percent', { ascending: false })
@@ -127,7 +128,7 @@ export function useDescuentos(limit = 8): ResultadoTop {
         .limit(limit)
 
       if (!cancelled) {
-        setProductos((data ?? []) as ProductoConStock[])
+        setProductos(filtrarDropsFuturos((data ?? []) as ProductoConStock[]))
         setLoading(false)
       }
     }

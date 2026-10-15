@@ -77,7 +77,11 @@ export function useCatalogo(filtros: FiltrosCatalogo) {
   }
 
   const filtrados = useMemo(() => {
-    let lista = productos
+    // Los productos de drops futuros vienen enmascarados y no tienen stock:
+    // salen de los filtros de talle/precio para que no desaparezcan ni
+    // distorsionen el rango. Se muestran al final, después de los reales.
+    const bloqueados = productos.filter((p) => p.bloqueado)
+    let lista = productos.filter((p) => !p.bloqueado)
 
     if (filtros.soloConStock) {
       lista = lista.filter(
@@ -98,7 +102,7 @@ export function useCatalogo(filtros: FiltrosCatalogo) {
       lista = lista.filter((p) => precioFinal(p) <= filtros.precioMax!)
     }
 
-    return ordenar(lista, orden)
+    return [...ordenar(lista, orden), ...bloqueados]
   }, [productos, filtros.soloConStock, talles, orden, filtros.precioMin, filtros.precioMax])
 
   const visiblesEnPantalla = filtrados.slice(0, visibles)
