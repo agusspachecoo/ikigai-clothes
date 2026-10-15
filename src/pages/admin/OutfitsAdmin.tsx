@@ -96,14 +96,14 @@ export function OutfitsAdmin() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {outfits.map((o, i) => (
             <div key={o.id} className={`card bg-base-100 shadow-sm overflow-hidden ${o.activo ? '' : 'opacity-50'}`}>
-              <figure className="aspect-[3/4] bg-base-300">
+              <figure className="aspect-[9/16] bg-base-300">
                 <img
                   src={imagenOutfit(o.imagen_portada, i)}
                   alt={`Portada del look ${o.nombre}`}
                   loading="lazy"
                   decoding="async"
                   width={300}
-                  height={400}
+                  height={533}
                   className="w-full h-full object-cover"
                 />
               </figure>
@@ -305,13 +305,13 @@ function OutfitFormModal({ outfit, productos, onCerrar, onGuardado }: FormProps)
 
           {/* Imagen portada (selfie vestidor, vertical) */}
           <div>
-            <p className="font-semibold text-sm mb-2 text-gray-900">Imagen de portada (vertical, tipo selfie de vestidor)</p>
+            <p className="font-semibold text-sm mb-2 text-gray-900">Imagen de portada (vertical 9:16, tipo selfie de vestidor)</p>
             <div className="max-w-xs">
               <ImageUploader
                 carpeta="outfits"
                 imagenActual={form.imagen_portada}
                 onUrl={(url) => setForm((f) => ({ ...f, imagen_portada: url }))}
-                proporcion="retrato"
+                proporcion="vertical"
                 altoMinimo="h-64"
                 texto="Elegí o arrastrá la imagen de portada"
               />

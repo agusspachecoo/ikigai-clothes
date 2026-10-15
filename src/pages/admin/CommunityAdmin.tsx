@@ -210,14 +210,14 @@ export function CommunityAdmin() {
                   key={f.id}
                   className={`card bg-base-100 shadow-sm overflow-hidden border ${f.aprobado ? 'border-base-200' : 'border-warning'}`}
                 >
-                  <figure className="aspect-[3/4] bg-base-300 overflow-hidden">
+                  <figure className="aspect-[9/16] bg-base-300 overflow-hidden">
                     <img
                       src={f.imagen_url}
                       alt={`Foto enviada por ${f.nombre_usuario}`}
                       loading="lazy"
                       decoding="async"
                       width={160}
-                      height={213}
+                      height={284}
                       className="w-full h-full object-cover"
                     />
                   </figure>

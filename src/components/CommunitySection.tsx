@@ -79,7 +79,7 @@ export function CommunitySection() {
 
   if (!cargado) {
     return (
-      <section className="max-w-7xl mx-auto px-4 py-6">
+      <section className="max-w-[1600px] mx-auto px-3 sm:px-5 py-6">
         <div className="bg-white rounded-sm border border-base-300/60 p-6 my-8">
           <div className="skeleton h-8 w-72 mb-6 rounded-sm"></div>
           <div className="flex gap-3 overflow-hidden">
@@ -93,7 +93,7 @@ export function CommunitySection() {
   }
 
   return (
-    <section className="max-w-7xl mx-auto px-4 py-6">
+    <section className="max-w-[1600px] mx-auto px-3 sm:px-5 py-6">
       <div className="bg-white rounded-sm border border-base-300/60 p-6 my-8">
         <h2 className="text-2xl md:text-3xl font-bold mb-6">
           Nuestra Comunidad Vistiendo Ikigai!

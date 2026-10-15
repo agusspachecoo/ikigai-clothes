@@ -44,7 +44,7 @@ export function CategoryGrid() {
 
   return (
     <section className="py-12 md:py-16 bg-white border-t border-base-300">
-      <div className="max-w-7xl mx-auto px-4">
+      <div className="max-w-[1600px] mx-auto px-3 sm:px-5">
         <div className="text-center mb-8 md:mb-10">
           <p className="text-xs font-semibold tracking-[0.25em] uppercase opacity-60 mb-1">
             Explorá la tienda
