@@ -156,6 +156,20 @@ Deno.serve(async (req) => {
           { status: 400 },
         )
       }
+
+      // Dirección de entrega: mismo criterio que el frontend
+      // (src/lib/validacion.ts). Se exige calle y número (o "S/N" para zonas
+      // sin numeración), si no el carrier no puede despachar.
+      const tieneLetra = /[a-záéíóúüñ]/i.test(dir)
+      const tieneNumero = /\d/.test(dir)
+      const sinNumero = /\bs\s*\/?\s*n\b/i.test(dir)
+      const palabrasDir = dir.trim().split(/\s+/).filter(Boolean).length
+      if (!tieneLetra || palabrasDir < 2 || (!tieneNumero && !sinNumero)) {
+        return json(
+          { error: 'Indicá la calle y el número (ej. Av. San Martín 1234) para poder enviar el pedido.' },
+          { status: 400 },
+        )
+      }
     }
 
     const supabase = getSupabaseAdmin()
@@ -337,15 +351,15 @@ Deno.serve(async (req) => {
       round2(subtotalReal - descuentoTransferencia - descuentoCupon - descuentoOutfit),
     )
 
-    // Normalizar CP para override Oberá
-    const codigoPostalRaw = String(body.codigo_postal ?? '').trim()
-    const codigoPostalDigits = codigoPostalRaw.replace(/\D/g, '')
+    // Override de envío gratis local para Oberá (CP 3360). Es un beneficio del
+    // showroom y no está sujeto al mínimo de compra.
+    const codigoPostalDigits = soloDigitos(cp)
+    const esOberaGratis = !esRetiro && codigoPostalDigits === '3360'
 
-    const esOberaGratis = !esRetiro && (codigoPostalDigits === '3360' || codigoPostalRaw.replace(/\D/g, '') === '3360')
-
+    // Fuera de Oberá, el envío gratis depende del subtotal ya descontado
+    // (transferencia + cupón + outfit) contra el umbral configurado.
     const correspondeEnvioGratis =
       esOberaGratis ||
-      Number(costo_envio) === 0 && !esRetiro && codigoPostalDigits === '3360' ||
       (envioGratisActivo &&
         umbralEnvioGratis > 0 &&
         subtotalConDescuento >= umbralEnvioGratis)

@@ -305,7 +305,17 @@ Deno.serve(async (req) => {
         const activo = config?.find((c) => c.clave === 'envio_gratis_activo')?.valor === 'true'
         const umbral = Number(config?.find((c) => c.clave === 'umbral_envio_gratis')?.valor ?? 0)
 
-        if (activo && umbral > 0 && subtotalReal < umbral) {
+        // Mismo criterio que el checkout y `crear-orden`: el umbral se evalúa
+        // sobre el subtotal ya descontado (cupón + outfit; MP no tiene
+        // descuento por transferencia).
+        const subtotalConDescuento = Math.max(
+          0,
+          subtotalReal -
+            Number(orden.descuento_cupon ?? 0) -
+            Number(orden.descuento_outfit ?? 0),
+        )
+
+        if (activo && umbral > 0 && subtotalConDescuento < umbral) {
           return json(
             { error: `El envío gratis se aplica a compras desde $${umbral.toLocaleString('es-AR')}.` },
             { status: 409 },

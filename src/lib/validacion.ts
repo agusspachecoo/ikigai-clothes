@@ -99,6 +99,30 @@ export function esTextoValido(valor: string, minimo = 3): boolean {
   return valor.trim().split(/\s+/).filter(Boolean).length >= minimo
 }
 
+/**
+ * Dirección de entrega: exige calle y número.
+ *
+ * El carrier no puede despachar con solo el nombre de la calle, así que la
+ * validación pide un número (o "S/N" para zonas sin numeración) además del
+ * nombre. Acepta "Av. San Martín 1234", "Urquiza 55", "Ruta 14 Km 3",
+ * "Barrio Norte, Casa 12" y "Ruta 8 S/N".
+ */
+export function esDireccionValida(valor: string): boolean {
+  const v = valor.trim()
+  if (v.length < 5) return false
+
+  // Debe haber una calle con letras...
+  if (!/[a-záéíóúüñ]/i.test(v)) return false
+
+  // ...y al menos dos palabras (calle + algo).
+  if (v.split(/\s+/).filter(Boolean).length < 2) return false
+
+  // ...y una altura: número, "N° 123", "Km 3" o "S/N" (sin número).
+  const tieneNumero = /\d/.test(v)
+  const sinNumero = /\bs\s*\/?\s*n\b/i.test(v)
+  return tieneNumero || sinNumero
+}
+
 export const MENSAJE_DNI =
   'Ingresá el DNI (7 u 8 dígitos) o el CUIT (11 dígitos), sin puntos ni letras.'
 
@@ -112,7 +136,7 @@ export const MENSAJE_CP =
   'El código postal debe tener 4 dígitos (Ej: 3360) o ser un CPA completo (Ej: N3360ABC).'
 
 export const MENSAJE_DIRECCION =
-  'Completá la calle y el número. Ej: Av. San Martín 1234'
+  'Indicá la calle y el número. Ej: Av. San Martín 1234 (o "S/N" si no tiene numeración).'
 
 export const MENSAJE_OBLIGATORIO = 'Campo obligatorio.'
 
@@ -191,7 +215,7 @@ export function validarCampo(
 
     case 'direccion':
       if (!v) return MENSAJE_OBLIGATORIO
-      if (!esTextoValido(v, 2)) return MENSAJE_DIRECCION
+      if (!esDireccionValida(v)) return MENSAJE_DIRECCION
       return undefined
 
     case 'codigo_postal':

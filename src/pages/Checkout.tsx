@@ -210,10 +210,14 @@ export function Checkout() {
   // (regla `react-hooks/set-state-in-effect`). Mientras se cotiza otro CP,
   // `opcionesVigentes` queda en false: no se muestran precios de un CP viejo.
   const cpActual = digitosCp(form.codigo_postal)
-  let costoEnvio = !retiro && cpActual === '3360' ? 0 : (opcionEnvio?.costo ?? 0)
-  if (cpActual === '3360') costoEnvio = 0
   const cotizando = cargandoEnvio && !retiro && cpActual.length >= 4
   const opcionesVigentes = opcionesDeCp !== null && opcionesDeCp === cpActual
+
+  // Envío gratis local de Oberá (CP 3360): es un beneficio del showroom y no
+  // está sujeto al mínimo de compra. El envío gratis por monto
+  // (`umbral_envio_gratis`) aplica al resto del país.
+  const esEnvioGratisObera = !retiro && cpActual === '3360'
+  const costoEnvio = esEnvioGratisObera ? 0 : (opcionEnvio?.costo ?? 0)
 
   // "Correo Argentino Clásico · Entrega a Domicilio": con dos opciones del mismo
   // transporte, sin la modalidad el resumen y la confirmación se ven idénticos.
@@ -230,9 +234,10 @@ export function Checkout() {
   // Envío gratis por monto: se evalúa sobre el subtotal ya descontado.
   const correspondeEnvioGratis =
     envio_gratis_activo && umbral_envio_gratis > 0 && subtotalConDescuento >= umbral_envio_gratis
-  const esEnvioGratisObera = !retiro && cpActual === '3360'
-  const costoEnvioCobrado = retiro || esEnvioGratisObera || correspondeEnvioGratis || costoEnvio === 0 ? 0 : costoEnvio
+  const costoEnvioCobrado = retiro || esEnvioGratisObera || correspondeEnvioGratis ? 0 : costoEnvio
   const totalFinal = subtotalConDescuento + costoEnvioCobrado
+  // Cuánto le falta para alcanzar el envío gratis por monto (resto del país).
+  const faltaParaEnvioGratis = Math.max(0, umbral_envio_gratis - subtotalConDescuento)
 
   // Errores de todo el formulario, recalculados en cada tecla.
   const errores: ErroresFormulario = validarFormulario(form, { retiro })
@@ -247,7 +252,10 @@ export function Checkout() {
   // completos y válidos (incluido el teléfono) y haya una forma de entrega
   // resuelta. Con todo listo, vuelve a su estilo activo de siempre.
   const datosCompletos = Object.keys(errores).length === 0
-  const envioResuelto = retiro || Boolean(opcionEnvio) || costoEnvio === 0
+  // El envío se resuelve con retiro, con el envío local sin cargo de Oberá o con
+  // una opción de cotización elegida. `costoEnvio == 0` por sí solo no alcanza:
+  // sin opción el backend no sabe con qué transporte despachar.
+  const envioResuelto = retiro || esEnvioGratisObera || Boolean(opcionEnvio)
   const puedePagar = datosCompletos && envioResuelto
 
   function actualizar(campo: Campo, valor: string) {
@@ -391,9 +399,10 @@ export function Checkout() {
       return
     }
 
-    const cpValidar = digitosCp(form.codigo_postal)
-    const esGratisValidar = retiro || cpValidar === '3360' || costoEnvio === 0
-    if (!opcionEnvio && !esGratisValidar) {
+    // Oberá no necesita elegir transporte (el envío local es sin cargo); el
+    // resto necesita una opción de cotización vigente para poder despachar.
+    const esOberaValidar = digitosCp(form.codigo_postal) === '3360'
+    if (!retiro && !esOberaValidar && !opcionEnvio) {
       setErrorMsg('Seleccioná un método de envío para continuar.')
       return
     }
@@ -403,9 +412,9 @@ export function Checkout() {
     const nombreCompleto = `${form.nombre.trim()} ${form.apellido.trim()}`.trim()
     const envioLabel = retiro
       ? 'Retiro en showroom'
-      : (!retiro && cpActual === '3360')
+      : cpActual === '3360'
         ? 'Envío gratis · GRATIS'
-        : costoEnvio === 0
+        : correspondeEnvioGratis
           ? `${etiquetaTransporte(opcionEnvio)} · GRATIS`
           : `${etiquetaTransporte(opcionEnvio)} · $${formatearPrecio(costoEnvio)}`
 
@@ -690,7 +699,7 @@ export function Checkout() {
                   valor={form.direccion}
                   error={errorVisible('direccion')}
                   autoComplete="street-address"
-                  placeholder="Calle, número, piso/depto"
+                  placeholder="Calle y número, ej: Av. San Martín 1234"
                   onChange={(v) => actualizar('direccion', v)}
                   onBlur={() => marcarTocado('direccion')}
                 />
@@ -918,9 +927,9 @@ export function Checkout() {
                 <span className="font-medium">
                   {retiro
                     ? 'Sin cargo'
-                    : (!retiro && cpActual === '3360')
+                    : esEnvioGratisObera
                       ? 'Envío gratis · GRATIS'
-                      : correspondeEnvioGratis || costoEnvio === 0
+                      : correspondeEnvioGratis
                         ? opcionEnvio
                           ? `${etiquetaTransporte(opcionEnvio)} · GRATIS`
                           : 'Gratis'
@@ -929,6 +938,12 @@ export function Checkout() {
                           : 'Calculá tu envío'}
                 </span>
               </div>
+
+              {!retiro && !esEnvioGratisObera && !correspondeEnvioGratis && faltaParaEnvioGratis > 0 && (
+                <p className="text-xs text-right opacity-70">
+                  Te faltan ${formatearPrecio(faltaParaEnvioGratis)} para el envío gratis
+                </p>
+              )}
 
               <div className="h-px bg-line my-1"></div>
 
@@ -974,7 +989,7 @@ export function Checkout() {
               <p className="text-xs opacity-60 text-center mt-2">
                 {`Falta completar: ${faltaContacto.replace('_', ' ')}.`}
               </p>
-            ) : !opcionEnvio && !retiro ? (
+            ) : !opcionEnvio && !retiro && !esEnvioGratisObera ? (
               <p className="text-xs opacity-60 text-center mt-2">
                 Elegí una opción de envío para continuar.
               </p>
