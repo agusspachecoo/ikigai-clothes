@@ -22,14 +22,15 @@ export function ProductCard({ producto }: { producto: ProductoConStock }) {
   const sinStock = stockTotal <= 0
 
   return (
-    <div className="group relative flex flex-col bg-base-100">
-      {/* Toda la tarjeta es un enlace al detalle del producto. */}
+    <div className="group relative flex h-full flex-col bg-base-100">
+      {/* Toda la tarjeta es un enlace al detalle del producto. Crece para que
+          todas las tarjetas midan lo mismo y el botón quede alineado abajo. */}
       <Link
         to={`/producto/${producto.id}`}
         aria-label={`Ver ${producto.nombre}`}
-        className="flex flex-col grow"
+        className="flex grow flex-col"
       >
-        <figure className="w-full aspect-[3/4] relative bg-neutral-100 m-0 p-0 overflow-hidden">
+        <figure className="w-full aspect-[3/4] relative bg-neutral-100 m-0 p-0 overflow-hidden shrink-0">
           {producto.imagenes[0] && (
             <img
               src={producto.imagenes[0]}
@@ -57,21 +58,12 @@ export function ProductCard({ producto }: { producto: ProductoConStock }) {
               </span>
             </div>
           )}
-
-          {/* Botón "Ver producto": oculto por defecto, aparece desde abajo en
-              el borde inferior de la imagen al hacer hover (desktop). */}
-          {!sinStock && (
-            <div className="absolute inset-x-0 bottom-0 z-10 hidden md:block opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300 ease-out">
-              <span className="block w-full bg-neutral/95 text-neutral-content text-[11px] uppercase tracking-[0.15em] py-3 text-center">
-                Ver producto
-              </span>
-            </div>
-          )}
         </figure>
 
-        {/* Info: título + precios, compacto */}
-        <div className="pt-3 flex flex-col gap-0.5 grow">
-          <p className="text-[13px] leading-snug font-medium line-clamp-2 group-hover:underline">
+        {/* Info: título + precios. El título reserva 2 líneas para que los
+            precios queden alineados entre tarjetas. */}
+        <div className="pt-3 flex flex-col gap-0.5">
+          <p className="text-[13px] leading-snug font-medium line-clamp-2 min-h-[2.75em] group-hover:underline">
             {producto.nombre}
           </p>
 
@@ -107,6 +99,17 @@ export function ProductCard({ producto }: { producto: ProductoConStock }) {
           </div>
         </div>
       </Link>
+
+      {/* Botón "Ver producto": debajo del bloque de precios, en la base de la
+          tarjeta. Oculto por defecto y se despliega en hover (desktop). En
+          mobile se oculta y el tap navega directo. */}
+      {!sinStock && (
+        <div className="hidden md:block h-10 mt-2">
+          <span className="flex h-full w-full items-center justify-center bg-neutral/95 text-neutral-content text-[11px] uppercase tracking-[0.15em] opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300 ease-out">
+            Ver producto
+          </span>
+        </div>
+      )}
 
       {/* Favorito: único ícono sobre la foto, arriba a la izquierda (fuera del
           enlace para que el click no navegue al producto). */}
