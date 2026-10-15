@@ -46,6 +46,21 @@
     <priority>0.3</priority>
   </url>
   <url>
+    <loc>https://ikigai-clothes.vercel.app/producto/6593d33e-1fb3-421b-8577-f957abb0ab25</loc>
+<lastmod>2026-09-27T16:07:15.661811+00:00</lastmod>    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://ikigai-clothes.vercel.app/producto/567f34e7-4c09-4a69-b8a7-24ea01c1983e</loc>
+<lastmod>2026-09-27T16:07:15.661811+00:00</lastmod>    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://ikigai-clothes.vercel.app/producto/6c5273aa-7cb4-4151-95e0-2b70c224d64d</loc>
+<lastmod>2026-09-27T16:07:15.661811+00:00</lastmod>    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
     <loc>https://ikigai-clothes.vercel.app/producto/458f6b54-b3ac-46a0-b6dc-7141f6035425</loc>
 <lastmod>2026-09-27T16:07:15.661811+00:00</lastmod>    <changefreq>weekly</changefreq>
     <priority>0.7</priority>
@@ -56,12 +71,7 @@
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://ikigai-clothes.vercel.app/producto/6593d33e-1fb3-421b-8577-f957abb0ab25</loc>
-<lastmod>2026-09-27T16:07:15.661811+00:00</lastmod>    <changefreq>weekly</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
-    <loc>https://ikigai-clothes.vercel.app/producto/6c5273aa-7cb4-4151-95e0-2b70c224d64d</loc>
+    <loc>https://ikigai-clothes.vercel.app/producto/570cac90-4bdb-440a-a9f4-253d4af4d325</loc>
 <lastmod>2026-09-27T16:07:15.661811+00:00</lastmod>    <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
@@ -91,11 +101,6 @@
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://ikigai-clothes.vercel.app/producto/570cac90-4bdb-440a-a9f4-253d4af4d325</loc>
-<lastmod>2026-09-27T16:07:15.661811+00:00</lastmod>    <changefreq>weekly</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
     <loc>https://ikigai-clothes.vercel.app/producto/f88550d3-3d96-43bf-9926-17caf6d02baa</loc>
 <lastmod>2026-09-27T16:07:15.661811+00:00</lastmod>    <changefreq>weekly</changefreq>
     <priority>0.7</priority>
@@ -111,17 +116,7 @@
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://ikigai-clothes.vercel.app/producto/567f34e7-4c09-4a69-b8a7-24ea01c1983e</loc>
-<lastmod>2026-09-27T16:07:15.661811+00:00</lastmod>    <changefreq>weekly</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
-    <loc>https://ikigai-clothes.vercel.app/producto/10000000-0000-4000-8000-000000000001</loc>
-<lastmod>2026-09-05T17:28:18.169572+00:00</lastmod>    <changefreq>weekly</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
-    <loc>https://ikigai-clothes.vercel.app/producto/10000000-0000-4000-8000-000000000004</loc>
+    <loc>https://ikigai-clothes.vercel.app/producto/10000000-0000-4000-8000-000000000002</loc>
 <lastmod>2026-09-05T17:28:18.169572+00:00</lastmod>    <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
@@ -131,7 +126,12 @@
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://ikigai-clothes.vercel.app/producto/10000000-0000-4000-8000-000000000002</loc>
+    <loc>https://ikigai-clothes.vercel.app/producto/10000000-0000-4000-8000-000000000004</loc>
+<lastmod>2026-09-05T17:28:18.169572+00:00</lastmod>    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://ikigai-clothes.vercel.app/producto/10000000-0000-4000-8000-000000000001</loc>
 <lastmod>2026-09-05T17:28:18.169572+00:00</lastmod>    <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>

@@ -61,8 +61,9 @@ export function ProductCard({ producto }: { producto: ProductoConStock }) {
         </figure>
 
         {/* Info: título + precios. El título reserva 2 líneas para que los
-            precios queden alineados entre tarjetas. */}
-        <div className="pt-3 flex flex-col gap-0.5">
+            precios queden alineados entre tarjetas. Crece para empujar el
+            botón hasta la base de la tarjeta. */}
+        <div className="pt-3 flex grow flex-col gap-0.5">
           <p className="text-[13px] leading-snug font-medium line-clamp-2 min-h-[2.75em] group-hover:underline">
             {producto.nombre}
           </p>
@@ -98,18 +99,20 @@ export function ProductCard({ producto }: { producto: ProductoConStock }) {
             )}
           </div>
         </div>
-      </Link>
 
-      {/* Botón "Ver producto": debajo del bloque de precios, en la base de la
-          tarjeta. Oculto por defecto y se despliega en hover (desktop). En
-          mobile se oculta y el tap navega directo. */}
-      {!sinStock && (
-        <div className="hidden md:block h-10 mt-2">
-          <span className="flex h-full w-full items-center justify-center bg-neutral/95 text-neutral-content text-[11px] uppercase tracking-[0.15em] opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300 ease-out">
-            Ver producto
-          </span>
-        </div>
-      )}
+        {/* Botón "Ver producto": comparte el mismo enlace al detalle (sin
+            anidar <a> dentro de <a>), por lo que el clic navega al producto.
+            Va debajo del bloque de precios, pegado a la base de la tarjeta.
+            Oculto por defecto y se despliega en hover (desktop). En mobile se
+            oculta y el tap en la tarjeta navega directo. */}
+        {!sinStock && (
+          <div className="relative z-10 mt-2 hidden h-10 shrink-0 pointer-events-auto md:block">
+            <span className="flex h-full w-full items-center justify-center bg-neutral/95 text-neutral-content text-[11px] uppercase tracking-[0.15em] opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300 ease-out">
+              Ver producto
+            </span>
+          </div>
+        )}
+      </Link>
 
       {/* Favorito: único ícono sobre la foto, arriba a la izquierda (fuera del
           enlace para que el click no navegue al producto). */}
