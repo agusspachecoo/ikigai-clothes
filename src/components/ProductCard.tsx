@@ -58,9 +58,10 @@ export function ProductCard({ producto }: { producto: ProductoConStock }) {
             </div>
           )}
 
-          {/* Botón "Ver producto": oculto por defecto, aparece en hover (desktop). */}
+          {/* Botón "Ver producto": oculto por defecto, aparece desde abajo en
+              el borde inferior de la imagen al hacer hover (desktop). */}
           {!sinStock && (
-            <div className="absolute inset-x-0 bottom-0 z-10 hidden md:block translate-y-full opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-300">
+            <div className="absolute inset-x-0 bottom-0 z-10 hidden md:block opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300 ease-out">
               <span className="block w-full bg-neutral/95 text-neutral-content text-[11px] uppercase tracking-[0.15em] py-3 text-center">
                 Ver producto
               </span>
@@ -74,33 +75,36 @@ export function ProductCard({ producto }: { producto: ProductoConStock }) {
             {producto.nombre}
           </p>
 
-          {descuento_transferencia > 0 ? (
-            /* El precio por transferencia es el protagonista. */
-            <div className="flex flex-col gap-0.5 mt-0.5">
-              <span
-                className={`text-xs ${
-                  descuento > 0 ? 'opacity-40 line-through' : 'text-base-content/50'
-                }`}
-              >
+          {/* Precios: original tachado + precio promocional destacado, y el
+              precio por transferencia como protagonista si está activo. */}
+          <div className="flex flex-col gap-0.5 mt-0.5">
+            {descuento > 0 && (
+              <span className="text-xs text-base-content/40 line-through">
                 ${formatearPrecio(precio)}
               </span>
-              <span className="text-xl font-extrabold text-emerald-600 leading-none">
-                ${formatearPrecio(precioTransferencia(precioOferta, descuento_transferencia))}
-              </span>
-              <span className="text-[11px] font-semibold uppercase tracking-wide text-emerald-700/80">
-                con transferencia
-              </span>
-            </div>
-          ) : (
-            <div className="flex items-baseline gap-2 mt-0.5">
-              {descuento > 0 && (
-                <span className="text-xs opacity-40 line-through">${formatearPrecio(precio)}</span>
-              )}
-              <span className="text-lg font-bold">
-                ${formatearPrecio(descuento > 0 ? precioOferta : precio)}
-              </span>
-            </div>
-          )}
+            )}
+
+            <span
+              className={
+                descuento_transferencia > 0
+                  ? 'text-sm font-semibold text-base-content/70'
+                  : 'text-lg font-bold text-base-content'
+              }
+            >
+              ${formatearPrecio(precioOferta)}
+            </span>
+
+            {descuento_transferencia > 0 && (
+              <p className="leading-none">
+                <span className="text-xl font-extrabold text-emerald-600">
+                  ${formatearPrecio(precioTransferencia(precioOferta, descuento_transferencia))}
+                </span>
+                <span className="ml-1 text-[11px] font-semibold uppercase tracking-wide text-emerald-700/80">
+                  con transferencia
+                </span>
+              </p>
+            )}
+          </div>
         </div>
       </Link>
 
