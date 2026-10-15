@@ -67,16 +67,18 @@ export function Header() {
       {/* ────────── ADBAR ────────── */}
       <div className="relative w-full bg-adbar text-adbar-content h-9 flex items-center overflow-hidden">
         <div className="flex w-max shrink-0 animate-marquee motion-reduce:animate-none">
-          {[0, 1].map((copia) => (
+          {/* 3 copias idénticas: con -33.3333% el ciclo queda sin costura y
+              cubre pantallas anchas sin dejar espacios vacíos. */}
+          {[0, 1, 2].map((copia) => (
             <ul
               key={copia}
-              aria-hidden={copia === 1}
+              aria-hidden={copia !== 0}
               className="flex shrink-0 items-center list-none m-0 p-0"
             >
               {mensajes.map((mensaje) => (
                 <li
                   key={mensaje}
-                  className="flex items-center gap-6 px-6 text-[11px] md:text-xs uppercase tracking-[0.15em] whitespace-nowrap"
+                  className="flex items-center gap-6 px-6 text-[11px] font-bold uppercase tracking-[0.15em] whitespace-nowrap md:text-xs"
                 >
                   {mensaje}
                   <span aria-hidden="true" className="opacity-40">

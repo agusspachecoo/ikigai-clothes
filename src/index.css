@@ -33,15 +33,17 @@
   --font-display: "Literata", "Plus Jakarta Sans", ui-serif, Georgia, serif;
   --default-font-family: var(--font-sans);
 
-  --animate-marquee: marquee 38s linear infinite;
+  --animate-marquee: marquee 40s linear infinite;
 
-  /* El bloque de mensajes se duplica en el JSX, por eso -50% es un ciclo exacto */
+  /* El bloque de mensajes se repite 3 veces en el JSX, por eso -33.333% es un
+     ciclo exacto: al terminar, la copia 2 queda donde arrancó la copia 1. Con 3
+     copias el ancho cubre pantallas anchas sin dejar huecos. */
   @keyframes marquee {
     from {
       transform: translateX(0);
     }
     to {
-      transform: translateX(-50%);
+      transform: translateX(-33.3333%);
     }
   }
 
@@ -66,7 +68,7 @@
   --color-error: #dd7774;
 
   /* Acentos propios: barra de anuncios y etiquetas de oferta */
-  --color-adbar: #111111;
+  --color-adbar: #dc2626;
   --color-adbar-content: #ffffff;
   --color-oferta: #dd7774;
   --color-line: #0000001a;
