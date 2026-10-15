@@ -7,6 +7,7 @@ const TABS = [
   { to: '/admin/productos', label: 'Productos' },
   { to: '/admin/outfits', label: 'Outfits' },
   { to: '/admin/categorias', label: 'Categorías' },
+  { to: '/admin/talles', label: 'Talles' },
   { to: '/admin/banners', label: 'Banners' },
   { to: '/admin/pedidos', label: 'Pedidos' },
   { to: '/admin/resenas', label: 'Reseñas' },

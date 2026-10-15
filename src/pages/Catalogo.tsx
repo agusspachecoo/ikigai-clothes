@@ -4,6 +4,7 @@ import { useCatalogo } from '../hooks/useCatalogo'
 import { useCategorias } from '../hooks/useCategorias'
 import { useProductos } from '../hooks/useProductos'
 import { useCierreModal } from '../hooks/useCierreModal'
+import { useTalles } from '../hooks/useTalles'
 import { ProductCard } from '../components/ProductCard'
 import { PanelFiltros } from '../components/PanelFiltros'
 import { FILTROS_INICIALES, tallesDelCatalogo, type EstadoFiltros } from '../lib/filtros'
@@ -31,6 +32,7 @@ export function Catalogo() {
   const [panelAbierto, setPanelAbierto] = useState(false)
 
   const { categorias } = useCategorias()
+  const { orden: ordenTalles } = useTalles()
   useCierreModal(panelAbierto, () => setPanelAbierto(false))
 
   if (inicial !== ultimoParam) {
@@ -74,10 +76,10 @@ export function Catalogo() {
     setBusqueda(buscar)
   }
 
-  const tallesDisponibles = tallesDelCatalogo(todos)
+  const tallesDisponibles = tallesDelCatalogo(todos, ordenTalles)
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-6">
+    <div className="max-w-[1600px] mx-auto px-3 sm:px-5 py-6">
       <Breadcrumbs
         items={[
           { label: 'Inicio', to: '/' },
@@ -192,7 +194,7 @@ export function Catalogo() {
           {loading ? (
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
               {Array.from({ length: 8 }).map((_, i) => (
-                <div key={i} className="skeleton aspect-[3/4] w-full rounded-none" />
+                <div key={i} className="skeleton aspect-[9/16] w-full rounded-none" />
               ))}
             </div>
           ) : productos.length === 0 ? (

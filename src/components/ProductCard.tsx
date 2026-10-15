@@ -6,6 +6,7 @@ import { BotonFavorito } from './BotonFavorito'
 import { useCart, type ItemNuevo } from '../context/cart'
 import { useTienda } from '../context/tienda'
 import { tallesConStock, tallesDisponibles } from '../lib/talles'
+import { useTalles } from '../hooks/useTalles'
 import { ConflictModal } from './ConflictModal'
 import type { Colision } from '../lib/conflictos'
 import {
@@ -17,6 +18,7 @@ import {
 export function ProductCard({ producto }: { producto: ProductoConStock }) {
   const { intentarAgregar, reemplazarConflictosYAgregar } = useCart()
   const { descuento_transferencia } = useTienda()
+  const { orden: ordenTalles } = useTalles()
   const [quickshop, setQuickshop] = useState(false)
   const [talle, setTalle] = useState('')
   const [conflictos, setConflictos] = useState<Colision[]>([])
@@ -27,8 +29,8 @@ export function ProductCard({ producto }: { producto: ProductoConStock }) {
   const precioOferta = precioConDescuento(precio, descuento)
 
 
-  const opciones = tallesDisponibles(producto.variaciones_stock)
-  const conStock = tallesConStock(producto.variaciones_stock)
+  const opciones = tallesDisponibles(producto.variaciones_stock, ordenTalles)
+  const conStock = tallesConStock(producto.variaciones_stock, ordenTalles)
   const sinTalles = opciones.length === 0
   // Un producto sin variations de talle tampoco se puede comprar, así que
   // cuenta como sin stock igual que uno que tiene talles en cero.
@@ -71,7 +73,7 @@ export function ProductCard({ producto }: { producto: ProductoConStock }) {
     <div className="group flex flex-col bg-base-100 border border-line">
       {/* Imágenes */}
       <Link to={`/producto/${producto.id}`} className="block relative bg-white rounded-t-lg">
-                <figure className="w-full aspect-[3/4] relative bg-neutral-100 m-0 p-0 overflow-hidden">
+                <figure className="w-full aspect-[9/16] relative bg-neutral-100 m-0 p-0 overflow-hidden">
           {descuento > 0 && (
             <span className="absolute top-2 left-2 z-10 bg-oferta text-white text-[10px] font-semibold uppercase tracking-widest px-2 py-1">
               -{descuento}%

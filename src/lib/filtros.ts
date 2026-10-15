@@ -27,11 +27,11 @@ export const FILTROS_INICIALES: EstadoFiltros = {
   soloConStock: false,
 }
 
-/** Talles presentes en el catálogo, ordenados por nombre de prenda. */
-export function tallesDelCatalogo(productos: ProductoConStock[]): string[] {
+/** Talles presentes en el catálogo, ordenados por la lista maestra. */
+export function tallesDelCatalogo(productos: ProductoConStock[], orden?: string[]): string[] {
   const set = new Set<string>()
   for (const p of productos) for (const v of p.variaciones_stock) set.add(v.talle)
-  return ordenarTalles([...set])
+  return ordenarTalles([...set], orden)
 }
 
 export function hayFiltrosActivos(estado: EstadoFiltros): boolean {

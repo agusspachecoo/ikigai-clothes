@@ -27,6 +27,14 @@ export interface VariacionStock {
   stock_disponible: number
 }
 
+export interface Talle {
+  id: string
+  nombre: string
+  orden: number
+  activo: boolean
+  created_at: string
+}
+
 export interface ProductoConStock extends Producto {
   variaciones_stock: VariacionStock[]
 }
@@ -192,6 +200,11 @@ export interface Database {
         Row: VariacionStock
         Insert: Omit<VariacionStock, 'id'>
         Update: Partial<Omit<VariacionStock, 'id'>>
+      }
+      talles: {
+        Row: Talle
+        Insert: Omit<Talle, 'id' | 'created_at' | 'orden' | 'activo'> & { orden?: number; activo?: boolean }
+        Update: Partial<Omit<Talle, 'id' | 'created_at'>>
       }
       outfits: {
         Row: Outfit

@@ -21,6 +21,7 @@ import { useTienda } from '../context/tienda'
 import { Breadcrumbs } from '../components/Breadcrumbs'
 import { BotonCompartir } from '../components/BotonCompartir'
 import { tallesDisponibles } from '../lib/talles'
+import { useTalles } from '../hooks/useTalles'
 import { slugify } from '../lib/categorias'
 import { srcsetImagen } from '../lib/imagenes'
 import {
@@ -35,6 +36,7 @@ export function Producto() {
   const { producto, loading, error } = useProducto(id ?? null)
   const { intentarAgregar, reemplazarConflictosYAgregar, setCarritoAbierto } = useCart()
   const { user, abrirAuthModal } = useAuth()
+  const { orden: ordenTalles } = useTalles()
   const [imagenActiva, setImagenActiva] = useState(0)
   const [talleSeleccionado, setTalleSeleccionado] = useState<string | null>(null)
   const [conflictos, setConflictos] = useState<Colision[]>([])
@@ -125,7 +127,7 @@ export function Producto() {
 
   if (loading) {
     return (
-      <div className="max-w-7xl mx-auto px-4 py-8">
+      <div className="max-w-[1600px] mx-auto px-3 sm:px-5 py-8">
         <div className="skeleton h-96 w-full rounded-lg mb-4"></div>
         <div className="skeleton h-8 w-1/3 mb-2"></div>
         <div className="skeleton h-6 w-1/4"></div>
@@ -135,7 +137,7 @@ export function Producto() {
 
   if (error || !producto) {
     return (
-      <div className="max-w-7xl mx-auto px-4 py-16 text-center">
+      <div className="max-w-[1600px] mx-auto px-3 sm:px-5 py-16 text-center">
         <p className="text-error">{error ?? 'Producto no encontrado'}</p>
       </div>
     )
@@ -145,7 +147,7 @@ export function Producto() {
   const descuento = Number(producto.discount_percent) || 0
   const precioOferta = precioConDescuento(precioOriginal, descuento)
 
-  const talles = producto ? tallesDisponibles(producto.variaciones_stock) : []
+  const talles = producto ? tallesDisponibles(producto.variaciones_stock, ordenTalles) : []
   const sinStock = talles.length === 0 || talles.every((t) => t.stock === 0)
   const precioTransferenciaFinal = precioTransferencia(precioOferta, descuento_transferencia)
   const ahorroTransferencia = Math.max(0, precioOferta - precioTransferenciaFinal)
@@ -246,7 +248,7 @@ export function Producto() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-6">
+    <div className="max-w-[1600px] mx-auto px-3 sm:px-5 py-6">
       <Breadcrumbs
         items={[
           { label: 'Inicio', to: '/' },
@@ -259,15 +261,15 @@ export function Producto() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         {/* Galería */}
         <div>
-          <figure className="relative w-full aspect-square md:aspect-[4/5] bg-neutral-100 rounded-lg overflow-hidden flex items-center justify-center">
+          <figure className="relative w-full max-w-[460px] mx-auto aspect-[9/16] bg-neutral-100 rounded-lg overflow-hidden flex items-center justify-center">
             {producto.imagenes[imagenActiva] && (
               /* Esta es la imagen LCP de la página: eager + fetchpriority high
                  para que el navegador la empiece a bajar apenas parsea el HTML,
                  en vez de esperar a que entre en viewport. Las demás van lazy.
-                 Sin width/height ni srcSet a proposito: las dimensiones
-                 nativas mas un contain sin parametros de srcset dejan que el
-                 navegador libremente elija el recurso y la imagen entre
-                 completa en el marco, sin recortar. */
+                 El marco es 9:16 (historia) y la foto va en object-cover para
+                 que llene el ancho completo sin bandas. Sin width/height ni
+                 srcSet a propósito: las dimensiones nativas dejan que el
+                 navegador elija el recurso. */
               <img
                 src={producto.imagenes[imagenActiva]}
                 alt={
@@ -278,7 +280,7 @@ export function Producto() {
                 loading={imagenActiva === 0 ? 'eager' : 'lazy'}
                 fetchPriority={imagenActiva === 0 ? 'high' : 'auto'}
                 decoding={imagenActiva === 0 ? 'sync' : 'async'}
-                className="absolute inset-0 w-full h-full object-contain p-3 md:p-6 select-none"
+                className="absolute inset-0 w-full h-full object-cover object-center select-none"
               />
             )}
           </figure>

@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router'
-import { getProductosAdmin, guardarProducto, eliminarProducto, setProductoActivo, getCategoriasAdmin } from '../../lib/adminApi'
+import { getProductosAdmin, guardarProducto, eliminarProducto, setProductoActivo, getCategoriasAdmin, getTallesAdmin } from '../../lib/adminApi'
 import { ImageUploader } from '../../components/ImageUploader'
 import { imagenProducto } from '../../lib/imagenes'
 import { CATEGORIAS_FALLBACK } from '../../lib/categorias'
+import { ordenarTalles } from '../../lib/talles'
 import { useCierreModal } from '../../hooks/useCierreModal'
 import type { ProductoConStock } from '../../types/database'
 
-const TALLES_SUGERIDOS = ['S', 'M', 'L', 'XL', 'XXL', '38', '40', '42', '44', '46', '48']
+const TALLES_FALLBACK = ['S', 'M', 'L', 'XL', 'XXL', '38', '40', '42', '44', '46', '48']
 
 const LABEL_CLS =
   'block text-xs font-semibold text-neutral-700 uppercase tracking-wider mb-1'
@@ -46,7 +47,7 @@ interface FormState {
   talles: TalleRow[]
 }
 
-function crearForm(producto: ProductoConStock | null): FormState {
+function crearForm(producto: ProductoConStock | null, ordenTalles: string[]): FormState {
   if (!producto) {
     return {
       nombre: '',
@@ -73,16 +74,19 @@ function crearForm(producto: ProductoConStock | null): FormState {
     descripcion: producto.descripcion ?? '',
     imagenes: producto.imagenes.length > 0 ? [...producto.imagenes] : [''],
     activo: producto.activo,
-    talles: producto.variaciones_stock.map((v) => ({
-      talle: v.talle,
-      stock_disponible: String(v.stock_disponible),
-    })),
+    talles: ordenarTalles(producto.variaciones_stock.map((v) => v.talle), ordenTalles).map(
+      (talle) => {
+        const v = producto.variaciones_stock.find((x) => x.talle === talle)
+        return { talle, stock_disponible: String(v?.stock_disponible ?? 0) }
+      },
+    ),
   }
 }
 
 export function ProductosAdmin() {
   const [productos, setProductos] = useState<ProductoConStock[]>([])
   const [categorias, setCategorias] = useState<string[]>(CATEGORIAS_FALLBACK)
+  const [tallesSugeridos, setTallesSugeridos] = useState<string[]>(TALLES_FALLBACK)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [busqueda, setBusqueda] = useState('')
@@ -99,10 +103,17 @@ export function ProductosAdmin() {
 
     async function cargar() {
       setLoading(true)
-      const [p, c] = await Promise.all([getProductosAdmin(), getCategoriasAdmin()])
+      const [p, c, t] = await Promise.all([
+        getProductosAdmin(),
+        getCategoriasAdmin(),
+        getTallesAdmin(),
+      ])
       if (activo) {
         setProductos(p.data)
         setCategorias(c.data.length > 0 ? c.data.map((cat) => cat.nombre) : CATEGORIAS_FALLBACK)
+        if (t.data.length > 0) {
+          setTallesSugeridos(t.data.filter((x) => x.activo).map((x) => x.nombre))
+        }
         setError(p.error ?? c.error)
         setLoading(false)
       }
@@ -186,6 +197,9 @@ export function ProductosAdmin() {
         </select>
         <Link to="/admin/categorias" className="text-sm link link-hover">
           Gestionar categorías
+        </Link>
+        <Link to="/admin/talles" className="text-sm link link-hover">
+          Gestionar talles
         </Link>
         <span className="text-sm opacity-60">{filtrados.length} productos</span>
       </div>
@@ -298,6 +312,7 @@ export function ProductosAdmin() {
         <ProductoFormModal
           producto={modoModal.producto}
           categorias={categorias}
+          tallesSugeridos={tallesSugeridos}
           onCerrar={() => setModoModal({ abierto: false, producto: null })}
           onGuardado={(mensaje) => {
             setModoModal({ abierto: false, producto: null })
@@ -313,12 +328,13 @@ export function ProductosAdmin() {
 interface FormProps {
   producto: ProductoConStock | null
   categorias: string[]
+  tallesSugeridos: string[]
   onCerrar: () => void
   onGuardado: (mensaje: string) => void
 }
 
-function ProductoFormModal({ producto, categorias, onCerrar, onGuardado }: FormProps) {
-  const [form, setForm] = useState<FormState>(() => crearForm(producto))
+function ProductoFormModal({ producto, categorias, tallesSugeridos, onCerrar, onGuardado }: FormProps) {
+  const [form, setForm] = useState<FormState>(() => crearForm(producto, tallesSugeridos))
   const [guardando, setGuardando] = useState(false)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
   useCierreModal(true, onCerrar)
@@ -541,9 +557,9 @@ function ProductoFormModal({ producto, categorias, onCerrar, onGuardado }: FormP
           {/* Bloque 3: Imágenes */}
           <SeccionForm titulo="Imágenes">
             <p className="text-xs text-neutral-500 mb-3">
-              Formatos permitidos: JPG, PNG, WEBP. Recomendado: formato vertical (3:4) o
-              cuadrado, máx 5MB por imagen. Se comprime y convierte a WebP automáticamente
-              (máx 800 KB) antes de subirse.
+              Formatos permitidos: JPG, PNG, WEBP. Recomendado: formato vertical 9:16
+              (proporción de historia, 1080×1920), máx 5MB por imagen. Se comprime y convierte
+              a WebP automáticamente (máx 800 KB) antes de subirse.
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {form.imagenes.map((img, i) => (
@@ -567,7 +583,7 @@ function ProductoFormModal({ producto, categorias, onCerrar, onGuardado }: FormP
                     carpeta="productos"
                     imagenActual={img}
                     onUrl={(url) => setImagen(i, url)}
-                    proporcion="retrato"
+                    proporcion="vertical"
                     altoMinimo="h-48"
                   />
                 </div>
@@ -613,18 +629,21 @@ function ProductoFormModal({ producto, categorias, onCerrar, onGuardado }: FormP
               ))}
             </div>
             <div className="flex flex-wrap items-center gap-1.5 mt-2">
-              {TALLES_SUGERIDOS.filter(
-                (t) => !form.talles.some((r) => r.talle.trim() === t),
-              ).map((t) => (
-                <button
-                  key={t}
-                  type="button"
-                  className="btn btn-xs btn-outline"
-                  onClick={() => addTalleSugerido(t)}
-                >
-                  + {t}
-                </button>
-              ))}
+              {tallesSugeridos
+                .filter((t) => !form.talles.some((r) => r.talle.trim() === t))
+                .map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    className="btn btn-xs btn-outline"
+                    onClick={() => addTalleSugerido(t)}
+                  >
+                    + {t}
+                  </button>
+                ))}
+              <Link to="/admin/talles" className="btn btn-xs btn-ghost">
+                Editar lista de talles
+              </Link>
             </div>
 
             <label className="flex items-center gap-3 cursor-pointer mt-4">

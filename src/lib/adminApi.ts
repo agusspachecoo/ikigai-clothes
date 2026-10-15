@@ -1,7 +1,7 @@
 import { supabase } from './supabase'
 import { slugify } from './categorias'
 import type { ProductoConStock, OutfitConItems, Orden, OrdenItem, Resena } from '../types/database'
-import type { ComunidadFoto, Categoria, Banner } from '../types/database'
+import type { ComunidadFoto, Categoria, Banner, Talle } from '../types/database'
 
 // ============================================
 // CATEGORÍAS
@@ -48,6 +48,56 @@ export async function actualizarCategoria(
 
 export async function eliminarCategoria(id: string) {
   const { error } = await supabase.from('categorias').delete().eq('id', id)
+  return { error: error?.message ?? null }
+}
+
+// ============================================
+// TALLES (LISTA MAESTRA)
+// ============================================
+
+export async function getTallesAdmin() {
+  const { data, error } = await supabase
+    .from('talles')
+    .select('*')
+    .order('orden', { ascending: true })
+    .order('nombre', { ascending: true })
+  return { data: (data ?? []) as Talle[], error: error?.message ?? null }
+}
+
+/** Talles activos, ordenados. Lo usa la tienda para ordenar la curva. */
+export async function getTallesPublic() {
+  const { data, error } = await supabase
+    .from('talles')
+    .select('*')
+    .eq('activo', true)
+    .order('orden', { ascending: true })
+  return { data: (data ?? []) as Talle[], error: error?.message ?? null }
+}
+
+export async function crearTalle(nombre: string, orden?: number) {
+  const payload: Record<string, unknown> = { nombre: nombre.trim() }
+  if (orden !== undefined) payload.orden = orden
+  const { error } = await supabase.from('talles').insert([payload])
+  return { error: error?.message ?? null }
+}
+
+export async function actualizarTalle(
+  id: string,
+  datos: { nombre?: string; orden?: number; activo?: boolean },
+) {
+  const payload: Record<string, unknown> = {}
+  if (datos.nombre !== undefined) payload.nombre = datos.nombre.trim()
+  if (datos.orden !== undefined) payload.orden = datos.orden
+  if (datos.activo !== undefined) payload.activo = datos.activo
+
+  if (Object.keys(payload).length === 0) return { error: null }
+
+  const { error } = await supabase.from('talles').update(payload).eq('id', id)
+  return { error: error?.message ?? null }
+}
+
+export async function eliminarTalle(id: string) {
+  const { error } = await supabase.from('talles').delete().eq('id', id)
   return { error: error?.message ?? null }
 }
 

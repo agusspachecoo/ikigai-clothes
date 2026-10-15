@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { useCart, type ItemNuevo } from '../context/cart'
 import { useTienda } from '../context/tienda'
 import { useCierreModal } from '../hooks/useCierreModal'
+import { useTalles } from '../hooks/useTalles'
 import { tallesDisponibles } from '../lib/talles'
 import { formatearPrecio, precioConDescuento, precioTransferencia } from '../lib/precios'
 import { imagenProducto, srcsetImagen } from '../lib/imagenes'
@@ -20,6 +21,7 @@ export function QuickshopModal({
 }) {
   const { intentarAgregar, reemplazarConflictosYAgregar, setCarritoAbierto } = useCart()
   const { descuento_transferencia, umbral_envio_gratis } = useTienda()
+  const { orden: ordenTalles } = useTalles()
   const [talle, setTalle] = useState('')
   const [agregado, setAgregado] = useState(false)
   const [conflictos, setConflictos] = useState<Colision[]>([])
@@ -29,7 +31,7 @@ export function QuickshopModal({
 
   const precio = precioConDescuento(producto.precio, producto.discount_percent)
   const srcsetQuickshop = srcsetImagen(producto.imagenes[0], 360)
-  const opciones = tallesDisponibles(producto.variaciones_stock)
+  const opciones = tallesDisponibles(producto.variaciones_stock, ordenTalles)
   const sinTalles = opciones.length === 0
   const stockTotal = opciones.reduce((sum, o) => sum + (o.stock || 0), 0)
   const stockTalleSeleccionado = sinTalles ? stockTotal : opciones.find((o) => o.talle === talle)?.stock || 0
@@ -97,7 +99,7 @@ export function QuickshopModal({
           ✕
         </button>
         <div className="grid sm:grid-cols-2">
-          <figure className="hidden sm:block aspect-[3/4] bg-base-200 overflow-hidden rounded-tl-lg rounded-bl-lg">
+          <figure className="hidden sm:block aspect-[9/16] bg-base-200 overflow-hidden rounded-tl-lg rounded-bl-lg">
             {producto.imagenes[0] && (
               <img
                 src={imagenProducto(producto.imagenes[0], 0)}
@@ -107,7 +109,7 @@ export function QuickshopModal({
                 loading="lazy"
                 decoding="async"
                 width={360}
-                height={480}
+                height={640}
                 className="w-full h-full object-cover object-top"
               />
             )}

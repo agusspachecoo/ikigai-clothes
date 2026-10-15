@@ -9,6 +9,7 @@ import { DESCUENTO_OUTFIT_PCT } from '../lib/outfits'
 import { ConflictModal } from './ConflictModal'
 import type { Colision } from '../lib/conflictos'
 import { tallesDisponibles } from '../lib/talles'
+import { useTalles } from '../hooks/useTalles'
 
 interface Props {
   outfit: OutfitConItems | null
@@ -33,6 +34,7 @@ export function BuyOutfitModal({ outfit, onClose }: Props) {
 
 function OutfitModalContent({ outfit, onClose }: { outfit: OutfitConItems; onClose: () => void }) {
   const { intentarAgregarOutfit, reemplazarConflictosYAgregarOutfit, setCarritoAbierto } = useCart()
+  const { orden: ordenTalles } = useTalles()
 
   const tallesIniciales = Object.fromEntries(
     outfit.outfit_items.map((item) => {
@@ -162,7 +164,7 @@ function OutfitModalContent({ outfit, onClose }: { outfit: OutfitConItems; onClo
           const producto = item.producto!
           // Selección de talle para este producto puntual
           const talleActual = talles[producto.id] || ''
-          const opciones = tallesDisponibles(producto.variaciones_stock ?? [])
+          const opciones = tallesDisponibles(producto.variaciones_stock ?? [], ordenTalles)
           const precio = precioConDescuento(producto.precio, producto.discount_percent)
 
           return (

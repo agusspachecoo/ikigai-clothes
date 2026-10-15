@@ -55,6 +55,9 @@ const OutfitsAdmin = lazy(() =>
 const CategoriasAdmin = lazy(() =>
   import('./pages/admin/CategoriasAdmin').then((m) => ({ default: m.CategoriasAdmin })),
 )
+const TallesAdmin = lazy(() =>
+  import('./pages/admin/TallesAdmin').then((m) => ({ default: m.TallesAdmin })),
+)
 const BannersAdmin = lazy(() =>
   import('./pages/admin/BannersAdmin').then((m) => ({ default: m.BannersAdmin })),
 )
@@ -113,6 +116,7 @@ function App() {
             <Route path="productos" element={<ProductosAdmin />} />
             <Route path="outfits" element={<OutfitsAdmin />} />
             <Route path="categorias" element={<CategoriasAdmin />} />
+            <Route path="talles" element={<TallesAdmin />} />
             <Route path="banners" element={<BannersAdmin />} />
             <Route path="pedidos" element={<PedidosAdmin />} />
             <Route path="resenas" element={<ResenasAdmin />} />
