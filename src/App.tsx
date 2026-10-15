@@ -49,6 +49,9 @@ const Dashboard = lazy(() => import('./pages/admin/Dashboard').then((m) => ({ de
 const ProductosAdmin = lazy(() =>
   import('./pages/admin/ProductosAdmin').then((m) => ({ default: m.ProductosAdmin })),
 )
+const DropsAdmin = lazy(() =>
+  import('./pages/admin/DropsAdmin').then((m) => ({ default: m.DropsAdmin })),
+)
 const OutfitsAdmin = lazy(() =>
   import('./pages/admin/OutfitsAdmin').then((m) => ({ default: m.OutfitsAdmin })),
 )
@@ -114,6 +117,7 @@ function App() {
           <Route path="/admin" element={<AdminLayout />}>
             <Route index element={<Dashboard />} />
             <Route path="productos" element={<ProductosAdmin />} />
+            <Route path="drops" element={<DropsAdmin />} />
             <Route path="outfits" element={<OutfitsAdmin />} />
             <Route path="categorias" element={<CategoriasAdmin />} />
             <Route path="talles" element={<TallesAdmin />} />

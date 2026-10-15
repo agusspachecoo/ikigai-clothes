@@ -5,6 +5,7 @@ import { iniciarSesionAdmin, salirAdmin, useEsAdmin } from '../lib/admin'
 const TABS = [
   { to: '/admin', label: 'Dashboard', end: true },
   { to: '/admin/productos', label: 'Productos' },
+  { to: '/admin/drops', label: 'Drops' },
   { to: '/admin/outfits', label: 'Outfits' },
   { to: '/admin/categorias', label: 'Categorías' },
   { to: '/admin/talles', label: 'Talles' },

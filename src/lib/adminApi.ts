@@ -1,7 +1,7 @@
 import { supabase } from './supabase'
 import { slugify } from './categorias'
 import type { ProductoConStock, OutfitConItems, Orden, OrdenItem, Resena } from '../types/database'
-import type { ComunidadFoto, Categoria, Banner, Talle } from '../types/database'
+import type { ComunidadFoto, Categoria, Banner, Talle, Drop } from '../types/database'
 
 // ============================================
 // CATEGORÍAS
@@ -203,6 +203,7 @@ export interface ProductoInput {
   discount_percent: number
   imagenes: string[]
   activo: boolean
+  drop_id?: string | null
   talles: TalleInput[]
   sku?: string | null
 }
@@ -217,6 +218,7 @@ export async function guardarProducto(input: ProductoInput) {
     discount_percent: input.discount_percent,
     imagenes: input.imagenes.filter(Boolean),
     activo: input.activo,
+    drop_id: input.drop_id ?? null,
     // Vacío o solo espacios se guarda como NULL: el índice único ignora los
     // NULL, así que varios productos pueden quedarse sin SKU.
     sku: input.sku?.trim() || null,
@@ -326,6 +328,58 @@ export async function eliminarOutfit(id: string) {
 
 export async function setOutfitActivo(id: string, activo: boolean) {
   const { error } = await supabase.from('outfits').update({ activo }).eq('id', id)
+  return { error: error?.message ?? null }
+}
+
+// ============================================
+// DROPS (LANZAMIENTOS)
+// ============================================
+
+export type DropConProductos = Drop & {
+  productos: { id: string; nombre: string; imagenes: string[]; activo: boolean }[]
+}
+
+export interface DropInput {
+  id?: string
+  titulo: string
+  descripcion: string | null
+  fecha_lanzamiento: string
+  activo: boolean
+}
+
+export async function getDropsAdmin() {
+  const { data, error } = await supabase
+    .from('drops')
+    .select('*, productos(id, nombre, imagenes, activo)')
+    .order('fecha_lanzamiento', { ascending: true })
+  return { data: (data ?? []) as DropConProductos[], error: error?.message ?? null }
+}
+
+export async function guardarDrop(input: DropInput) {
+  const payload = {
+    titulo: input.titulo,
+    descripcion: input.descripcion || null,
+    fecha_lanzamiento: input.fecha_lanzamiento,
+    activo: input.activo,
+  }
+
+  if (input.id) {
+    const { error } = await supabase.from('drops').update(payload).eq('id', input.id)
+    return { id: input.id, error: error?.message ?? null }
+  }
+
+  const { data, error } = await supabase.from('drops').insert([payload]).select('id').single()
+  if (error || !data) return { id: null, error: error?.message ?? 'No se pudo crear el drop' }
+  return { id: data.id as string, error: null }
+}
+
+export async function eliminarDrop(id: string) {
+  const { error } = await supabase.from('drops').delete().eq('id', id)
+  return { error: error?.message ?? null }
+}
+
+export async function setDropActivo(id: string, activo: boolean) {
+  const { error } = await supabase.from('drops').update({ activo }).eq('id', id)
   return { error: error?.message ?? null }
 }
 

@@ -8,6 +8,7 @@ export interface Producto {
   discount_percent: number
   imagenes: string[]
   activo: boolean
+  drop_id: string | null
   created_at: string
   sku?: string | null
 }
@@ -37,6 +38,20 @@ export interface Talle {
 
 export interface ProductoConStock extends Producto {
   variaciones_stock: VariacionStock[]
+}
+
+export interface Drop {
+  id: string
+  titulo: string
+  descripcion: string | null
+  fecha_lanzamiento: string
+  activo: boolean
+  created_at: string
+}
+
+export interface DropPreviewProducto {
+  producto_id: string
+  imagen: string | null
 }
 
 export interface Outfit {
@@ -193,8 +208,13 @@ export interface Database {
       }
       productos: {
         Row: Producto
-        Insert: Omit<Producto, 'id' | 'created_at' | 'discount_percent'> & { discount_percent?: number }
+        Insert: Omit<Producto, 'id' | 'created_at' | 'discount_percent' | 'drop_id'> & { discount_percent?: number; drop_id?: string | null }
         Update: Partial<Omit<Producto, 'id' | 'created_at' | 'discount_percent'>> & { discount_percent?: number }
+      }
+      drops: {
+        Row: Drop
+        Insert: Omit<Drop, 'id' | 'created_at' | 'activo'> & { activo?: boolean }
+        Update: Partial<Omit<Drop, 'id' | 'created_at'>>
       }
       variaciones_stock: {
         Row: VariacionStock
