@@ -261,15 +261,15 @@ export function Producto() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         {/* Galería */}
         <div>
-          <figure className="relative w-full max-w-[460px] mx-auto aspect-[9/16] bg-neutral-100 rounded-lg overflow-hidden flex items-center justify-center">
+          <figure className="relative w-full max-w-[560px] mx-auto aspect-[3/4] bg-neutral-100 rounded-lg overflow-hidden flex items-center justify-center">
             {producto.imagenes[imagenActiva] && (
               /* Esta es la imagen LCP de la página: eager + fetchpriority high
                  para que el navegador la empiece a bajar apenas parsea el HTML,
                  en vez de esperar a que entre en viewport. Las demás van lazy.
-                 El marco es 9:16 (historia) y la foto va en object-cover para
-                 que llene el ancho completo sin bandas. Sin width/height ni
-                 srcSet a propósito: las dimensiones nativas dejan que el
-                 navegador elija el recurso. */
+                 El marco es 3:4 y la foto va en object-cover para que llene el
+                 ancho completo sin bandas. Sin width/height ni srcSet a
+                 propósito: las dimensiones nativas dejan que el navegador elija
+                 el recurso. */
               <img
                 src={producto.imagenes[imagenActiva]}
                 alt={

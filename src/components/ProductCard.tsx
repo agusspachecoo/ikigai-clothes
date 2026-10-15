@@ -28,7 +28,6 @@ export function ProductCard({ producto }: { producto: ProductoConStock }) {
   const precio = Number(producto.precio) || 0
   const precioOferta = precioConDescuento(precio, descuento)
 
-
   const opciones = tallesDisponibles(producto.variaciones_stock, ordenTalles)
   const conStock = tallesConStock(producto.variaciones_stock, ordenTalles)
   const sinTalles = opciones.length === 0
@@ -70,21 +69,10 @@ export function ProductCard({ producto }: { producto: ProductoConStock }) {
   }
 
   return (
-    <div className="group flex flex-col bg-base-100 border border-line">
-      {/* Imágenes */}
-      <Link to={`/producto/${producto.id}`} className="block relative bg-white rounded-t-lg">
-                <figure className="w-full aspect-[9/16] relative bg-neutral-100 m-0 p-0 overflow-hidden">
-          {descuento > 0 && (
-            <span className="absolute top-2 left-2 z-10 bg-oferta text-white text-[10px] font-semibold uppercase tracking-widest px-2 py-1">
-              -{descuento}%
-            </span>
-          )}
-          {sinStock && (
-            <span className="absolute top-2 right-2 z-10 bg-neutral text-neutral-content text-[10px] uppercase tracking-widest px-2 py-1">
-              Sin Stock
-            </span>
-          )}
-
+    <div className="group relative flex flex-col bg-base-100">
+      {/* Imagen: protagonista, limpia */}
+      <Link to={`/producto/${producto.id}`} className="block relative bg-white">
+        <figure className="w-full aspect-[3/4] relative bg-neutral-100 m-0 p-0 overflow-hidden">
           {producto.imagenes[0] && (
             <img
               src={producto.imagenes[0]}
@@ -102,6 +90,22 @@ export function ProductCard({ producto }: { producto: ProductoConStock }) {
               decoding="async"
               className="absolute inset-0 block w-full h-full object-cover object-[center_20%] opacity-0 group-hover:opacity-100 transition-all duration-500 group-hover:scale-105"
             />
+          )}
+
+          {/* Descuento: esquina superior derecha */}
+          {descuento > 0 && (
+            <span className="absolute top-2 right-2 z-10 bg-oferta text-white text-[10px] font-semibold uppercase tracking-widest px-2 py-1">
+              -{descuento}%
+            </span>
+          )}
+
+          {/* Sin stock: velo centrado */}
+          {sinStock && (
+            <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/45">
+              <span className="bg-neutral text-neutral-content text-[10px] uppercase tracking-widest px-3 py-1.5">
+                Sin Stock
+              </span>
+            </div>
           )}
 
           {!sinStock && (
@@ -122,40 +126,41 @@ export function ProductCard({ producto }: { producto: ProductoConStock }) {
         </figure>
       </Link>
 
-      {/* Info */}
-      <div className="p-3 flex flex-col gap-1.5 grow">
-        <div className="flex items-start justify-between gap-2">
-          <Link
-            to={`/producto/${producto.id}`}
-            className="text-sm leading-snug hover:underline"
-          >
-            {producto.nombre}
-          </Link>
-          <BotonFavorito productoId={producto.id} />
-        </div>
+      {/* Favorito: esquina superior izquierda sobre la foto (fuera del Link
+          para que el click no navegue al producto). */}
+      <div className="absolute top-2 left-2 z-20 flex h-9 w-9 items-center justify-center rounded-full bg-white/85 shadow-sm ring-1 ring-black/5 backdrop-blur transition hover:bg-white">
+        <BotonFavorito productoId={producto.id} />
+      </div>
 
-        <div className="flex items-baseline gap-2 mt-1">
+      {/* Info compacta */}
+      <div className="pt-3 pb-1 flex flex-col gap-1 grow">
+        <Link
+          to={`/producto/${producto.id}`}
+          className="text-[13px] leading-snug font-medium hover:underline line-clamp-2"
+        >
+          {producto.nombre}
+        </Link>
+
+        <div className="flex items-baseline gap-2">
           {descuento > 0 && (
             <span className="text-[11px] opacity-40 line-through">${formatearPrecio(precio)}</span>
           )}
-          <span className="text-xs opacity-70">${formatearPrecio(descuento > 0 ? precioOferta : precio)}</span>
+          <span className="text-sm font-semibold">
+            ${formatearPrecio(descuento > 0 ? precioOferta : precio)}
+          </span>
         </div>
 
         {descuento_transferencia > 0 && (
-          <div className="mt-2">
-            <p className="text-[11px] text-emerald-700 font-medium uppercase tracking-wider">
-              Transferencia
-            </p>
-            <p className="text-xl font-extrabold text-emerald-600 leading-tight">
-              ${formatearPrecio(precioTransferencia(precioOferta, descuento_transferencia))}
-            </p>
-          </div>
+          <p className="text-xs text-emerald-700">
+            ${formatearPrecio(precioTransferencia(precioOferta, descuento_transferencia))}{' '}
+            <span className="opacity-70">con Transferencia</span>
+          </p>
         )}
       </div>
 
       {/* Selector de talle + agregar (solo desktop, en mobile va dentro del quickshop) */}
       {!sinTalles && (
-        <div className="hidden md:block px-3 pb-3">
+        <div className="hidden md:block pt-2 pb-1">
           <div className="flex flex-wrap gap-1 mb-2">
             {opciones.map(({ talle: t, stock }) => (
               <button
@@ -191,7 +196,7 @@ export function ProductCard({ producto }: { producto: ProductoConStock }) {
       {/* Acción mobile: abre el bottom sheet con talles.
           Sin stock el botón sigue visible pero deshabilitado, para que se vea
           que la prenda existe y está agotada. */}
-      <div className="px-3 pb-3 md:hidden">
+      <div className="pt-2 md:hidden">
         <button
           type="button"
           onClick={() => setQuickshop(true)}

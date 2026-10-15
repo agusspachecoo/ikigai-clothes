@@ -13,9 +13,13 @@ interface Props {
   variante?: 'carrusel' | 'grilla'
 }
 
-// Ancho de cada tarjeta: en mobile entran ~2, en desktop ~5.
+// Ancho de cada tarjeta: en mobile entran ~2, y en desktop hasta 6, para que
+// el carrusel ocupe todo el ancho de la pantalla como en la referencia.
 const ITEM_CLS =
-  'shrink-0 snap-start w-[46%] sm:w-[31%] lg:w-[23.5%] xl:w-[19%]'
+  'shrink-0 snap-start w-[46%] sm:w-[31%] md:w-[23.5%] lg:w-[19%] xl:w-[15.5%]'
+
+const FLECHA_CLS =
+  'absolute top-1/2 -translate-y-1/2 z-20 hidden md:flex h-11 w-11 items-center justify-center rounded-full bg-white/90 text-neutral-800 shadow-md ring-1 ring-black/5 backdrop-blur transition hover:bg-white hover:scale-105 active:scale-95'
 
 export function ProductShelf({
   titulo,
@@ -34,61 +38,59 @@ export function ProductShelf({
   }
 
   return (
-    <section className="py-12 md:py-16">
-      <div className="max-w-[1600px] mx-auto px-3 sm:px-5">
-        <div className="flex items-end justify-between mb-6 gap-4">
-          <div>
-            {subtitulo && (
-              <p className="text-xs font-semibold tracking-[0.25em] uppercase opacity-60 mb-1">
-                {subtitulo}
-              </p>
-            )}
-            <h2 className="text-2xl md:text-3xl font-bold">{titulo}</h2>
-          </div>
-
-          <div className="flex items-center gap-2 shrink-0">
-            {variante === 'carrusel' && (
-              <div className="hidden md:flex items-center gap-1">
-                <button
-                  type="button"
-                  aria-label="Ver productos anteriores"
-                  onClick={() => desplazar(-1)}
-                  className="btn btn-outline btn-sm btn-circle"
-                >
-                  ‹
-                </button>
-                <button
-                  type="button"
-                  aria-label="Ver más productos"
-                  onClick={() => desplazar(1)}
-                  className="btn btn-outline btn-sm btn-circle"
-                >
-                  ›
-                </button>
-              </div>
-            )}
-            {linkVerTodos && (
-              <Link to={linkVerTodos} className="btn btn-outline btn-primary btn-sm md:btn-md">
-                Ver todos
-              </Link>
-            )}
-          </div>
+    <section className="py-12 md:py-16 w-full">
+      <div className="flex items-end justify-between gap-4 mb-6 px-3 sm:px-5">
+        <div>
+          {subtitulo && (
+            <p className="text-xs font-semibold tracking-[0.25em] uppercase opacity-60 mb-1">
+              {subtitulo}
+            </p>
+          )}
+          <h2 className="text-2xl md:text-3xl font-bold">{titulo}</h2>
         </div>
 
-        {loading ? (
-          <div className="flex gap-4 overflow-hidden">
-            {Array.from({ length: 8 }).map((_, i) => (
-              <div key={i} className={`${ITEM_CLS} skeleton aspect-[9/16] rounded-lg`} />
-            ))}
-          </div>
-        ) : productos.length === 0 ? (
-          <p className="opacity-60 text-center py-10">
-            No hay productos disponibles por el momento.
-          </p>
-        ) : variante === 'carrusel' ? (
+        {linkVerTodos && (
+          <Link
+            to={linkVerTodos}
+            className="shrink-0 btn btn-outline btn-primary btn-sm md:btn-md"
+          >
+            Ver todos
+          </Link>
+        )}
+      </div>
+
+      {loading ? (
+        <div className="flex gap-3 md:gap-4 overflow-hidden px-3 sm:px-5">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <div key={i} className={`${ITEM_CLS} skeleton aspect-[3/4] rounded-lg`} />
+          ))}
+        </div>
+      ) : productos.length === 0 ? (
+        <p className="opacity-60 text-center py-10">
+          No hay productos disponibles por el momento.
+        </p>
+      ) : variante === 'carrusel' ? (
+        <div className="relative">
+          <button
+            type="button"
+            aria-label="Ver productos anteriores"
+            onClick={() => desplazar(-1)}
+            className={`${FLECHA_CLS} left-2 lg:left-4`}
+          >
+            ‹
+          </button>
+          <button
+            type="button"
+            aria-label="Ver más productos"
+            onClick={() => desplazar(1)}
+            className={`${FLECHA_CLS} right-2 lg:right-4`}
+          >
+            ›
+          </button>
+
           <div
             ref={pistaRef}
-            className="no-scrollbar flex gap-4 overflow-x-auto snap-x snap-mandatory scroll-smooth pb-2 -mx-3 sm:-mx-5 px-3 sm:px-5"
+            className="no-scrollbar flex gap-3 md:gap-4 overflow-x-auto snap-x snap-mandatory scroll-smooth pb-2 px-3 sm:px-5"
           >
             {productos.map((p) => (
               <div key={p.id} className={ITEM_CLS}>
@@ -96,14 +98,14 @@ export function ProductShelf({
               </div>
             ))}
           </div>
-        ) : (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {productos.map((p) => (
-              <ProductCard key={p.id} producto={p} />
-            ))}
-          </div>
-        )}
-      </div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 px-3 sm:px-5">
+          {productos.map((p) => (
+            <ProductCard key={p.id} producto={p} />
+          ))}
+        </div>
+      )}
     </section>
   )
 }
