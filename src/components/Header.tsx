@@ -51,8 +51,10 @@ export function Header() {
     setCarritoAbierto(true)
   }, [setCarritoAbierto])
 
+  const porcentajeDescuento = descuento_transferencia ? Math.round(descuento_transferencia * 100) : 20;
+
   const mensajes = [
-    `${Math.round(descuento_transferencia * 100)}% OFF pagando por transferencia`,
+    `${porcentajeDescuento}% OFF pagando por transferencia`,
     umbral_envio_gratis > 0
       ? `Envío gratis desde $${formatearPrecio(umbral_envio_gratis)}`
       : 'Envíos a todo el país',
@@ -71,20 +73,23 @@ export function Header() {
 
   return (
     <>
-      {/* ────────── ADBAR ────────── */}
+      {/* ────────── ADBAR (Marquee con animación forzada por estilos en línea) ────────── */}
       <div className="relative w-full bg-adbar text-adbar-content h-9 flex items-center overflow-hidden">
-        <div className="flex w-max shrink-0 animate-marquee motion-reduce:animate-none">
-          {/* 3 copias idénticas: con -33.3333% el ciclo queda sin costura y
-              cubre pantallas anchas sin dejar espacios vacíos. */}
+        <div 
+          className="flex w-max shrink-0 [will-change:transform]"
+          style={{
+            animation: 'marquee 25s linear infinite',
+          }}
+        >
           {[0, 1, 2].map((copia) => (
             <ul
               key={copia}
               aria-hidden={copia !== 0}
               className="flex shrink-0 items-center list-none m-0 p-0"
             >
-              {mensajes.map((mensaje) => (
+              {mensajes.map((mensaje, idx) => (
                 <li
-                  key={mensaje}
+                  key={`${copia}-${idx}`}
                   className="flex items-center gap-6 px-6 text-[11px] font-bold uppercase tracking-[0.15em] whitespace-nowrap md:text-xs"
                 >
                   {mensaje}
@@ -100,9 +105,9 @@ export function Header() {
 
       {/* ────────── HEADER ────────── */}
       <header className="sticky top-0 z-40 w-full bg-neutral text-neutral-content">
-        <div className="relative flex items-center h-16 md:h-20 px-4 gap-3">
-          {/* Izquierda: en mobile la navegación vive en la barra inferior */}
-          <div className="flex items-center gap-2 z-10">
+        <div className="relative flex items-center justify-between h-16 md:h-20 px-4 gap-3">
+          {/* Izquierda: Buscador en desktop */}
+          <div className="flex items-center gap-2 z-10 w-1/4">
             <div className="hidden lg:block w-full max-w-xs">
               <Buscador
                 className="w-full h-9 px-3 bg-white/5 border border-white/15 text-sm text-white placeholder:text-white/40 focus:bg-white/10"
@@ -111,12 +116,12 @@ export function Header() {
             </div>
           </div>
 
-          {/* Centro: logo */}
-          <div className="absolute inset-x-0 flex justify-center items-center">
+          {/* Centro: Logo (Tamaño optimizado en mobile y desktop) */}
+          <div className="flex justify-center items-center z-10">
             <Link
               to="/"
               aria-label="Ikigai Clothes - Inicio"
-              className="flex items-center"
+              className="inline-flex items-center justify-center py-1 px-2"
               onClick={handleLogoClick}
             >
               <img
@@ -125,13 +130,13 @@ export function Header() {
                 decoding="async"
                 width={500}
                 height={500}
-                className="h-12 md:h-[4.75rem] w-auto max-w-[46vw] object-contain"
+                className="h-14 md:h-16 w-auto max-w-[180px] md:max-w-[200px] object-contain cursor-pointer"
               />
             </Link>
           </div>
 
-          {/* Derecha */}
-          <div className="ml-auto flex items-center gap-1 z-10 lg:flex lg:justify-end lg:flex-1">
+          {/* Derecha: Cuenta y Carrito */}
+          <div className="flex items-center justify-end gap-1 z-10 w-1/4">
             <div className="relative hidden lg:block">
               <button
                 type="button"
@@ -413,9 +418,6 @@ export function Header() {
           </svg>
           Buscar
         </button>
-
-        <div className="hidden lg:flex flex-col items-center justify-center gap-1"></div>
-        <div className="hidden lg:flex flex-col items-center justify-center gap-1"></div>
 
         <button
           type="button"

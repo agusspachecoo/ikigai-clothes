@@ -86,28 +86,28 @@ export function CarritoDrawer() {
                   key={`${it.producto_id}|${it.talle}`}
                   className="flex gap-3 p-3 items-start"
                 >
-                  {/* CONTENEDOR DE IMAGEN ROBUSTO PARA EL CARRITO.
-                      Al pasar a `<div>` para poder fijar el tamaño se perdió la
-                      navegación a la ficha: se devuelve como `<Link>` conservando
-                      las clases que hacen que la miniatura no se deforme. */}
                   <Link
                     to={`/producto/${it.producto_id}`}
                     onClick={cerrar}
                     aria-label={`Ver ${it.nombre}`}
-                    className="w-16 h-16 rounded-xl overflow-hidden bg-neutral-100 flex items-center justify-center p-1 border border-line/40 shrink-0 hover:border-primary/50 transition-colors"
+                    className="w-16 h-16 rounded-xl overflow-hidden bg-neutral-200 flex items-center justify-center border border-line/40 shrink-0 hover:border-primary/50 transition-colors"
                     style={{ minWidth: '64px', minHeight: '64px', flexShrink: 0 }}
                   >
                     <img
-                      src={it.imagen || imagenProducto(null, 0)}
+                      src={it.imagen && it.imagen.trim() !== '' ? it.imagen : imagenProducto(null, 0)}
                       alt={it.nombre}
                       loading="lazy"
                       decoding="async"
                       width={64}
                       height={64}
                       onError={(e) => {
-                        e.currentTarget.src = imagenProducto(null, 0)
+                        e.currentTarget.style.display = 'none';
+                        if (e.currentTarget.parentElement) {
+                          e.currentTarget.parentElement.classList.add('bg-neutral-300');
+                          e.currentTarget.parentElement.innerHTML = '<span class="text-[10px] font-bold uppercase opacity-50">Ikigai</span>';
+                        }
                       }}
-                      className="w-full h-full object-cover bg-neutral-100"
+                      className="w-full h-full object-cover"
                     />
                   </Link>
 
@@ -124,8 +124,6 @@ export function CarritoDrawer() {
                       ${formatearPrecio(it.precio_unitario * it.cantidad)}
                     </p>
                     <div className="flex items-center gap-2 mt-1.5">
-                      {/* Cada prenda es de edición única: no hay selector de
-                          cantidad, solo se puede quitar del carrito. */}
                       <span className="text-xs opacity-60 border border-line px-2 py-1">
                         Prenda única
                       </span>

@@ -1,7 +1,6 @@
 import { Link } from 'react-router-dom'
 import { PaginaInstitucional } from '../components/PaginaInstitucional'
 import { useTienda } from '../context/tienda'
-import { NewsletterForm } from '../components/NewsletterForm'
 import { formatearPrecio } from '../lib/precios'
 import { useSeo } from '../hooks/useSeo'
 
@@ -52,14 +51,6 @@ export function QuienesSomos() {
         y lo resolvemos: la confianza se construye con cada pedido.
       </p>
 
-      <div className="border border-line p-6 bg-base-100">
-        <h2 className="font-display text-lg">Sumate a la comunidad</h2>
-        <p className="text-sm opacity-70 mt-1 mb-4">
-          Drops, ofertas y liquidaciones antes que nadie.
-        </p>
-        <NewsletterForm className="max-w-sm" />
-      </div>
-
       <p>
         ¿Querés conocernos más?{' '}
         <Link to="/contacto" className="underline">
@@ -70,3 +61,6 @@ export function QuienesSomos() {
     </PaginaInstitucional>
   )
 }
+
+export default QuienesSomos
+

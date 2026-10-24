@@ -21,7 +21,7 @@ import {
   type Campo,
   type ErroresFormulario,
 } from '../lib/validacion'
-import { imagenProducto, srcsetImagen } from '../lib/imagenes'
+import { imagenProducto } from '../lib/imagenes'
 
 const initialState = {
   nombre: '',
@@ -38,27 +38,13 @@ const SOLO_DIGITOS: Partial<Record<Campo, boolean>> = {
   dni: true,
 }
 
-// El código postal NO va acá: `validacion.ts` acepta CPA (`N3360ABC`) además del
-// CP de 4 dígitos, y filtrar los dígitos al tipear hacía imposible escribirlo.
-
 /**
  * Solo los 4 dígitos del CP, que es lo que necesita el tarifario local.
- * `N3360ABC` -> `3360`. Si el CPA viniera incompleto, devuelve menos de 4
- * dígitos y la cotización no se dispara.
  */
 function digitosCp(valor: string): string {
   return valor.replace(/\D/g, '')
 }
 
-/**
- * El retiro en showroom se modela como una OpcionEnvio más, con costo 0.
- *
- * Antes `retiro` era un flag aparte y el checkout validaba
- * `!retiro && !opcionEnvio`. Con dos fuentes de verdad para "cómo se lo lleva"
- * era fácil quedar en un estado inconsistente (flag en true, sin opción
- * cargada) y bloquear el pago con "Seleccioná un método de envío" aunque el
- * showroom estuviera marcado. Con una sola fuente desaparece esa clase de bug.
- */
 const OPCION_SHOWROOM: OpcionEnvio = {
   id_servicio: 'showroom',
   correo_id: null,
@@ -82,7 +68,6 @@ const OPCION_SHOWROOM: OpcionEnvio = {
   selectable: true,
 }
 
-/** Lo que la pantalla de confirmación necesita del pedido ya creado. */
 type PedidoConfirmado = ResumenPedido
 
 export function Checkout() {
@@ -96,7 +81,6 @@ export function Checkout() {
   const { perfil } = usePerfil(user?.id)
 
   useEffect(() => {
-    // Sincroniza datos guardados del perfil con el formulario al cargar.
     async function sincronizarPerfil() {
       if (!perfil) return
       setForm((prev) => ({
@@ -110,37 +94,26 @@ export function Checkout() {
       }))
     }
     sincronizarPerfil()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [perfil?.id])
 
   const [metodoPago, setMetodoPago] = useState<MetodoPago>('mercadopago')
   const [enviando, setEnviando] = useState(false)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
 
-  // `tocados` marca los campos que el usuario ya interactuó. El error de un campo
-  // aparece solo después del primer blur o de haber tipeado: si no, el DNI
-  // muestra "faltan dígitos" mientras se escribe.
   const [tocados, setTocados] = useState<Partial<Record<Campo, boolean>>>({})
   const [enviado, setEnviado] = useState(false)
   const [confirmacion, setConfirmacion] = useState<PedidoConfirmado | null>(null)
 
   const [opcionesEnvio, setOpcionesEnvio] = useState<OpcionEnvio[]>([])
   const [errorEnvio, setErrorEnvio] = useState<string | null>(null)
-  // `opcionEnvio` es la única fuente de verdad del método de envío. null =
-  // todavía no eligió nada. Si vale OPCION_SHOWROOM, es retiro en showroom.
   const [opcionEnvio, setOpcionEnvio] = useState<OpcionEnvio | null>(null)
   const [cotizacion, setCotizacion] = useState<ResultadoCotizacion | null>(null)
-  // true mientras cotiza contra MiCorreo (o espera el timeout de 4 s).
   const [cargandoEnvio, setCargandoEnvio] = useState(false)
-  // CP del que provienen las opciones actuales. Mientras se cotiza otro CP,
-  // las que se muestran son viejas y no hay que dejar elegir con ellas.
   const [opcionesDeCp, setOpcionesDeCp] = useState<string | null>(null)
   const secuenciaCotizacionRef = useRef(0)
 
   const retiro = opcionEnvio?.id_servicio === OPCION_SHOWROOM.id_servicio
 
-  // Aplica una cotización ya resuelta, descartando la que llegó tarde si el
-  // usuario siguió tipeando o cambió el carrito mientras esperaba.
   const aplicarCotizacion = useCallback(
     (res: ResultadoCotizacion | null) => {
       if (!res) return
@@ -161,12 +134,8 @@ export function Checkout() {
       if (res.opciones.length === 0) {
         setOpcionEnvio(null)
       } else {
-        // Si la opción seleccionada ya no está disponible (carrito o CP cambiaron), se limpia.
         setOpcionEnvio((actual: OpcionEnvio | null) => {
-          // El retiro en showroom no viene de la cotización: si sigue elegido, se
-          // mantiene aunque las opciones del CP no lo incluyan.
           if (!actual || actual.id_servicio === OPCION_SHOWROOM.id_servicio) return actual
-          // Auto-seleccionar envío gratis para Oberá (CP 3360)
           const gratis = res.opciones.find((o) => o.costo === 0 || o.service_type?.code === 'GRATIS')
           if (gratis) return gratis
           const sigue = res.opciones.some((o) => o.id_servicio === actual.id_servicio)
@@ -177,9 +146,6 @@ export function Checkout() {
     [],
   )
 
-  // Cotización automática al ingresar el código postal (con debounce).
-  // Cotiza contra Correo Argentino y, si la API no responde en 4 s o no trae
-  // cobertura, cae al tarifario local. El debounce evita un llamado por tecla.
   useEffect(() => {
     const cp = digitosCp(form.codigo_postal)
     if (retiro || cp.length < 4) return
@@ -194,8 +160,6 @@ export function Checkout() {
         if (cancelled || secuencia !== secuenciaCotizacionRef.current) return
         aplicarCotizacion(res)
       } finally {
-        // Sólo baja el flag si esta sigue siendo la última cotización en vuelo.
-        // Si el usuario cambio de CP, la siguiente corrida ya tomo el turno.
         if (secuencia === secuenciaCotizacionRef.current) setCargandoEnvio(false)
       }
     }, 400)
@@ -206,21 +170,13 @@ export function Checkout() {
     }
   }, [form.codigo_postal, retiro, items, aplicarCotizacion])
 
-  // Derivados de la cotización, en vez de setearlos dentro del effect
-  // (regla `react-hooks/set-state-in-effect`). Mientras se cotiza otro CP,
-  // `opcionesVigentes` queda en false: no se muestran precios de un CP viejo.
   const cpActual = digitosCp(form.codigo_postal)
   const cotizando = cargandoEnvio && !retiro && cpActual.length >= 4
   const opcionesVigentes = opcionesDeCp !== null && opcionesDeCp === cpActual
 
-  // Envío gratis local de Oberá (CP 3360): es un beneficio del showroom y no
-  // está sujeto al mínimo de compra. El envío gratis por monto
-  // (`umbral_envio_gratis`) aplica al resto del país.
   const esEnvioGratisObera = !retiro && cpActual === '3360'
   const costoEnvio = esEnvioGratisObera ? 0 : (opcionEnvio?.costo ?? 0)
 
-  // "Correo Argentino Clásico · Entrega a Domicilio": con dos opciones del mismo
-  // transporte, sin la modalidad el resumen y la confirmación se ven idénticos.
   const etiquetaTransporte = (o: OpcionEnvio | null) =>
     o ? `${nombreTransporte(o)}${o.service_type.name ? ` · ${o.service_type.name}` : ''}` : ''
 
@@ -231,15 +187,12 @@ export function Checkout() {
     total - descuentoTransferencia - descuentoCupon - descuentoOutfit,
   )
 
-  // Envío gratis por monto: se evalúa sobre el subtotal ya descontado.
   const correspondeEnvioGratis =
     envio_gratis_activo && umbral_envio_gratis > 0 && subtotalConDescuento >= umbral_envio_gratis
   const costoEnvioCobrado = retiro || esEnvioGratisObera || correspondeEnvioGratis ? 0 : costoEnvio
   const totalFinal = subtotalConDescuento + costoEnvioCobrado
-  // Cuánto le falta para alcanzar el envío gratis por monto (resto del país).
   const faltaParaEnvioGratis = Math.max(0, umbral_envio_gratis - subtotalConDescuento)
 
-  // Errores de todo el formulario, recalculados en cada tecla.
   const errores: ErroresFormulario = validarFormulario(form, { retiro })
   const errorVisible = (campo: Campo) => (tocados[campo] ? errores[campo] : undefined)
 
@@ -248,21 +201,12 @@ export function Checkout() {
     primeraFalta(['nombre', 'apellido', 'email', 'telefono', 'dni']) ??
     (retiro ? undefined : primeraFalta(['direccion', 'codigo_postal']))
 
-  // El botón de pago queda deshabilitado hasta que los datos obligatorios estén
-  // completos y válidos (incluido el teléfono) y haya una forma de entrega
-  // resuelta. Con todo listo, vuelve a su estilo activo de siempre.
   const datosCompletos = Object.keys(errores).length === 0
-  // El envío se resuelve con retiro, con el envío local sin cargo de Oberá o con
-  // una opción de cotización elegida. `costoEnvio == 0` por sí solo no alcanza:
-  // sin opción el backend no sabe con qué transporte despachar.
   const envioResuelto = retiro || esEnvioGratisObera || Boolean(opcionEnvio)
   const puedePagar = datosCompletos && envioResuelto
 
   function actualizar(campo: Campo, valor: string) {
     let limpio = SOLO_DIGITOS[campo] ? valor.replace(/\D/g, '') : valor
-    // El CPA se escribe con letras; se pasan a mayúsculas y se descarta lo que
-    // no sea alfanumérico para no dejar el campo en un estado que el validador
-    // va a rechazar igual.
     if (campo === 'codigo_postal') {
       limpio = limpio.toUpperCase().replace(/[^A-Z0-9]/g, '')
     }
@@ -280,8 +224,6 @@ export function Checkout() {
     setTocados((prev) => ({ ...prev, [campo]: true }))
   }
 
-  // Al cambiar el tipo de envío, dirección y CP dejan de ser obligatorios (o
-  // vuelven a serlo), así que se recalculan sus errores.
   function cambiarRetiro(checked: boolean) {
     if (checked) {
       setOpcionEnvio(OPCION_SHOWROOM)
@@ -295,11 +237,6 @@ export function Checkout() {
     setErrorMsg(null)
   }
 
-  /**
-   * Cambia entre retiro y envío. Si el modo no cambia no hace nada: sin ese
-   * guard, volver a clickear "Envío por correo" ya elegido limpiaría
-   * `opcionEnvio` y dejaría al usuario sin método de envío seleccionado.
-   */
   function elegirModoEnvio(querido: boolean) {
     if (querido === retiro) return
     cambiarRetiro(querido)
@@ -359,7 +296,6 @@ export function Checkout() {
     setErrorEnvio(null)
     setOpcionEnvio(null)
 
-    // Invalida cualquier cotizacion automatica que este en vuelo.
     ++secuenciaCotizacionRef.current
     setCargandoEnvio(true)
     try {
@@ -374,8 +310,6 @@ export function Checkout() {
     e.preventDefault()
     setErrorMsg(null)
 
-    // Al enviar, todos los campos pasan a "tocados": así quedan visibles los
-    // errores de los que el usuario nunca llegó a tocar.
     setTocados({
       nombre: true,
       apellido: true,
@@ -388,9 +322,6 @@ export function Checkout() {
 
     const found = validarFormulario(form, { retiro })
     if (Object.keys(found).length > 0) {
-      // El teléfono es el dato que llega peor tipeado: si fue el problema,
-      // mostramos su mensaje puntual en vez del genérico. Aplica antes de
-      // procesar cualquier método de pago (Mercado Pago o transferencia).
       setErrorMsg(
         found.telefono && form.telefono.trim()
           ? found.telefono
@@ -399,8 +330,6 @@ export function Checkout() {
       return
     }
 
-    // Oberá no necesita elegir transporte (el envío local es sin cargo); el
-    // resto necesita una opción de cotización vigente para poder despachar.
     const esOberaValidar = digitosCp(form.codigo_postal) === '3360'
     if (!retiro && !esOberaValidar && !opcionEnvio) {
       setErrorMsg('Seleccioná un método de envío para continuar.')
@@ -426,8 +355,6 @@ export function Checkout() {
       direccion: retiro ? 'Retiro en showroom' : form.direccion.trim(),
       codigo_postal: retiro ? '' : form.codigo_postal.trim(),
       metodo_pago: metodoPago,
-      // Se manda el costo CRUDO cotizado, no `costoEnvioCobrado`: el servidor
-      // decide si aplica envío gratis. Mandarle 0 haría que rechace la orden.
       costo_envio: retiro ? 0 : costoEnvio,
       cupon_codigo: cupon?.codigo ?? null,
       envio: retiro
@@ -461,9 +388,6 @@ export function Checkout() {
       return
     }
 
-    // Se muestra el total que devolvió el servidor, no el cálculo local: si un
-    // precio cambió entre armar el carrito y confirmar, el importe que ve el
-    // cliente es el que realmente se le va a cobrar.
     const pedido: PedidoConfirmado = {
       id: res.ordenId,
       metodo: metodoPago,
@@ -511,10 +435,6 @@ export function Checkout() {
       return
     }
 
-    // Antes de dejar la pestaña: el comprador no tiene cuenta, así que RLS le
-    // impide leer `ordenes` y no hay forma de recuperar el desglose del lado del
-    // servidor. Se deja en `sessionStorage` para que la pantalla de resultado lo
-    // muestre al volver de Mercado Pago.
     guardarResumen(pedido)
 
     window.location.href = pref.init_point
@@ -600,10 +520,6 @@ export function Checkout() {
           <fieldset className="bg-base-200 rounded-2xl p-5">
             <legend className="font-semibold text-sm px-2 mb-1">Entrega</legend>
 
-            {/* Dos tarjetas mutuamente excluyentes con forma de radio button.
-                El checkbox anterior no dejaba ver a simple vista en qué modo
-                estaba el checkout, ni separaba el retiro (sin cargo, Oberá) de
-                la opción que después cotiza por CP. */}
             <div
               role="radiogroup"
               aria-label="Tipo de entrega"
@@ -748,9 +664,6 @@ export function Checkout() {
                       </p>
                     )}
 
-                  {/* Se ocultan mientras cotiza: con red hay una ventana en la
-                      que las opciones viejas (de otro CP) seguirían visibles y
-                      el usuario podría elegir un precio que ya no aplica. */}
                   {!cotizando && opcionesVigentes && opcionesEnvio.length > 0 && (
                     <ul className="mt-3 space-y-2 max-h-52 overflow-y-auto">
                       {opcionesEnvio.map((opt, idx) => {
@@ -835,7 +748,6 @@ export function Checkout() {
               />
             </div>
 
-            {/* Pasos del método elegido, visibles antes de confirmar */}
             <ol className="space-y-2 bg-base-100 rounded-xl p-4">
               {pasos.map((paso, i) => (
                 <li key={paso} className="flex gap-3 text-sm">
@@ -869,20 +781,24 @@ export function Checkout() {
             <ul className="space-y-3 mb-4">
               {items.map((item, i) => (
                 <li key={`${item.producto_id}-${item.talle}`} className="flex items-center gap-3">
-                  <img
-                    src={imagenProducto(item.imagen || null, i)}
-                    srcSet={srcsetImagen(item.imagen || null, 40).srcset}
-                    sizes={srcsetImagen(item.imagen || null, 40).sizes}
-                    alt={`${item.nombre}, talle ${item.talle || 'único'}`}
-                    loading="lazy"
-                    decoding="async"
-                    width={40}
-                    height={40}
-                    onError={(e) => {
-                      e.currentTarget.src = imagenProducto(null, i)
-                    }}
-                    className="w-10 h-10 rounded-lg object-cover bg-neutral-100"
-                  />
+                  <div className="w-10 h-10 rounded-lg overflow-hidden bg-neutral-200 flex items-center justify-center shrink-0 border border-line/40">
+                    <img
+                      src={item.imagen && item.imagen.trim() !== '' ? item.imagen : imagenProducto(null, i)}
+                      alt={`${item.nombre}, talle ${item.talle || 'único'}`}
+                      loading="lazy"
+                      decoding="async"
+                      width={40}
+                      height={40}
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none';
+                        if (e.currentTarget.parentElement) {
+                          e.currentTarget.parentElement.classList.add('bg-neutral-300');
+                          e.currentTarget.parentElement.innerHTML = '<span class="text-[9px] font-bold uppercase opacity-50">Ikigai</span>';
+                        }
+                      }}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
                   <div className="flex-1 text-sm min-w-0">
                     <p className="font-medium truncate">{item.nombre}</p>
                     <p className="opacity-50 text-xs">Talle {item.talle} × {item.cantidad}</p>
@@ -1004,8 +920,6 @@ export function Checkout() {
   )
 }
 
-/* ──── Campos ──── */
-
 function Campo({
   etiqueta,
   campo,
@@ -1037,9 +951,6 @@ function Campo({
   const idAyuda = `ayuda-${campo}`
   const hayAyuda = Boolean(error ?? ayuda)
 
-  // Etiqueta SIEMPRE visible arriba. Con `floating-label` de DaisyUI el span
-  // arranca en opacity 0 y sólo aparece al enfocar o si el campo tiene valor,
-  // lo que deja los campos vacíos sin rótulo.
   return (
     <div>
       <label htmlFor={idInput} className="block text-sm font-medium mb-1.5">
@@ -1121,8 +1032,6 @@ function MetodoBoton({
   )
 }
 
-/* ──── Pantalla de confirmación ──── */
-
 function ConfirmacionPedido({
   pedido,
   enviado,
@@ -1172,7 +1081,6 @@ function ConfirmacionPedido({
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-        {/* Desglose */}
         <div className="lg:col-span-3 space-y-6">
           <section className="bg-base-200 rounded-2xl p-5">
             <h3 className="font-semibold text-sm mb-4">Detalle del pedido</h3>
@@ -1180,20 +1088,24 @@ function ConfirmacionPedido({
             <ul className="space-y-3 mb-4">
               {pedido.items.map((item, i) => (
                 <li key={`${item.producto_id}-${item.talle}-${i}`} className="flex items-center gap-3">
-                  <img
-                    src={imagenProducto(item.imagen || null, i)}
-                    srcSet={srcsetImagen(item.imagen || null, 48).srcset}
-                    sizes={srcsetImagen(item.imagen || null, 48).sizes}
-                    alt={`${item.nombre}, talle ${item.talle || 'único'}`}
-                    loading="lazy"
-                    decoding="async"
-                    width={48}
-                    height={48}
-                    onError={(e) => {
-                      e.currentTarget.src = imagenProducto(null, i)
-                    }}
-                    className="w-12 h-12 rounded-lg object-cover shrink-0 bg-neutral-100"
-                  />
+                  <div className="w-12 h-12 rounded-lg overflow-hidden bg-neutral-200 flex items-center justify-center shrink-0 border border-line/40">
+                    <img
+                      src={item.imagen && item.imagen.trim() !== '' ? item.imagen : imagenProducto(null, i)}
+                      alt={`${item.nombre}, talle ${item.talle || 'único'}`}
+                      loading="lazy"
+                      decoding="async"
+                      width={48}
+                      height={48}
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none';
+                        if (e.currentTarget.parentElement) {
+                          e.currentTarget.parentElement.classList.add('bg-neutral-300');
+                          e.currentTarget.parentElement.innerHTML = '<span class="text-[9px] font-bold uppercase opacity-50">Ikigai</span>';
+                        }
+                      }}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
                   <div className="flex-1 text-sm min-w-0">
                     <p className="font-medium">{item.nombre}</p>
                     <p className="opacity-50 text-xs">
@@ -1279,7 +1191,6 @@ function ConfirmacionPedido({
           </section>
         </div>
 
-        {/* Datos de pago */}
         <div className="lg:col-span-2 space-y-6">
           <section className="bg-base-200 rounded-2xl p-5">
             <h3 className="font-semibold text-sm mb-3">Método de pago</h3>
@@ -1326,7 +1237,6 @@ function ConfirmacionPedido({
   )
 }
 
-/** Fila etiqueta/valor del desglose. */
 function Fila({ etiqueta, valor, clase = '' }: { etiqueta: string; valor: string; clase?: string }) {
   return (
     <div className="flex justify-between text-sm">

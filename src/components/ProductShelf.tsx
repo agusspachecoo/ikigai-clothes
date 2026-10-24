@@ -35,9 +35,14 @@ export function ProductShelf({
   function desplazar(direccion: 1 | -1) {
     const pista = pistaRef.current
     if (!pista) return
+    
     const item = pista.querySelector<HTMLElement>('[data-carousel-item]')
-    const gap = parseFloat(getComputedStyle(pista).gap || '0')
-    const step = item ? item.getBoundingClientRect().width + gap : pista.clientWidth
+    if (!item) return
+
+    const gap = parseFloat(getComputedStyle(pista).gap || '16')
+    // Desplazamos de a 2 productos para que se mueva con más fluidez y dinamismo
+    const step = (item.getBoundingClientRect().width + gap) * 2
+    
     pista.scrollBy({ left: direccion * step, behavior: 'smooth' })
   }
 
@@ -96,8 +101,8 @@ export function ProductShelf({
             ref={pistaRef}
             className="no-scrollbar flex gap-3 md:gap-4 overflow-x-auto snap-x snap-mandatory scroll-smooth pb-2 px-3 sm:px-5"
           >
-            {productos.map((p, idx) => (
-              <div key={p.id} data-carousel-item className={`${ITEM_CLS} animate-fade-in-up`} style={{ animationDelay: `${Math.min(idx, 8) * 70}ms` }}>
+            {productos.map((p) => (
+              <div key={p.id} data-carousel-item className={ITEM_CLS}>
                 <ProductCard producto={p} />
               </div>
             ))}
