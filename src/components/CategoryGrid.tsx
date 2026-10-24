@@ -57,11 +57,11 @@ export function CategoryGrid() {
             const link = b.slug ? `/categoria/${b.slug}` : '/productos'
             const imagen = (b.slug && imagenes[b.slug]) || b.imagen
             return (
-              <Link
-                key={b.titulo}
-                to={link}
-                className="group relative block aspect-[16/10] sm:aspect-[3/3] md:aspect-[4/3] overflow-hidden rounded-sm bg-white transition-shadow border border-base-300/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600"
-              >
+            <Link
+              key={b.titulo}
+              to={link}
+              className="group relative block aspect-[16/10] sm:aspect-[3/3] md:aspect-[4/3] overflow-hidden rounded-sm bg-white transition-all duration-300 ease-in-out hover:-translate-y-1 hover:shadow-lg border border-base-300/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600"
+            >
                 <img
                   src={imagen}
                   srcSet={srcsetImagen(imagen, 480).srcset}

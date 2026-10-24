@@ -5,6 +5,7 @@ import { useTienda } from '../context/tienda'
 import { useCierreModal } from '../hooks/useCierreModal'
 import { CouponInput } from './CouponInput'
 import { formatearPrecio, montoCuota } from '../lib/precios'
+import { imagenProducto } from '../lib/imagenes'
 
 export function CarritoDrawer() {
   const {
@@ -97,12 +98,15 @@ export function CarritoDrawer() {
                     style={{ minWidth: '64px', minHeight: '64px', flexShrink: 0 }}
                   >
                     <img
-                      src={it.imagen}
+                      src={it.imagen || imagenProducto(null, 0)}
                       alt=""
                       loading="lazy"
                       decoding="async"
                       width={64}
                       height={64}
+                      onError={(e) => {
+                        e.currentTarget.src = imagenProducto(null, 0)
+                      }}
                       className="w-full h-full object-contain"
                     />
                   </Link>

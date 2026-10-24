@@ -36,7 +36,7 @@ export function ShowroomSection() {
 
   return (
     <section className="bg-base-100 border-t border-line">
-      <div className="grid grid-cols-1 lg:grid-cols-2">
+      <div className="grid grid-cols-1 lg:grid-cols-2 animate-fade-in-up">
         <figure className="relative aspect-[4/3] lg:aspect-auto lg:min-h-[26rem] bg-base-300">
           {imagen ? (
             <img

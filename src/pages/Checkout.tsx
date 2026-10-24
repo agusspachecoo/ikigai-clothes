@@ -878,6 +878,9 @@ export function Checkout() {
                     decoding="async"
                     width={40}
                     height={40}
+                    onError={(e) => {
+                      e.currentTarget.src = imagenProducto(null, i)
+                    }}
                     className="w-10 h-10 rounded-lg object-cover"
                   />
                   <div className="flex-1 text-sm min-w-0">
@@ -1186,6 +1189,9 @@ function ConfirmacionPedido({
                     decoding="async"
                     width={48}
                     height={48}
+                    onError={(e) => {
+                      e.currentTarget.src = imagenProducto(null, i)
+                    }}
                     className="w-12 h-12 rounded-lg object-cover shrink-0"
                   />
                   <div className="flex-1 text-sm min-w-0">

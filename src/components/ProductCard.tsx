@@ -58,7 +58,7 @@ export function ProductCard({ producto }: { producto: ProductoConStock }) {
   const sinStock = stockTotal <= 0
 
   return (
-    <div className="group relative flex h-full flex-col bg-base-100">
+    <div className="group relative flex h-full flex-col bg-base-100 transition-transform duration-300 ease-in-out hover:-translate-y-1">
       {/* Toda la tarjeta es un enlace al detalle del producto. Crece para que
           todas las tarjetas midan lo mismo y el botón quede alineado abajo. */}
       <Link
@@ -152,7 +152,7 @@ export function ProductCard({ producto }: { producto: ProductoConStock }) {
 
       {/* Favorito: único ícono sobre la foto, arriba a la izquierda (fuera del
           enlace para que el click no navegue al producto). */}
-      <div className="absolute top-2 left-2 z-20 flex h-9 w-9 items-center justify-center rounded-full bg-white/85 shadow-sm ring-1 ring-black/5 backdrop-blur transition hover:bg-white">
+          <div className="absolute top-2 left-2 z-20 flex h-9 w-9 items-center justify-center rounded-full bg-white/85 shadow-sm ring-1 ring-black/5 backdrop-blur transition-all duration-300 ease-in-out hover:scale-110 hover:bg-white">
         <BotonFavorito productoId={producto.id} />
       </div>
     </div>

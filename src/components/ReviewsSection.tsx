@@ -21,7 +21,7 @@ function Estrellas({ puntuacion }: { puntuacion: number }) {
 
 function Tarjeta({ resena }: { resena: ResenaDestacada }) {
   return (
-    <div className="card bg-white rounded-sm p-5 flex flex-col gap-3 border border-base-300/60">
+    <div className="card bg-white rounded-sm p-5 flex flex-col gap-3 border border-base-300/60 transition-all duration-300 ease-in-out hover:-translate-y-1 hover:shadow-md">
       <div className="flex items-center justify-between gap-2">
         <div className="w-9 h-9 rounded-full bg-[#111111] text-white flex items-center justify-center font-bold text-sm shrink-0">
           {resena.nombre_usuario.trim().charAt(0).toUpperCase()}
@@ -71,11 +71,13 @@ export function ReviewsSection() {
           <h2 className="text-2xl md:text-4xl font-bold">Lo que dicen nuestros clientes</h2>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-          {resenas.map((r) => (
-            <Tarjeta key={r.id} resena={r} />
-          ))}
-        </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+        {resenas.map((r, i) => (
+          <div key={r.id} className="animate-fade-in-up" style={{ animationDelay: `${i * 80}ms` }}>
+            <Tarjeta resena={r} />
+          </div>
+        ))}
+      </div>
       </div>
     </section>
   )

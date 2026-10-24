@@ -99,7 +99,7 @@ export function HeroCarousel() {
 
   return (
     <section
-      className="relative aspect-[4/3] md:aspect-[21/9] md:max-h-[520px] w-full overflow-hidden bg-base-200"
+      className="relative aspect-[4/3] md:aspect-[21/9] md:max-h-[520px] w-full overflow-hidden bg-base-200 animate-fade-in"
       onMouseEnter={() => { pausado.current = true }}
       onMouseLeave={() => { pausado.current = false }}
     >
