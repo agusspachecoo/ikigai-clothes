@@ -39,6 +39,13 @@ export function Header() {
   useCierreModal(menuOpen, closeMenu)
   useCierreModal(busquedaOpen, closeBusqueda)
 
+  function handleLogoClick(e: React.MouseEvent) {
+    if (location.pathname === '/') {
+      e.preventDefault()
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    }
+  }
+
   const openCart = useCallback(() => {
     setMenuOpen(false)
     setCarritoAbierto(true)
@@ -106,7 +113,12 @@ export function Header() {
 
           {/* Centro: logo */}
           <div className="absolute inset-x-0 flex justify-center items-center">
-            <Link to="/" aria-label="Ikigai Clothes - Inicio" className="flex items-center">
+            <Link
+              to="/"
+              aria-label="Ikigai Clothes - Inicio"
+              className="flex items-center"
+              onClick={handleLogoClick}
+            >
               <img
                 src={logoWhite}
                 alt="Ikigai Clothes"

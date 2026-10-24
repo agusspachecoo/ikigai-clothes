@@ -37,7 +37,7 @@ export function ProductShelf({
     if (!pista) return
     const item = pista.querySelector<HTMLElement>('[data-carousel-item]')
     const gap = parseFloat(getComputedStyle(pista).gap || '0')
-    const step = item ? item.getBoundingClientRect().width + gap : pista.clientWidth * 0.5
+    const step = item ? item.getBoundingClientRect().width + gap : pista.clientWidth
     pista.scrollBy({ left: direccion * step, behavior: 'smooth' })
   }
 
