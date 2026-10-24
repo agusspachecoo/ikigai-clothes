@@ -71,7 +71,6 @@ export function CategoryGrid() {
                   decoding="async"
                   width={480}
                   height={360}
-                  className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                   onError={(e) => {
                     const img = e.currentTarget
                     if (!img.dataset.fallback) {
@@ -80,6 +79,7 @@ export function CategoryGrid() {
                       img.src = `https://picsum.photos/seed/${b.seed}/600/600`
                     }
                   }}
+                  className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-105"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-white via-white/25 to-transparent" />
 

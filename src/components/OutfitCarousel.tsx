@@ -48,27 +48,25 @@ export function OutfitCarousel({ outfits }: Props) {
                     aria-label={`Ver detalle del look ${o.nombre}`}
                     className="relative block w-full aspect-[9/16] rounded-2xl overflow-hidden bg-neutral-100 cursor-pointer group focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
                   >
-                    <img
-                      src={imagenOutfit(o.imagen_portada, i)}
-                      srcSet={srcsetImagen(o.imagen_portada, 280).srcset}
-                      sizes={srcsetImagen(o.imagen_portada, 280).sizes}
-                      alt={`Look ${o.nombre} con precio de combo`}
-                      className="w-full h-full object-cover object-[center_20%] transition-transform duration-500 group-hover:scale-105"
-                      loading="lazy"
-                      decoding="async"
-                      width={280}
-                      height={498}
-                      onError={(e) => {
-                        const img = e.currentTarget
-                        if (!img.dataset.fallback) {
-                          img.dataset.fallback = '1'
-                          // Al cambiar el src hay que limpiar el srcset: si no,
-                          // el navegador sigue pidiendo la imagen rota.
-                          img.removeAttribute('srcset')
-                          img.src = `https://picsum.photos/seed/ikigai-outfit-${i}/600/800`
-                        }
-                      }}
-                    />
+                      <img
+                        src={imagenOutfit(o.imagen_portada, i)}
+                        srcSet={srcsetImagen(o.imagen_portada, 280).srcset}
+                        sizes={srcsetImagen(o.imagen_portada, 280).sizes}
+                        alt={`Look ${o.nombre} con precio de combo`}
+                        className="w-full h-full object-cover object-[center_20%] transition-transform duration-700 ease-out group-hover:scale-105"
+                        loading="lazy"
+                        decoding="async"
+                        width={280}
+                        height={498}
+                        onError={(e) => {
+                          const img = e.currentTarget
+                          if (!img.dataset.fallback) {
+                            img.dataset.fallback = '1'
+                            img.removeAttribute('srcset')
+                            img.src = imagenOutfit(null, i)
+                          }
+                        }}
+                      />
                     <div className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-black/35 to-transparent" />
 
                     <span className="absolute bottom-4 left-1/2 -translate-x-1/2 btn btn-circle btn-lg bg-sky-500 hover:bg-sky-400 border-0 text-white pointer-events-none">

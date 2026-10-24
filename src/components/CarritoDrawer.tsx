@@ -99,7 +99,7 @@ export function CarritoDrawer() {
                   >
                     <img
                       src={it.imagen || imagenProducto(null, 0)}
-                      alt=""
+                      alt={it.nombre}
                       loading="lazy"
                       decoding="async"
                       width={64}
@@ -107,7 +107,7 @@ export function CarritoDrawer() {
                       onError={(e) => {
                         e.currentTarget.src = imagenProducto(null, 0)
                       }}
-                      className="w-full h-full object-contain"
+                      className="w-full h-full object-cover bg-neutral-100"
                     />
                   </Link>
 

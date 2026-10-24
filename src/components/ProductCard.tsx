@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import type { ProductoConStock } from '../types/database'
 import { BotonFavorito } from './BotonFavorito'
 import { useTienda } from '../context/tienda'
+import { imagenProducto } from '../lib/imagenes'
 import {
   formatearPrecio,
   precioConDescuento,
@@ -58,7 +59,7 @@ export function ProductCard({ producto }: { producto: ProductoConStock }) {
   const sinStock = stockTotal <= 0
 
   return (
-    <div className="group relative flex h-full flex-col bg-base-100 transition-transform duration-300 ease-in-out hover:-translate-y-1">
+    <div className="group relative flex h-full flex-col bg-base-100 transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-[0_20px_40px_-20px_rgba(17,17,17,0.45)]">
       {/* Toda la tarjeta es un enlace al detalle del producto. Crece para que
           todas las tarjetas midan lo mismo y el botón quede alineado abajo. */}
       <Link
@@ -69,20 +70,31 @@ export function ProductCard({ producto }: { producto: ProductoConStock }) {
         <figure className="w-full aspect-[3/4] relative bg-neutral-100 m-0 p-0 overflow-hidden shrink-0">
           {producto.imagenes[0] && (
             <img
-              src={producto.imagenes[0]}
+              src={imagenProducto(producto.imagenes[0], 0)}
               alt={`${producto.nombre} de ${producto.categoria}, vista frontal`}
               loading="lazy"
               decoding="async"
-              className="absolute inset-0 block w-full h-full object-cover object-[center_20%] transition-transform duration-300 group-hover:scale-105"
+              width={320}
+              height={427}
+              onError={(e) => {
+                e.currentTarget.src = imagenProducto(null, 0)
+              }}
+              className="absolute inset-0 block w-full h-full object-cover object-[center_20%] transition-transform duration-500 ease-out group-hover:scale-105"
             />
           )}
           {producto.imagenes[1] && (
             <img
-              src={producto.imagenes[1]}
+              src={imagenProducto(producto.imagenes[1], 1)}
               alt=""
+              aria-hidden="true"
               loading="lazy"
               decoding="async"
-              className="absolute inset-0 block w-full h-full object-cover object-[center_20%] opacity-0 group-hover:opacity-100 transition-all duration-500 group-hover:scale-105"
+              width={320}
+              height={427}
+              onError={(e) => {
+                e.currentTarget.src = imagenProducto(null, 1)
+              }}
+              className="absolute inset-0 block w-full h-full object-cover object-[center_20%] opacity-0 group-hover:opacity-100 transition-all duration-700 ease-out group-hover:scale-105"
             />
           )}
 
@@ -143,7 +155,7 @@ export function ProductCard({ producto }: { producto: ProductoConStock }) {
             oculta y el tap en la tarjeta navega directo. */}
         {!sinStock && (
           <div className="relative z-10 mt-2 hidden h-10 shrink-0 pointer-events-auto md:block">
-            <span className="flex h-full w-full items-center justify-center bg-neutral/95 text-neutral-content text-[11px] uppercase tracking-[0.15em] opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300 ease-out">
+            <span className="flex h-full w-full items-center justify-center bg-neutral/95 text-neutral-content text-[11px] uppercase tracking-[0.15em] opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-500 ease-out">
               Ver producto
             </span>
           </div>

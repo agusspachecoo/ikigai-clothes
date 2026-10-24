@@ -138,9 +138,9 @@ export function CheckoutResultado({ status }: Props) {
                 {resumen.items.map((item, i) => (
                   <li key={`${item.producto_id}-${item.talle}-${i}`} className="flex items-center gap-3">
                   <img
-                    src={imagenProducto(item.imagen, i)}
-                    srcSet={srcsetImagen(item.imagen, 48).srcset}
-                    sizes={srcsetImagen(item.imagen, 48).sizes}
+                    src={imagenProducto(item.imagen || null, i)}
+                    srcSet={srcsetImagen(item.imagen || null, 48).srcset}
+                    sizes={srcsetImagen(item.imagen || null, 48).sizes}
                     alt={`${item.nombre}, talle ${item.talle || 'único'}`}
                     loading="lazy"
                     decoding="async"
@@ -149,7 +149,7 @@ export function CheckoutResultado({ status }: Props) {
                     onError={(e) => {
                       e.currentTarget.src = imagenProducto(null, i)
                     }}
-                    className="w-12 h-12 rounded-lg object-cover shrink-0"
+                    className="w-12 h-12 rounded-lg object-cover shrink-0 bg-neutral-100"
                   />
                     <div className="flex-1 text-sm min-w-0">
                       <p className="font-medium">{item.nombre}</p>
