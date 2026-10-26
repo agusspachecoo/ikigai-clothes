@@ -19,20 +19,23 @@
 // la única vía para crear una orden.
 // ============================================================
 
-import { createClient } from 'npm:@supabase/supabase-js@2'
 import { corsHeaders, json } from '../_shared/cors.ts'
 import { validarCupon, type Cupon } from '../_shared/cupones.ts'
 import { precioUnitarioReal, round2, type ProductoPrecio } from '../_shared/precios.ts'
 import { calcularDescuentoOutfit, type OutfitComposicion } from '../_shared/outfits.ts'
-
-function getSupabaseAdmin() {
-  const url = Deno.env.get('SUPABASE_URL')
-  const key = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-  if (!url || !key) {
-    throw new Error('Faltan SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY')
-  }
-  return createClient(url, key)
-}
+import {
+  generarTokenInvitado,
+  getSupabaseAdmin,
+  getUsuario,
+  hashToken,
+} from '../_shared/auth.ts'
+import {
+  hashCarrito,
+  normalizarCp,
+  ORIGEN_CP,
+  verificarCotizacion,
+  type QuotePayload,
+} from '../_shared/envio.ts'
 
 interface ItemInput {
   producto_id: string
@@ -69,6 +72,31 @@ function soloDigitos(v: string): string {
   return v.replace(/\D/g, '')
 }
 
+const TOKEN_INVITADO_DIAS = 30
+
+function detalleEnvio(
+  quote: QuotePayload | null,
+  costo: number,
+  cp: string,
+  retiro: boolean,
+): Record<string, unknown> {
+  if (retiro) return { metodo: 'retiro' }
+
+  return {
+    metodo: 'envio',
+    carrier: quote?.carrier ?? null,
+    carrier_id: quote?.carrier_id ?? null,
+    servicio: quote?.servicio ?? null,
+    service_type: quote?.service_type ?? null,
+    logistic_type: quote?.logistic_type ?? null,
+    tiempo: quote?.tiempo ?? null,
+    codigo_postal: normalizarCp(cp),
+    origen_cp: ORIGEN_CP,
+    costo,
+    quote_mock: quote?.mock ?? null,
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
 
@@ -83,10 +111,12 @@ Deno.serve(async (req) => {
       direccion,
       codigo_postal,
       metodo_pago,
-      costo_envio = 0,
       cupon_codigo,
       envio,
     } = body
+
+    const supabase = getSupabaseAdmin()
+    const usuario = await getUsuario(req, supabase)
 
     // ---------------------------------------------------------------
     // PASO 0: validación de entrada y de método de pago.
@@ -172,8 +202,6 @@ Deno.serve(async (req) => {
       }
     }
 
-    const supabase = getSupabaseAdmin()
-
     // ---------------------------------------------------------------
     // PASO 1: config de la tienda. El descuento por transferencia y el
     // umbral de envío gratis salen de acá, nunca del body.
@@ -202,16 +230,30 @@ Deno.serve(async (req) => {
     // PASO 2: releer los precios REALES desde `productos`.
     // ---------------------------------------------------------------
     const itemsInput = items as ItemInput[]
-    const ids = [...new Set(itemsInput.map((i) => String(i.producto_id ?? '')).filter(Boolean))]
+    const ids = itemsInput.map((i) => String(i.producto_id ?? '').trim())
 
-    if (ids.length !== itemsInput.length) {
+    if (ids.some((id) => !id)) {
       return json({ error: 'Hay ítems sin producto_id.' }, { status: 400 })
     }
+
+    // Dos líneas del mismo producto+talle se sumarían en el carrito del
+    // navegador, pero acá se validarían contra el stock por separado: mandar
+    // 2×"M" con stock 1 pasaría dos veces. Se rechaza el duplicado y que el
+    // front agrupe antes de crear la orden.
+    const claves = itemsInput.map((i) => `${String(i.producto_id).trim()}:${String(i.talle ?? '').trim()}`)
+    if (new Set(claves).size !== claves.length) {
+      return json(
+        { error: 'El carrito tiene ítems duplicados. Actualizá la página y volvé a intentar.' },
+        { status: 400 },
+      )
+    }
+
+    const idsUnicos = [...new Set(ids)]
 
     const { data: productos, error: errorProductos } = await supabase
       .from('productos')
       .select('id, nombre, precio, discount_percent, activo, variaciones_stock(talle, stock_disponible)')
-      .in('id', ids)
+      .in('id', idsUnicos)
 
     if (errorProductos) {
       console.error('Error leyendo productos:', errorProductos)
@@ -222,12 +264,12 @@ Deno.serve(async (req) => {
       ((productos ?? []) as ProductoConTalles[]).map((p) => [String(p.id), p]),
     )
 
-    const faltantes = ids.filter((id) => !catalogo.has(id))
+    const faltantes = idsUnicos.filter((id) => !catalogo.has(id))
     if (faltantes.length > 0) {
       return json({ error: `Producto inexistente: ${faltantes.join(', ')}.` }, { status: 409 })
     }
 
-    const inactivos = ids.filter((id) => catalogo.get(id)?.activo === false)
+    const inactivos = idsUnicos.filter((id) => catalogo.get(id)?.activo === false)
     if (inactivos.length > 0) {
       return json(
         { error: 'Uno o más productos del carrito ya no están disponibles.' },
@@ -248,7 +290,7 @@ Deno.serve(async (req) => {
     const itemsResueltos: ItemResuelto[] = []
 
     for (const item of itemsInput) {
-      const producto = catalogo.get(String(item.producto_id))!
+      const producto = catalogo.get(String(item.producto_id ?? '').trim())!
 
       const cantidad = Math.floor(Number(item.cantidad))
       if (!Number.isFinite(cantidad) || cantidad < 1 || cantidad > 99) {
@@ -353,8 +395,8 @@ Deno.serve(async (req) => {
 
     // Override de envío gratis local para Oberá (CP 3360). Es un beneficio del
     // showroom y no está sujeto al mínimo de compra.
-    const codigoPostalDigits = soloDigitos(cp)
-    const esOberaGratis = !esRetiro && codigoPostalDigits === '3360'
+    const codigoPostalDigits = normalizarCp(cp)
+    const esOberaGratis = !esRetiro && codigoPostalDigits === ORIGEN_CP
 
     // Fuera de Oberá, el envío gratis depende del subtotal ya descontado
     // (transferencia + cupón + outfit) contra el umbral configurado.
@@ -364,36 +406,64 @@ Deno.serve(async (req) => {
         umbralEnvioGratis > 0 &&
         subtotalConDescuento >= umbralEnvioGratis)
 
-    // El retiro siempre es gratis. Si no corresponde envío gratis, el costo
-    // sale de la cotización del carrier que el cliente eligió con su CP.
-    //
-    // OJO: ese importe viene del navegador. No hay tabla de cotizaciones
-    // persistidas contra la cual validarlo, así que se acota a un rango
-    // razonable para descartar tanto un envío de $0 (robo de envío) como
-    // cifras absurdas. Para eliminar la confianza por completo habría que
-    // cotizar server-side contra la API del carrier usando el mismo CP.
-    const COTIZACION_MIN = 500
-    const COTIZACION_MAX = 500_000
+    // La cotización ya no se confía: `cotizar-envio` firmó CP + carrito +
+    // carrier + costo, y acá se verifica todo antes de guardar el pedido.
+    const quoteSecret = Deno.env.get('SHIPPING_QUOTE_SECRET') ?? ''
+    const quoteToken = (envio as { quote_token?: unknown } | null)?.quote_token
+    let quote: QuotePayload | null = null
 
-    let costoEnvioFinal = 0
-
-    if (correspondeEnvioGratis) {
-      costoEnvioFinal = 0
-    } else if (!esRetiro) {
-      const cotizado = Number(envio?.costo ?? costo_envio) || 0
-
-      if (cotizado <= 0) {
+    if (!esRetiro && quoteToken) {
+      quote = await verificarCotizacion(quoteToken, quoteSecret)
+      if (!quote) {
         return json(
-          { error: 'No pudimos cotizar el envío. Volvé a elegir una opción de envío.' },
+          { error: 'La cotización de envío venció o no es válida. Volvé a cotizar.' },
           { status: 409 },
         )
       }
 
-      if (cotizado < COTIZACION_MIN || cotizado > COTIZACION_MAX) {
+      if (quote.cp !== codigoPostalDigits) {
+        return json(
+          { error: 'La cotización de envío no corresponde al código postal ingresado.' },
+          { status: 409 },
+        )
+      }
+
+      const hashActual = await hashCarrito(itemsResueltos)
+      if (quote.items_hash !== hashActual) {
+        return json(
+          { error: 'El carrito cambió desde que cotizaste el envío. Volvé a cotizar.' },
+          { status: 409 },
+        )
+      }
+    }
+
+    let costoEnvioFinal = 0
+
+    if (correspondeEnvioGratis || esRetiro) {
+      costoEnvioFinal = 0
+    } else {
+      if (!quote) {
+        return json(
+          { error: 'No pudimos validar el envío. Volvé a elegir una opción de envío.' },
+          { status: 409 },
+        )
+      }
+
+      // Una cotización firmada en $0 solo puede venir de Oberá o del envío
+      // gratis por monto. Si el subtotal real no alcanza el umbral, se
+      // rechaza: evita que alguien fuerce un quote gratis con un subtotal falso.
+      if (quote.costo === 0) {
+        return json(
+          { error: 'El envío gratis no corresponde para este carrito. Volvé a cotizar.' },
+          { status: 409 },
+        )
+      }
+
+      if (quote.costo < 0 || quote.costo > 500_000) {
         return json({ error: 'El costo de envío cotizado no es válido.' }, { status: 409 })
       }
 
-      costoEnvioFinal = round2(cotizado)
+      costoEnvioFinal = round2(quote.costo)
     }
 
     const montoTotal = round2(subtotalConDescuento + costoEnvioFinal)
@@ -407,9 +477,18 @@ Deno.serve(async (req) => {
     // ---------------------------------------------------------------
     const ordenId = crypto.randomUUID()
 
+    // Si hay sesión, la orden queda atada a `cliente_id`. Si es invitado, se
+    // genera un token de un solo uso: en la base queda solo su SHA-256.
+    const guestToken = usuario ? null : generarTokenInvitado()
+    const guestTokenHash = guestToken ? await hashToken(guestToken) : null
+    const guestTokenExpira = guestToken
+      ? new Date(Date.now() + TOKEN_INVITADO_DIAS * 24 * 60 * 60 * 1000).toISOString()
+      : null
+
     const { error: errOrden } = await supabase.from('ordenes').insert([
       {
         id: ordenId,
+        cliente_id: usuario?.id ?? null,
         cliente_nombre: nombre,
         cliente_email: email,
         cliente_telefono: telefono,
@@ -422,7 +501,9 @@ Deno.serve(async (req) => {
         cupon_codigo: codigoCupon || null,
         descuento_cupon: descuentoCupon,
         descuento_outfit: descuentoOutfit,
-        ...(envio ? { envio_detalle: envio } : {}),
+        guest_token_hash: guestTokenHash,
+        guest_token_expira_at: guestTokenExpira,
+        envio_detalle: detalleEnvio(quote, costoEnvioFinal, cp, esRetiro),
       },
     ])
 
@@ -461,6 +542,8 @@ Deno.serve(async (req) => {
         descuento_outfit: descuentoOutfit,
         costo_envio: costoEnvioFinal,
         envio_gratis: correspondeEnvioGratis || esRetiro,
+        guestToken,
+        guestTokenExpira,
       },
       { status: 201 },
     )

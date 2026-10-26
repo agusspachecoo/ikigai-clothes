@@ -13,6 +13,7 @@ export function usePerfil(userId: string | undefined) {
   const [perfil, setPerfil] = useState<Perfil | null>(null)
   const [cargando, setCargando] = useState(false)
   const [cargandoPerfil, setCargandoPerfil] = useState(true)
+  const [errorPerfil, setErrorPerfil] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -20,11 +21,13 @@ export function usePerfil(userId: string | undefined) {
     async function fetchPerfil() {
       if (!userId) {
         setPerfil(null)
+        setErrorPerfil(null)
         setCargandoPerfil(false)
         return
       }
 
       setCargandoPerfil(true)
+      setErrorPerfil(null)
       const { data, error } = await supabase
         .from('perfiles')
         .select('*')
@@ -32,7 +35,12 @@ export function usePerfil(userId: string | undefined) {
         .maybeSingle()
 
       if (!cancelled) {
-        if (!error && data) setPerfil(data as Perfil)
+        if (error) {
+          console.error('No se pudo leer el perfil:', error.message)
+          setErrorPerfil(error.message)
+        } else if (data) {
+          setPerfil(data as Perfil)
+        }
         setCargandoPerfil(false)
       }
     }
@@ -63,5 +71,5 @@ export function usePerfil(userId: string | undefined) {
     return { error: error ? error.message : null }
   }
 
-  return { perfil, cargandoPerfil, cargando, actualizarPerfil }
+  return { perfil, cargandoPerfil, cargando, errorPerfil, actualizarPerfil }
 }

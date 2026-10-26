@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ProductCard } from './ProductCard'
 import type { ProductoConStock } from '../types/database'
@@ -31,6 +31,29 @@ export function ProductShelf({
   variante = 'carrusel',
 }: Props) {
   const pistaRef = useRef<HTMLDivElement>(null)
+  const [hayScroll, setHayScroll] = useState(false)
+
+  const medir = useCallback(() => {
+    const pista = pistaRef.current
+    if (!pista) return
+
+    setHayScroll(pista.scrollWidth > pista.clientWidth + 1)
+  }, [])
+
+  useEffect(() => {
+    const pista = pistaRef.current
+    if (!pista) return
+
+    medir()
+    const observer = new ResizeObserver(medir)
+    observer.observe(pista)
+    window.addEventListener('resize', medir)
+
+    return () => {
+      observer.disconnect()
+      window.removeEventListener('resize', medir)
+    }
+  }, [medir, loading, variante, productos.length])
 
   function desplazar(direccion: 1 | -1) {
     const pista = pistaRef.current
@@ -80,22 +103,26 @@ export function ProductShelf({
         </p>
       ) : variante === 'carrusel' ? (
         <div className="relative">
-          <button
-            type="button"
-            aria-label="Ver productos anteriores"
-            onClick={() => desplazar(-1)}
-            className={`${FLECHA_CLS} left-2 lg:left-4`}
-          >
-            ‹
-          </button>
-          <button
-            type="button"
-            aria-label="Ver más productos"
-            onClick={() => desplazar(1)}
-            className={`${FLECHA_CLS} right-2 lg:right-4`}
-          >
-            ›
-          </button>
+          {hayScroll && (
+            <>
+              <button
+                type="button"
+                aria-label="Ver productos anteriores"
+                onClick={() => desplazar(-1)}
+                className={`${FLECHA_CLS} left-2 lg:left-4`}
+              >
+                ‹
+              </button>
+              <button
+                type="button"
+                aria-label="Ver más productos"
+                onClick={() => desplazar(1)}
+                className={`${FLECHA_CLS} right-2 lg:right-4`}
+              >
+                ›
+              </button>
+            </>
+          )}
 
           <div
             ref={pistaRef}
@@ -103,7 +130,7 @@ export function ProductShelf({
           >
             {productos.map((p) => (
               <div key={p.id} data-carousel-item className={ITEM_CLS}>
-                <ProductCard producto={p} />
+                <ProductCard producto={p} onImageLoad={medir} />
               </div>
             ))}
           </div>

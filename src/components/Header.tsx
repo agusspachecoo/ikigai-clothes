@@ -89,7 +89,7 @@ export function Header() {
       `}</style>
 
       {/* ────────── ADBAR (Marquee fluido con animación garantizada) ────────── */}
-      <div className="relative w-full bg-adbar text-adbar-content h-9 flex items-center overflow-hidden">
+      <div className="relative w-full bg-adbar text-adbar-content h-6 flex items-center overflow-hidden">
         <div className="animate-ikigai-marquee">
           {[0, 1, 2].map((copia) => (
             <ul

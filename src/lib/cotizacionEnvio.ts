@@ -1,134 +1,86 @@
 // ============================================================
-// Cotización de envío: MiCorreo con fallback al tarifario local.
+// Cotización de envío server-side.
 //
-// Una sola entrada para la UI (`Checkout.tsx` y `EnvioCalculator.tsx`):
+// La Edge Function `cotizar-envio` valida el CP, consulta MiCorreo con
+// fallback local y devuelve cada opción firmada con un `quote_token`.
+// `crear-orden` vuelve a verificar esa firma: el navegador no puede cambiar
+// el costo del envío entre la cotización y la compra.
 //
-//   cotizarEnvio(cp, items)
-//
-// Orden de resolución:
-//   1. Cotiza contra Correo Argentino vía la Edge Function `micorreo-envio`.
-//   2. Si responde en menos de 4 s y trae al menos un rate de Clásico,
-//      se usa ese precio tal cual (sin recargos ni subsidios).
-//   3. En cualquier otro caso (red caída, timeout, sin cobertura, sólo
-//      servicios que no son Clásico) se cae al tarifario local.
-//
-// El fallback es invisible para el cliente: no hay cartel ni cambio de copy.
-// Lo único que lo delata es `mock: true` en el resultado, que `PedidosAdmin`
-// ya muestra para distinguir tarifario real de tabla local.
+// Este módulo ya no cae al tarifario local: una cotización sin firma no sirve
+// para crear la orden.
 // ============================================================
 
-import { cotizarMicorreo, dimensionesPorPrendas, type OpcionMicorreo } from './micorreo'
-import { ratesACpciones } from './mapeoMicorreo'
-import {
-  cotizarEnvioLocal,
-  provinciaPorCP,
-  ORIGEN_CP,
-  type OpcionEnvio,
-  type ResultadoCotizacion,
-} from './tarifasEnvio'
+import { supabase } from './supabase'
+import type { ResultadoCotizacion } from './enviopack'
 import type { CartItem } from '../types/cart'
 
-/** Cortamiape de la llamada a MiCorreo. Si tarda más, manda el local. */
-export const TIMEOUT_MICORREO_MS = 4000
-
-/**
- * Cotiza el envío de `items` hacia `destinoCp`.
- *
- * Nunca rechaza: siempre devuelve un `ResultadoCotizacion` listo para pintar.
- * El caller no tiene que tratar excepciones ni distinguir de dónde vino el
- * precio — salvo que le interese `resultado.mock`.
- */
 export async function cotizarEnvio(
   destinoCp: string,
   items: CartItem[],
+  subtotal?: number,
 ): Promise<ResultadoCotizacion> {
   const cp = String(destinoCp ?? '').trim().replace(/\D/g, '')
 
-  // OVERRIDE DIRECTO - Envío gratis para Oberá (CP 3360)
-  if (cp === '3360') {
-    return cotizarEnvioLocal(cp, items)
-  }
-
-  // El CP corto es un error de tipeo, no un fallo del carrier: sin red.
-  if (cp.length < 4) {
-    return cotizarEnvioLocal(cp, items)
-  }
-
-  const remote = await cotizarConTimeout(cp, items)
-  if (remote) return remote
-
-  return conMock(cotizarEnvioLocal(cp, items))
-}
-
-/**
- * Intenta la vía remota. Devuelve `null` en cualquier caso que amerite el
- * fallback: red, timeout, respuesta malformada o ausencia de cobertura.
- *
- * El `Promise.race` no aborta la llamada en curso (supabase-js no expone
- * signal en `invoke`), pero el resultado tardío se descarta y la petición
- * es de sólo lectura, así que no hay efecto colateral.
- */
-async function cotizarConTimeout(
-  cp: string,
-  items: CartItem[],
-): Promise<ResultadoCotizacion | null> {
-  const cantidad = items.reduce((n, i) => n + i.cantidad, 0)
-  if (cantidad <= 0) return null
-
-  const llamada = cotizarMicorreo({
-    postalCodeDestination: cp,
-    postalCodeOrigin: ORIGEN_CP || undefined,
-    deliveredType: 'ambos',
-    dimensions: dimensionesPorPrendas(cantidad),
+  const error = (mensaje: string): ResultadoCotizacion => ({
+    codigo_postal: cp,
+    origen_cp: null,
+    provincia: null,
+    destino: null,
+    paquetes: '',
+    peso: null,
+    opciones: [],
+    mock: true,
+    error: mensaje,
   })
 
-  // Si el timeout gana, la promesa perdedora puede rechazar más adelante y
-  // Node/React la reportaría como unhandled rejection. Se traga acá.
-  const protegida = llamada.then(
-    (r) => r,
-    (e: unknown) => ({ ok: false as const, error: String(e) }),
-  )
+  if (cp.length < 4) {
+    return error('El código postal debe tener al menos 4 dígitos.')
+  }
+  if (items.length === 0) {
+    return error('El carrito está vacío.')
+  }
 
-  const resultado = await Promise.race([
-    protegida,
-    esperar(TIMEOUT_MICORREO_MS).then(() => 'timeout' as const),
-  ])
+  const { data, error: errFuncion } = await supabase.functions.invoke('cotizar-envio', {
+    body: {
+      codigo_postal: cp,
+      items: items.map((i) => ({
+        producto_id: i.producto_id,
+        talle: i.talle,
+        cantidad: i.cantidad,
+      })),
+      subtotal:
+        typeof subtotal === 'number'
+          ? subtotal
+          : items.reduce((n, i) => n + i.precio_unitario * i.cantidad, 0),
+    },
+  })
 
-  if (resultado === 'timeout') return null
-  if (!resultado.ok) return null
+  if (errFuncion) {
+    return error(await leerError(errFuncion, 'No pudimos cotizar el envío.'))
+  }
 
-  const opciones = ratesACpciones(resultado.rates as OpcionMicorreo[])
-  if (opciones.length === 0) return null
-
-  return armarResultado(cp, opciones, cantidad)
-}
-
-/** Arma el `ResultadoCotizacion` con los mismos campos que el tarifario local. */
-function armarResultado(
-  cp: string,
-  opciones: OpcionEnvio[],
-  bultos: number,
-): ResultadoCotizacion {
-  const provincia = provinciaPorCP(cp)
+  const respuesta = data as (ResultadoCotizacion & { error?: string }) | null
+  if (!respuesta) return error('No pudimos cotizar el envío.')
+  if (respuesta.error) return { ...respuesta, opciones: respuesta.opciones ?? [] }
 
   return {
-    codigo_postal: cp,
-    origen_cp: ORIGEN_CP || null,
-    provincia,
-    destino: { city: null, state: provincia },
-    paquetes: `${bultos} bulto${bultos === 1 ? '' : 's'} de 30×20×5 cm`,
-    peso: Number(((bultos * 300) / 1000).toFixed(2)),
-    opciones,
-    mock: false,
+    ...respuesta,
+    opciones: Array.isArray(respuesta.opciones) ? respuesta.opciones : [],
   }
 }
 
-function conMock(res: ResultadoCotizacion): ResultadoCotizacion {
-  return { ...res, mock: true }
-}
-
-function esperar(ms: number): Promise<void> {
-  return new Promise((resolve) => {
-    setTimeout(resolve, ms)
-  })
+async function leerError(
+  error: { message: string; context?: Response },
+  fallback: string,
+): Promise<string> {
+  try {
+    const ctx = (error as { context?: Response }).context
+    if (ctx && typeof ctx.json === 'function') {
+      const cuerpo = (await ctx.json()) as { error?: string }
+      if (cuerpo?.error) return cuerpo.error
+    }
+  } catch {
+    // Cuerpo no JSON: mensaje genérico.
+  }
+  return error.message || fallback
 }

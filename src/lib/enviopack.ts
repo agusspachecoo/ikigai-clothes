@@ -1,12 +1,11 @@
 // ============================================================
 // Tipos y helpers de envío. SIN RED.
 //
-// Este módulo ya no habla con ninguna API de transportista: la cotización se
-// resuelve en `tarifasEnvio.ts` contra un tarifario local. Antes `cotizarEnvio`
-// pegaba a la Edge Function `oca-envio` y devolvía "No se pudo contactar el
-// servicio de cotización", dejando el checkout sin opciones de envío.
+// Este módulo no habla con ninguna API de transportista. La cotización la
+// resuelve la Edge Function `cotizar-envio` (MiCorreo + fallback local) y acá
+// solo viven los tipos y helpers que comparten la UI y el servidor.
 //
-// Si algún día se vuelve a integrar un carrier real, la cotización va en su
+// Si algún día se vuelve a integrar un carrier real, esa lógica va en su
 // propia Edge Function y este archivo se queda solo con los tipos.
 // ============================================================
 
@@ -42,6 +41,8 @@ export interface OpcionEnvio {
   }
   tags: string[]
   selectable: boolean
+  /** Firma HMAC de `cotizar-envio`; `crear-orden` la valida. */
+  quote_token?: string
 }
 
 export interface ResultadoCotizacion {

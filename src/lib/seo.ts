@@ -18,7 +18,7 @@ export const NOMBRE_TIENDA = 'Ikigai Clothes'
 export const OG_IMAGE = `${SITE_URL}/og-image.jpg`
 
 export const DESCRIPCION_POR_DEFECTO =
-  'Indumentaria urbana y deportiva en Oberá, Misiones. Remeras, buzos, pantalones y accesorios con envío a todo el país. 10% OFF pagando por transferencia.'
+  'Indumentaria urbana y deportiva en Oberá, Misiones. Remeras, buzos, pantalones y accesorios con envío a todo el país. 20% OFF pagando por transferencia.'
 
 /** Canonical limpio: sin query string, porque `/catalogo?categoria=x` y `/catalogo` son la misma página. */
 export function canonical(pathname: string): string {

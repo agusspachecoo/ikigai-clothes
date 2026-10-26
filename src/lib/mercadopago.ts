@@ -1,85 +1,43 @@
-import type { CartItem } from '../types/cart'
+import { supabase } from './supabase'
 
-interface ClientePago {
-  nombre: string
-  email: string
-  telefono: string
-  dni: string
-}
-
-const supabaseUrl = String(import.meta.env.VITE_SUPABASE_URL ?? '').replace(/\/$/, '')
-const supabaseAnonKey = String(import.meta.env.VITE_SUPABASE_ANON_KEY ?? '')
 export const MERCADOPAGO_PUBLIC_KEY = String(
   import.meta.env.VITE_MERCADOPAGO_PUBLIC_KEY ?? '',
 )
-const FUNCTIONS_URL = `${supabaseUrl}/functions/v1`
 
+/**
+ * Crea la preferencia de Checkout Pro.
+ *
+ * El navegador manda solo el ID del pedido y, si es invitado, su token. Los
+ * ítems, precios, envío y datos del pagador los lee `create-preference` desde
+ * `orden_items` y `ordenes`.
+ */
 export async function crearPreferenciaMP(
   ordenId: string,
-  items: CartItem[],
-  cliente: ClientePago,
-  costoEnvio = 0,
-  carrierEnvio?: string,
-  cuponCodigo?: string,
-) {
-  const base = window.location.origin
-
-  const body = {
-    ordenId,
-    items: items.map((i) => ({
-      producto_id: i.producto_id,
-      nombre: i.nombre,
-      talle: i.talle,
-      cantidad: i.cantidad,
-      precio_unitario: i.precio_unitario,
-    })),
-    costo_envio: costoEnvio,
-    carrier_envio: carrierEnvio,
-    cupon_codigo: cuponCodigo,
-    cliente,
-    urls: {
-      back: {
-        // Rutas limpias: la app usa BrowserRouter, así que van sin fragmento.
-        success: `${base}/checkout/success`,
-        failure: `${base}/checkout/failure`,
-        pending: `${base}/checkout/pending`,
-      },
-      notification: `${FUNCTIONS_URL}/mercadopago-webhook`,
-    },
-  }
-
-  if (!supabaseUrl || !supabaseAnonKey) {
-    return {
-      init_point: null,
-      error: 'Faltan VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY configurados.',
-    }
-  }
+  ordenToken?: string | null,
+): Promise<{ init_point: string | null; error: string | null }> {
+  if (!ordenId) return { init_point: null, error: 'Falta el ID del pedido.' }
 
   try {
-    const res = await fetch(`${FUNCTIONS_URL}/create-preference`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        apikey: supabaseAnonKey,
-        Authorization: `Bearer ${supabaseAnonKey}`,
+    const { data, error } = await supabase.functions.invoke('create-preference', {
+      body: {
+        ordenId,
+        ordenToken: ordenToken || undefined,
       },
-      body: JSON.stringify(body),
     })
 
-    const data = (await res.json().catch(() => ({}))) as {
-      init_point?: string
-      error?: string
+    if (error) {
+      return { init_point: null, error: await leerError(error) }
     }
 
-    if (!res.ok) {
-      const detalle =
-        res.status === 401
-          ? 'No autorizado. Verificá la API Key de Supabase (VITE_SUPABASE_ANON_KEY).'
-          : data.error ?? 'No se pudo iniciar el pago.'
-      return { init_point: null, error: detalle }
+    const respuesta = (data ?? {}) as { init_point?: string; error?: string }
+    if (!respuesta.init_point) {
+      return {
+        init_point: null,
+        error: respuesta.error ?? 'No se pudo iniciar el pago.',
+      }
     }
 
-    return { init_point: data.init_point ?? null, error: null }
+    return { init_point: respuesta.init_point, error: null }
   } catch {
     return {
       init_point: null,
@@ -87,4 +45,17 @@ export async function crearPreferenciaMP(
         'No se pudo contactar la pasarela de pago. Verificá que las Edge Functions estén desplegadas y que el CORS sea correcto.',
     }
   }
+}
+
+async function leerError(error: { message: string; context?: Response }): Promise<string> {
+  try {
+    const ctx = (error as { context?: Response }).context
+    if (ctx && typeof ctx.json === 'function') {
+      const cuerpo = (await ctx.json()) as { error?: string }
+      if (cuerpo?.error) return cuerpo.error
+    }
+  } catch {
+    // sin cuerpo legible
+  }
+  return error.message || 'No se pudo iniciar el pago.'
 }

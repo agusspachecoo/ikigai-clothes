@@ -44,6 +44,29 @@ Los secrets se configuran con `supabase secrets set <NOMBRE>=<valor>`. Detalle d
 la integración Andreani (incluido el fallback por contrato inválido) en
 `supabase/functions/README.md`.
 
+## Supabase Auth URLs
+
+En **Supabase Dashboard → Authentication → URL Configuration** el `Site URL` y
+las redirect URLs tienen que usar el dominio canónico **sin hash ni barra final**.
+Si apuntan al dominio viejo (`ikigai-store-omega.vercel.app`) la redirección de
+recuperación pasa por un salto entre dominios que puede perder el
+`#access_token` y el usuario termina en la home en vez del formulario.
+
+```text
+Site URL:
+https://ikigai-clothes.vercel.app
+
+Redirect URLs:
+https://ikigai-clothes.vercel.app/
+https://ikigai-clothes.vercel.app/restablecer-password
+https://ikigai-clothes.vercel.app/checkout/pending
+http://localhost:5173/restablecer-password
+http://localhost:5173/checkout/pending
+```
+
+La plantilla **Reset Password** de Authentication → Email Templates debe usar
+`{{ .ConfirmationURL }}`; no copies ahí la plantilla de confirmación de registro.
+
 ## Imagen del showroom (subida desde el panel)
 
 - La foto del bloque de showroom (final de la home) se administra en

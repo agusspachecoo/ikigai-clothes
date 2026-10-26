@@ -28,12 +28,22 @@ export function TiendaProvider({ children }: { children: ReactNode }) {
     let cancelado = false
 
     async function cargar() {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('config_tienda')
         .select('clave, valor')
         .in('clave', [...CLAVES])
 
-      if (cancelado || !data?.length) return
+      if (cancelado) return
+
+      if (error) {
+        // La tienda sigue funcionando con `CONFIG_POR_DEFECTO`: es mejor
+        // mostrar el sitio con valores conservadores que dejar la home en
+        // blanco porque falló una lectura de configuración.
+        console.error('No se pudo leer config_tienda:', error.message)
+        return
+      }
+
+      if (!data?.length) return
 
       const valores = Object.fromEntries(data.map((r) => [r.clave, r.valor])) as Record<
         string,

@@ -35,7 +35,6 @@ const BENEFICIOS: Beneficio[] = [
         <span className="whitespace-nowrap">
           <strong className="text-neutral-900">Correo Argentino</strong>,
         </span>{' '}
-        <strong className="text-neutral-900">OCA</strong>, <strong className="text-neutral-900">y Andreani</strong>
         . Despachamos tu pedido en un plazo de{' '}
         <strong className="text-neutral-900">1 a 3 días hábiles</strong>.
       </>

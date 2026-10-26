@@ -116,15 +116,21 @@ export type CarpetaImagen =
   | 'categorias'
   | 'banners'
 
-/** Convierte una URL pública de imágenes a su path en Storage. */
+/**
+ * Convierte una URL pública de imágenes al path relativo al bucket.
+ *
+ * Storage espera el path SIN el nombre del bucket: `.remove(['productos/x.webp'])`,
+ * no `.remove(['product-images/productos/x.webp'])`.
+ */
 function pathDeImagen(valor: string): string | null {
   const base = `${BUCKET_IMAGENES}/`
-  if (valor.startsWith(base)) return valor
+  if (valor.startsWith(base)) return valor.slice(base.length)
 
   try {
     const url = new URL(valor)
-    const idx = url.pathname.indexOf(`/object/public/${base}`)
-    if (idx !== -1) return decodeURIComponent(url.pathname.slice(idx + `/object/public/`.length))
+    const marcador = `/object/public/${base}`
+    const idx = url.pathname.indexOf(marcador)
+    if (idx !== -1) return decodeURIComponent(url.pathname.slice(idx + marcador.length))
   } catch {
     return null
   }
@@ -445,9 +451,13 @@ export async function actualizarEstadoOrden(id: string, estado: EstadoOrden) {
   }
 }
 
-export async function actualizarComprobanteOrden(id: string, comprobanteUrl: string) {
+export async function actualizarComprobanteOrden(
+  id: string,
+  comprobanteUrl: string,
+  ordenToken?: string | null,
+) {
   const { data, error } = await supabase.functions.invoke('registrar-comprobante', {
-    body: { ordenId: id, path: comprobanteUrl },
+    body: { ordenId: id, path: comprobanteUrl, ordenToken: ordenToken || undefined },
   })
 
   if (error) {
@@ -474,23 +484,66 @@ export async function actualizarComprobanteOrden(id: string, comprobanteUrl: str
 
 export const BUCKET_COMPROBANTES = 'comprobantes'
 
-export async function subirComprobante(file: File, ordenId: string) {
-  const ext =
-    (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 5) ||
-    'jpg'
-  const nombre = `comprobantes/${ordenId}-${Date.now()}.${ext}`
-
-  const { error } = await supabase.storage.from(BUCKET_COMPROBANTES).upload(nombre, file, {
-    cacheControl: '3600',
-    upsert: false,
-    contentType: file.type,
+export async function subirComprobante(
+  file: File,
+  ordenId: string,
+  ordenToken?: string | null,
+) {
+  // La Edge Function valida ownership/token y genera el path + signed upload.
+  // El bucket ya no tiene policy de INSERT anónimo (migración 028).
+  const { data, error } = await supabase.functions.invoke('preparar-comprobante', {
+    body: {
+      ordenId,
+      ordenToken: ordenToken || undefined,
+      nombreArchivo: file.name,
+    },
   })
 
-  if (error) return { url: null, error: error.message }
+  if (error) {
+    return { url: null, error: await leerErrorFuncion(error, 'No se pudo preparar el comprobante.') }
+  }
+
+  const preparado = (data ?? {}) as {
+    path?: string
+    token?: string
+    comprobanteUrl?: string
+    error?: string
+  }
+  if (preparado.error || !preparado.path || !preparado.token) {
+    return {
+      url: null,
+      error: preparado.error ?? 'No se pudo preparar el comprobante.',
+    }
+  }
+
+  const { error: uploadError } = await supabase.storage
+    .from(BUCKET_COMPROBANTES)
+    .uploadToSignedUrl(preparado.path, preparado.token, file, {
+      contentType: file.type,
+      cacheControl: '3600',
+    })
+
+  if (uploadError) return { url: null, error: uploadError.message }
 
   // El bucket es privado (migración 022): se guarda el path, no una URL pública.
   // Ver `comprobanteFirmado()` para abrirlo.
-  return { url: nombre, error: null }
+  return { url: preparado.comprobanteUrl ?? preparado.path, error: null }
+}
+
+async function leerErrorFuncion(
+  error: { message: string; context?: Response },
+  fallback: string,
+): Promise<string> {
+  try {
+    const ctx = (error as { context?: Response }).context
+    if (ctx && typeof ctx.json === 'function') {
+      const cuerpo = (await ctx.json()) as { error?: string }
+      if (cuerpo?.error) return cuerpo.error
+    }
+  } catch {
+    // sin cuerpo legible
+  }
+  return error.message || fallback
 }
 
 const EXPIRACION_COMPROBANTE_SEG = 300

@@ -5,7 +5,6 @@ import { useAuth } from '../context/auth'
 import { useTienda } from '../context/tienda'
 import { usePerfil } from '../hooks/usePerfil'
 import { crearOrden } from '../lib/ordenes'
-import { crearCuentaInvitado, type ResultadoCuentaInvitado } from '../lib/cuentaInvitado'
 import { crearPreferenciaMP } from '../lib/mercadopago'
 import { claveOpcion, nombreTransporte, ORIGEN_CP, type OpcionEnvio, type ResultadoCotizacion } from '../lib/tarifasEnvio'
 import { cotizarEnvio } from '../lib/cotizacionEnvio'
@@ -13,7 +12,7 @@ import { PASOS_PAGO, TEXTO_METODO, type MetodoPago } from '../lib/pagos'
 import { guardarResumen, type ResumenPedido } from '../lib/resumenPedido'
 import { CouponInput } from '../components/CouponInput'
 import { DatosBancarios } from '../components/DatosBancarios'
-import { AvisoCuentaInvitado } from '../components/AvisoCuentaInvitado'
+import { AvisoReclamoPedido } from '../components/AvisoReclamoPedido'
 import { AccesoCheckout } from '../components/AccesoCheckout'
 import { formatearPrecio } from '../lib/precios'
 import { subirComprobante, actualizarComprobanteOrden } from '../lib/adminApi'
@@ -105,7 +104,6 @@ export function Checkout() {
   const [tocados, setTocados] = useState<Partial<Record<Campo, boolean>>>({})
   const [enviado, setEnviado] = useState(false)
   const [confirmacion, setConfirmacion] = useState<PedidoConfirmado | null>(null)
-  const [cuentaInvitado, setCuentaInvitado] = useState<ResultadoCuentaInvitado | null>(null)
 
   const [opcionesEnvio, setOpcionesEnvio] = useState<OpcionEnvio[]>([])
   const [errorEnvio, setErrorEnvio] = useState<string | null>(null)
@@ -116,6 +114,13 @@ export function Checkout() {
   const secuenciaCotizacionRef = useRef(0)
 
   const retiro = opcionEnvio?.id_servicio === OPCION_SHOWROOM.id_servicio
+
+  const esTransferencia = metodoPago === 'transferencia'
+  const descuentoTransferencia = esTransferencia ? total * descuento_transferencia : 0
+  const subtotalConDescuento = Math.max(
+    0,
+    total - descuentoTransferencia - descuentoCupon - descuentoOutfit,
+  )
 
   const aplicarCotizacion = useCallback(
     (res: ResultadoCotizacion | null) => {
@@ -159,7 +164,7 @@ export function Checkout() {
     const timer = window.setTimeout(async () => {
       setCargandoEnvio(true)
       try {
-        const res = await cotizarEnvio(cp, items)
+        const res = await cotizarEnvio(cp, items, subtotalConDescuento)
         if (cancelled || secuencia !== secuenciaCotizacionRef.current) return
         aplicarCotizacion(res)
       } finally {
@@ -171,7 +176,7 @@ export function Checkout() {
       cancelled = true
       window.clearTimeout(timer)
     }
-  }, [form.codigo_postal, retiro, items, aplicarCotizacion])
+  }, [form.codigo_postal, retiro, items, aplicarCotizacion, subtotalConDescuento])
 
   const cpActual = digitosCp(form.codigo_postal)
   const cotizando = cargandoEnvio && !retiro && cpActual.length >= 4
@@ -182,13 +187,6 @@ export function Checkout() {
 
   const etiquetaTransporte = (o: OpcionEnvio | null) =>
     o ? `${nombreTransporte(o)}${o.service_type.name ? ` · ${o.service_type.name}` : ''}` : ''
-
-  const esTransferencia = metodoPago === 'transferencia'
-  const descuentoTransferencia = esTransferencia ? total * descuento_transferencia : 0
-  const subtotalConDescuento = Math.max(
-    0,
-    total - descuentoTransferencia - descuentoCupon - descuentoOutfit,
-  )
 
   const correspondeEnvioGratis =
     envio_gratis_activo && umbral_envio_gratis > 0 && subtotalConDescuento >= umbral_envio_gratis
@@ -259,7 +257,6 @@ export function Checkout() {
     return (
       <ConfirmacionPedido
         pedido={confirmacion}
-        cuentaInvitado={cuentaInvitado}
         enviado={enviado}
         onComprobanteEnviado={() => setEnviado(true)}
         onVolver={() => (
@@ -303,7 +300,7 @@ export function Checkout() {
     ++secuenciaCotizacionRef.current
     setCargandoEnvio(true)
     try {
-      const res = await cotizarEnvio(limpio, items)
+      const res = await cotizarEnvio(limpio, items, subtotalConDescuento)
       aplicarCotizacion(res)
     } finally {
       setCargandoEnvio(false)
@@ -313,7 +310,6 @@ export function Checkout() {
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
     setErrorMsg(null)
-    setCuentaInvitado(null)
 
     setTocados({
       nombre: true,
@@ -375,6 +371,7 @@ export function Checkout() {
             origen_cp: (cotizacion?.origen_cp ?? ORIGEN_CP) || null,
             tiempo: opcionEnvio?.estimado.leyenda || null,
             mock: cotizacion?.mock === true,
+            quote_token: opcionEnvio?.quote_token,
             seleccion: opcionEnvio,
             cotizacion,
           },
@@ -408,12 +405,10 @@ export function Checkout() {
       retiro,
       nombre: nombreCompleto,
       email: form.email.trim(),
+      ordenToken: res.guestToken ?? null,
     }
 
     if (metodoPago === 'transferencia') {
-      if (!user) {
-        setCuentaInvitado(await crearCuentaInvitado(res.ordenId))
-      }
       setEnviando(false)
       setConfirmacion(pedido)
       vaciar()
@@ -421,19 +416,7 @@ export function Checkout() {
       return
     }
 
-    const pref = await crearPreferenciaMP(
-      res.ordenId,
-      items,
-      {
-        nombre: nombreCompleto,
-        email: form.email.trim(),
-        telefono: form.telefono.trim(),
-        dni: form.dni.trim(),
-      },
-      costoEnvioCobrado,
-      opcionEnvio && costoEnvioCobrado > 0 ? nombreTransporte(opcionEnvio) : undefined,
-      cupon?.codigo,
-    )
+    const pref = await crearPreferenciaMP(res.ordenId, res.guestToken)
 
     setEnviando(false)
 
@@ -467,7 +450,7 @@ export function Checkout() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="sm:col-span-2">
                 <Campo
-                  etiqueta="Nombre y Apellido"
+                  etiqueta="Nombre completo"
                   campo="nombre"
                   valor={form.nombre}
                   error={errorVisible('nombre')}
@@ -1085,13 +1068,11 @@ function MetodoBoton({
 
 function ConfirmacionPedido({
   pedido,
-  cuentaInvitado,
   enviado,
   onComprobanteEnviado,
   onVolver,
 }: {
   pedido: PedidoConfirmado
-  cuentaInvitado: ResultadoCuentaInvitado | null
   enviado: boolean
   onComprobanteEnviado: () => void
   onVolver: () => React.ReactNode
@@ -1133,11 +1114,9 @@ function ConfirmacionPedido({
         </div>
       </div>
 
-      {cuentaInvitado && (
-        <div className="mb-6">
-          <AvisoCuentaInvitado resultado={cuentaInvitado} />
-        </div>
-      )}
+      <div className="mb-6">
+        <AvisoReclamoPedido ordenId={pedido.id} email={pedido.email} />
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
         <div className="lg:col-span-3 space-y-6">
@@ -1284,6 +1263,7 @@ function ConfirmacionPedido({
           {esTransferencia && (
             <UploadComprobante
               ordenId={pedido.id}
+              ordenToken={pedido.ordenToken}
               enviado={enviado}
               onEnviado={onComprobanteEnviado}
             />
@@ -1307,10 +1287,12 @@ function Fila({ etiqueta, valor, clase = '' }: { etiqueta: string; valor: string
 
 function UploadComprobante({
   ordenId,
+  ordenToken,
   enviado,
   onEnviado,
 }: {
   ordenId: string
+  ordenToken?: string | null
   enviado: boolean
   onEnviado: () => void
 }) {
@@ -1374,14 +1356,14 @@ function UploadComprobante({
     setSubiendo(true)
     setUploadError(null)
 
-    const { url, error } = await subirComprobante(comprobanteFile, ordenId)
+    const { url, error } = await subirComprobante(comprobanteFile, ordenId, ordenToken)
     if (error || !url) {
       setSubiendo(false)
       setUploadError(error ?? 'No se pudo subir el comprobante.')
       return
     }
 
-    const { error: updateError } = await actualizarComprobanteOrden(ordenId, url)
+    const { error: updateError } = await actualizarComprobanteOrden(ordenId, url, ordenToken)
     setSubiendo(false)
 
     if (updateError) {

@@ -27,6 +27,8 @@ export interface ResumenPedido {
   retiro: boolean
   nombre: string
   email: string
+  /** Token de acceso del checkout invitado. No se manda a analytics. */
+  ordenToken?: string | null
 }
 
 const PREFIJO = 'ikigai:pedido:'
@@ -112,6 +114,7 @@ export function leerResumen(id: string): ResumenPedido | null {
       retiro: Boolean(datos.retiro),
       nombre: datos.nombre ?? '',
       email: datos.email ?? '',
+      ordenToken: typeof datos.ordenToken === 'string' ? datos.ordenToken : null,
     }
   } catch {
     // JSON inválido: se descarta.

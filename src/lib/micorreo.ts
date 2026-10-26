@@ -1,10 +1,9 @@
 // ============================================================
 // Cliente de la Edge Function `micorreo-envio` (Correo Argentino / MiCorreo).
 //
-// Este módulo NO reemplaza hoy a `tarifasEnvio.ts`: el checkout sigue usando
-// el tarifario local. Acá queda lista la invocación remota para cuando se
-// decida el swap. Las credenciales viven en los secrets de la Edge Function,
-// nunca en el bundle del navegador.
+// El checkout cotiza a través de la Edge Function `cotizar-envio`, que usa
+// estas mismas acciones. Las credenciales viven en los secrets de la Edge
+// Function, nunca en el bundle del navegador.
 //
 // Invocación: supabase.functions.invoke('micorreo-envio', { body: { action, ... } })
 //   - action: 'rates'             -> cotización (POST /rates)

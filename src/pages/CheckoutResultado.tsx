@@ -2,8 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../context/auth'
 import { useCart } from '../context/cart'
-import { AvisoCuentaInvitado } from '../components/AvisoCuentaInvitado'
-import { crearCuentaInvitado, type ResultadoCuentaInvitado } from '../lib/cuentaInvitado'
+import { AvisoReclamoPedido } from '../components/AvisoReclamoPedido'
+import { consultarPedidoInvitado, reclamarPedidoInvitado } from '../lib/accesoInvitado'
 import { CONTACTO } from '../lib/contacto'
 import { formatearPrecio } from '../lib/precios'
 import { imagenProducto, srcsetImagen } from '../lib/imagenes'
@@ -77,10 +77,8 @@ const CONFIG = {
 export function CheckoutResultado({ status }: Props) {
   const [searchParams] = useSearchParams()
   const { vaciar } = useCart()
-  const { user, cargando: cargandoAuth } = useAuth()
+  const { user } = useAuth()
   const limpiado = useRef(false)
-  const cuentaIntentada = useRef('')
-  const [cuentaInvitado, setCuentaInvitado] = useState<ResultadoCuentaInvitado | null>(null)
 
   // Mercado Pago devuelve `external_reference` con el UUID de la orden. Si no
   // viene (el usuario cerró la pestaña del checkout y volvió al navegador a
@@ -90,7 +88,7 @@ export function CheckoutResultado({ status }: Props) {
   // El resumen se lee una sola vez al montar, con un inicializador de
   // `useState`: si se leyera en cada render, al podar el storage un rerender lo
   // volvería a dejar en null y el desglose parpadearía.
-  const [resumen] = useState<ResumenPedido | null>(() => leerResumen(orderRef))
+  const [resumen, setResumen] = useState<ResumenPedido | null>(() => leerResumen(orderRef))
 
   useEffect(() => {
     if (status === 'success' && !limpiado.current) {
@@ -106,18 +104,32 @@ export function CheckoutResultado({ status }: Props) {
     if (resumen) podarResumen(resumen.id)
   }, [resumen])
 
+  const ordenId = resumen?.id ?? orderRef
+  const tokenGuardado = resumen?.ordenToken ?? null
+
   useEffect(() => {
-    if (status !== 'success' || cargandoAuth || user) return
+    if (!ordenId) return
 
-    const ordenId = resumen?.id ?? orderRef
-    if (!ordenId || cuentaIntentada.current === ordenId) return
+    let cancelado = false
+    async function cargar() {
+      // Con magic link el usuario ya está autenticado: primero se reclama el
+      // pedido (si el email coincide) y después se consulta con su JWT.
+      if (user) {
+        await reclamarPedidoInvitado(ordenId)
+      }
 
-    cuentaIntentada.current = ordenId
-    void crearCuentaInvitado(ordenId).then(setCuentaInvitado)
-  }, [status, cargandoAuth, user, resumen, orderRef])
+      const { pedido } = await consultarPedidoInvitado(ordenId, tokenGuardado)
+      if (!cancelado && pedido) setResumen(pedido)
+    }
+
+    void cargar()
+    return () => {
+      cancelado = true
+    }
+  }, [ordenId, tokenGuardado, user])
 
   const cfg = CONFIG[status]
-  const codigoPedido = (resumen?.id ?? orderRef).slice(0, 8).toUpperCase()
+  const codigoPedido = ordenId.slice(0, 8).toUpperCase()
 
   const whatsapp = `${CONTACTO.whatsapp}?text=${encodeURIComponent(
     `Hola Ikigai Clothes! Consulta sobre el pedido ${codigoPedido}.`,
@@ -144,9 +156,9 @@ export function CheckoutResultado({ status }: Props) {
         )}
       </div>
 
-      {cuentaInvitado && (
+      {ordenId && (resumen?.email || user?.email) && (
         <div className="mt-8">
-          <AvisoCuentaInvitado resultado={cuentaInvitado} />
+          <AvisoReclamoPedido ordenId={ordenId} email={resumen?.email ?? user?.email ?? ''} />
         </div>
       )}
 

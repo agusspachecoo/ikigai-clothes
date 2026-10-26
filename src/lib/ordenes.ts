@@ -22,6 +22,7 @@ export interface DatosOrden {
     origen_cp?: string | null
     tiempo?: string | null
     mock?: boolean
+    quote_token?: string
     seleccion?: OpcionEnvio | null
     cotizacion?: ResultadoCotizacion | null
   }
@@ -40,6 +41,8 @@ export interface ResumenOrden {
   descuento_outfit: number
   costo_envio: number
   envio_gratis: boolean
+  guestToken?: string | null
+  guestTokenExpira?: string | null
 }
 
 /**
@@ -95,6 +98,8 @@ export async function crearOrden(datos: DatosOrden): Promise<
     descuento_outfit: respuesta.descuento_outfit,
     costo_envio: respuesta.costo_envio,
     envio_gratis: respuesta.envio_gratis,
+    guestToken: respuesta.guestToken ?? null,
+    guestTokenExpira: respuesta.guestTokenExpira ?? null,
   }
 }
 

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, useCallback } from 'react'
 import type { ReactNode } from 'react'
 import type { Session, User } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabase'
+import { urlRestablecerPassword } from '../lib/authUrls'
 import { AuthContext } from './auth'
 import type { ModoAuth, ResultadoAuth } from './auth'
 
@@ -11,6 +12,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [cargando, setCargando] = useState(true)
   const [authModalAbierto, setAuthModalAbierto] = useState(false)
   const [authModalModo, setAuthModalModo] = useState<ModoAuth>('login')
+  const [recuperacionPendiente, setRecuperacionPendiente] = useState(false)
 
   useEffect(() => {
     let activo = true
@@ -22,8 +24,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setCargando(false)
     })
 
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+    const { data: sub } = supabase.auth.onAuthStateChange((event, nextSession) => {
       if (!activo) return
+      if (event === 'PASSWORD_RECOVERY') {
+        setRecuperacionPendiente(true)
+        setAuthModalAbierto(false)
+      }
+      if (event === 'SIGNED_OUT') setRecuperacionPendiente(false)
       setSession(nextSession)
       setUser(nextSession?.user ?? null)
       setCargando(false)
@@ -65,7 +72,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const recuperarPassword = useCallback(async (email: string): Promise<ResultadoAuth> => {
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/restablecer-password`,
+      redirectTo: urlRestablecerPassword(),
     })
     if (error) return { error: traducirError(error.message) }
     return { error: null }
@@ -74,6 +81,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const cambiarPassword = useCallback(async (password: string): Promise<ResultadoAuth> => {
     const { error } = await supabase.auth.updateUser({ password })
     if (error) return { error: traducirError(error.message) }
+    setRecuperacionPendiente(false)
     return { error: null }
   }, [])
 
@@ -88,6 +96,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       cargando,
       authModalAbierto,
       authModalModo,
+      recuperacionPendiente,
       abrirAuthModal,
       cerrarAuthModal,
       iniciarSesion,
@@ -96,7 +105,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       cambiarPassword,
       cerrarSesion,
     }),
-    [user, session, cargando, authModalAbierto, authModalModo, abrirAuthModal, cerrarAuthModal, iniciarSesion, registrar, recuperarPassword, cambiarPassword, cerrarSesion],
+    [user, session, cargando, authModalAbierto, authModalModo, recuperacionPendiente, abrirAuthModal, cerrarAuthModal, iniciarSesion, registrar, recuperarPassword, cambiarPassword, cerrarSesion],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

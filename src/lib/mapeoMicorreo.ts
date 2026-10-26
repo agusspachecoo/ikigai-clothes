@@ -123,7 +123,7 @@ export function ratesACpciones(rates: OpcionMicorreo[]): OpcionEnvio[] {
 }
 
 /**
- * Marca la más barata y la más rápida. Mismo criterio que `cotizarEnvioLocal`
+ * Marca la más barata y la más rápida. Mismo criterio que `cotizar-envio`
  * para que la UI se comporte igual venga de donde venga la cotización.
  */
 export function marcarTags(opciones: OpcionEnvio[]): void {

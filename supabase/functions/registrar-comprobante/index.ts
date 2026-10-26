@@ -1,18 +1,9 @@
-import { createClient } from 'npm:@supabase/supabase-js@2'
 import { corsHeaders, json } from '../_shared/cors.ts'
+import { getSupabaseAdmin, getUsuario, puedeAccederOrden } from '../_shared/auth.ts'
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const ESTADOS_CERRADOS = new Set(['pagado', 'enviado', 'entregado', 'cancelado'])
 const DIAS_MAX = 30
-
-function getSupabaseAdmin() {
-  const url = Deno.env.get('SUPABASE_URL')
-  const key = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-  if (!url || !key) {
-    throw new Error('Faltan SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY')
-  }
-  return createClient(url, key)
-}
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
@@ -28,7 +19,11 @@ Deno.serve(async (req) => {
       return json({ error: 'Cuerpo JSON inválido.' }, { status: 400 })
     }
 
-    const { ordenId, path } = (body ?? {}) as { ordenId?: unknown; path?: unknown }
+    const { ordenId, path, ordenToken } = (body ?? {}) as {
+      ordenId?: unknown
+      path?: unknown
+      ordenToken?: unknown
+    }
 
     if (typeof ordenId !== 'string' || !UUID_RE.test(ordenId)) {
       return json({ error: 'ordenId inválido.' }, { status: 400 })
@@ -44,10 +39,11 @@ Deno.serve(async (req) => {
     }
 
     const supabase = getSupabaseAdmin()
+    const usuario = await getUsuario(req, supabase)
 
     const { data: orden, error: errOrden } = await supabase
       .from('ordenes')
-      .select('id, metodo_pago, estado, estado_pago, created_at')
+      .select('id, cliente_id, cliente_email, guest_token_hash, guest_token_expira_at, metodo_pago, estado, estado_pago, created_at')
       .eq('id', ordenId)
       .maybeSingle()
 
@@ -56,7 +52,7 @@ Deno.serve(async (req) => {
       return json({ error: 'No se pudo leer el pedido.' }, { status: 500 })
     }
 
-    if (!orden) {
+    if (!orden || !(await puedeAccederOrden(orden, usuario, String(ordenToken ?? '').trim()))) {
       return json({ error: 'Pedido no encontrado.' }, { status: 404 })
     }
 

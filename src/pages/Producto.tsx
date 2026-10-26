@@ -350,11 +350,8 @@ export function Producto() {
 
             {descuento_transferencia > 0 && (
               <div className="border-2 border-emerald-600 bg-emerald-50 px-4 py-3 mt-4 rounded-lg shadow-sm">
-                <p className="text-base font-semibold text-emerald-700 mb-1">
-                  Pagando por transferencia
-                </p>
-                <p className="text-2xl md:text-3xl font-extrabold text-emerald-600">
-                  ${formatearPrecio(precioTransferenciaFinal)}
+                <p className="text-xl font-semibold text-emerald-700 mb-1">
+                  Precio por transferencia ${formatearPrecio(precioTransferenciaFinal)}
                 </p>
                 {ahorroTransferencia > 0 && (
                   <p className="text-sm text-emerald-700 mt-1">
@@ -373,9 +370,7 @@ export function Producto() {
             )}
           </div>
 
-          {producto.descripcion && (
-            <p className="mt-4 text-sm opacity-70 leading-relaxed">{producto.descripcion}</p>
-          )}
+          
 
           {/* Selector de talles */}
           {talles.length > 0 && (
@@ -430,20 +425,12 @@ export function Producto() {
           {/* Medios de pago y envío */}
           <ul className="mt-6 border-t border-line text-xs divide-y divide-line">
             <li className="flex items-center justify-between py-2.5">
-              <span className="opacity-60">Medios de pago</span>
-              <span>Mercado Pago · Transferencia</span>
-            </li>
-            <li className="flex items-center justify-between py-2.5">
               <span className="opacity-60">Envíos</span>
               <span>
                 {envio_gratis_activo && umbral_envio_gratis > 0
                   ? `Gratis desde $${formatearPrecio(umbral_envio_gratis)}`
                   : 'A todo el país'}
               </span>
-            </li>
-            <li className="flex items-center justify-between py-2.5">
-              <span className="opacity-60">Retiro</span>
-              <span>Showroom sin cargo</span>
             </li>
           </ul>
 
@@ -462,8 +449,12 @@ export function Producto() {
             />
           </div>
         </div>
+        
       </div>
-
+      {/* Descripción */}
+      {producto.descripcion && (
+            <p className="mt-4 text-sm opacity-70 leading-relaxed">Descripción: {producto.descripcion}</p>
+     )}
       {/* Preguntas frecuentes */}
       <FAQSection />
 

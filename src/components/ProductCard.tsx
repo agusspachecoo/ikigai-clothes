@@ -9,7 +9,13 @@ import {
   precioTransferencia,
 } from '../lib/precios'
 
-export function ProductCard({ producto }: { producto: ProductoConStock }) {
+export function ProductCard({
+  producto,
+  onImageLoad,
+}: {
+  producto: ProductoConStock
+  onImageLoad?: () => void
+}) {
   const { descuento_transferencia } = useTienda()
 
   // Producto de un drop futuro: se muestra difuminado, sin precio y sin enlace.
@@ -25,6 +31,7 @@ export function ProductCard({ producto }: { producto: ProductoConStock }) {
                 loading="lazy"
                 decoding="async"
                 aria-hidden="true"
+                onLoad={onImageLoad}
                 className="absolute inset-0 block w-full h-full object-cover object-[center_20%] scale-110 blur-[6px]"
               />
             )}
@@ -76,6 +83,7 @@ export function ProductCard({ producto }: { producto: ProductoConStock }) {
               decoding="async"
               width={320}
               height={427}
+              onLoad={onImageLoad}
               onError={(e) => {
                 e.currentTarget.src = imagenProducto(null, 0)
               }}
@@ -91,6 +99,7 @@ export function ProductCard({ producto }: { producto: ProductoConStock }) {
               decoding="async"
               width={320}
               height={427}
+              onLoad={onImageLoad}
               onError={(e) => {
                 e.currentTarget.src = imagenProducto(null, 1)
               }}

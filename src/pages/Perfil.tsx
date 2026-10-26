@@ -91,14 +91,14 @@ function PerfilAutenticado({
     setUltimoTab(tabDesdeNavegacion)
     setTab(tabDesdeNavegacion)
   }
-  const { perfil, cargandoPerfil, actualizarPerfil } = usePerfil(userId)
+  const { perfil, cargandoPerfil, errorPerfil, actualizarPerfil } = usePerfil(userId)
 
   useEffect(() => {
     let activo = true
 
     async function cargar() {
       setLoading(true)
-      const res = await getMisPedidos(email)
+      const res = await getMisPedidos(userId)
       if (!activo) return
       setPedidos(res.data)
       setError(res.error)
@@ -109,7 +109,7 @@ function PerfilAutenticado({
     return () => {
       activo = false
     }
-  }, [email])
+  }, [userId])
 
   const [productosFav, setProductosFav] = useState<ProductoConStock[]>([])
   const [cargandoFavs, setCargandoFavs] = useState(false)
@@ -334,6 +334,11 @@ function PerfilAutenticado({
           </dl>
 
           <div className="divider my-0" />
+          {errorPerfil && (
+            <div role="alert" className="alert alert-error text-sm">
+              No pudimos cargar tus datos: {errorPerfil}
+            </div>
+          )}
           {cargandoPerfil ? (
             <div className="skeleton h-56 w-full rounded-2xl" />
           ) : (

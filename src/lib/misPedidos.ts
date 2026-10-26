@@ -9,11 +9,11 @@ export type OrdenConItems = Orden & {
   orden_items: OrdenItemConProducto[]
 }
 
-export async function getMisPedidos(email: string) {
+export async function getMisPedidos(userId: string) {
   const { data, error } = await supabase
     .from('ordenes')
     .select('*, orden_items(*, producto:productos(nombre, imagenes))')
-    .eq('cliente_email', email)
+    .eq('cliente_id', userId)
     .order('created_at', { ascending: false })
 
   return { data: (data ?? []) as OrdenConItems[], error: error?.message ?? null }

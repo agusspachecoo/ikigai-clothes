@@ -1,0 +1,49 @@
+# Configuración de Supabase CLI para las Edge Functions.
+#
+# `verify_jwt = true` es el default: el gateway exige un JWT (la anon key
+# también es un JWT) y la función decide después si necesita usuario real.
+# Solo el webhook de Mercado Pago se deja sin verificación porque lo llama
+# Mercado Pago sin Authorization; su autenticidad se valida con la firma
+# `x-signature` dentro de la función.
+
+[functions.mercadopago-webhook]
+verify_jwt = false
+
+[functions.crear-orden]
+verify_jwt = true
+
+[functions.create-preference]
+verify_jwt = true
+
+[functions.cotizar-envio]
+verify_jwt = true
+
+[functions.preparar-comprobante]
+verify_jwt = true
+
+[functions.registrar-comprobante]
+verify_jwt = true
+
+[functions.acceso-invitado]
+verify_jwt = true
+
+[functions.micorreo-envio]
+verify_jwt = true
+
+[functions.admin-estado-orden]
+verify_jwt = true
+
+[functions.validar-cupon]
+verify_jwt = true
+
+[functions.andreani-envio]
+verify_jwt = true
+
+[functions.enviopack-envio]
+verify_jwt = true
+
+[functions.oca-envio]
+verify_jwt = true
+
+[functions.zippin-envio]
+verify_jwt = true

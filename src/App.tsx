@@ -1,20 +1,10 @@
-import { lazy, Suspense, useEffect } from 'react'
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
-import ReactGA from 'react-ga4'
+import { lazy, Suspense } from 'react'
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { StoreLayout } from './layouts/StoreLayout'
 import { Home } from './pages/Home'
 import { Catalogo } from './pages/Catalogo'
 import { Producto } from './pages/Producto'
 
-ReactGA.initialize('G-L3N4Z90T3Z')
-
-function RouteTracker() {
-  const location = useLocation()
-  useEffect(() => {
-    ReactGA.send({ hitType: 'pageview', page: location.pathname + location.search })
-  }, [location])
-  return null
-}
 
 // El bundle inicial se queda con Home y Catalogo; el resto se carga por ruta.
 const Categoria = lazy(() => import('./pages/Categoria').then((m) => ({ default: m.Categoria })))
@@ -89,7 +79,6 @@ const ConfigAdmin = lazy(() =>
 function App() {
   return (
     <BrowserRouter>
-      <RouteTracker />
       <Suspense
         fallback={
           <div className="flex min-h-[60vh] items-center justify-center">

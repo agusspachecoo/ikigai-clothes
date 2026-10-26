@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
-import { Outlet, useLocation } from 'react-router-dom'
+import { Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { RESET_PASSWORD_PATH } from '../lib/authUrls'
 import { Header } from '../components/Header'
 import { Footer } from '../components/Footer'
 import { AuthModal } from '../components/AuthModal'
@@ -12,19 +13,30 @@ import { TiendaProvider } from '../context/TiendaContext'
 const WELCOME_FLAG = 'ikigai-auth-welcome-visto'
 
 export function StoreLayout() {
-  const { user, cargando, abrirAuthModal } = useAuth()
+  const { user, cargando, abrirAuthModal, recuperacionPendiente } = useAuth()
   const location = useLocation()
+  const navigate = useNavigate()
+
+  // Si el enlace de recuperación cayó en otra ruta (por ejemplo, porque Supabase
+  // usó el Site URL como fallback), llevamos al usuario al formulario correcto
+  // antes de que el modal automático de auth lo intercepte.
+  useEffect(() => {
+    if (!recuperacionPendiente) return
+    if (location.pathname.startsWith(RESET_PASSWORD_PATH)) return
+    navigate(RESET_PASSWORD_PATH, { replace: true })
+  }, [recuperacionPendiente, location.pathname, navigate])
 
   useEffect(() => {
+    if (recuperacionPendiente) return
     if (cargando || user) return
     if (location.pathname.startsWith('/admin')) return
     if (location.pathname.startsWith('/checkout')) return
-    if (location.pathname.startsWith('/restablecer-password')) return
+    if (location.pathname.startsWith(RESET_PASSWORD_PATH)) return
     if (sessionStorage.getItem(WELCOME_FLAG)) return
 
     sessionStorage.setItem(WELCOME_FLAG, '1')
     abrirAuthModal()
-  }, [cargando, user, location.pathname, abrirAuthModal])
+  }, [cargando, user, location.pathname, abrirAuthModal, recuperacionPendiente])
 
   const esAdmin = location.pathname.startsWith('/admin')
 

@@ -3,8 +3,6 @@ import { supabase } from '../lib/supabase'
 import { DROP_EMBED, filtrarDropsFuturos } from '../lib/drops'
 import type { ProductoConStock } from '../types/database'
 
-const ESTADOS_PAGADOS = ['pagado', 'enviado', 'entregado']
-
 interface ResultadoTop {
   productos: ProductoConStock[]
   loading: boolean
@@ -76,24 +74,16 @@ export function useMasVendidos(limit = 8): ResultadoTop {
     async function cargar() {
       setLoading(true)
 
-      const { data } = await supabase
-        .from('orden_items')
-        .select('producto_id, cantidad, ordenes!inner(estado)')
-        .in('ordenes.estado', ESTADOS_PAGADOS)
-        .range(0, 499)
+      // `orden_items` deja de ser legible por anon (migración 028). El
+      // ranking se pide a una función SECURITY DEFINER que solo devuelve
+      // producto_id + total vendido, sin datos del comprador.
+      const { data } = await supabase.rpc('productos_mas_vendidos', { p_limit: limit })
 
       if (cancelled) return
 
-      const contador = new Map<string, number>()
-      for (const item of data ?? []) {
-        const id = String(item.producto_id)
-        contador.set(id, (contador.get(id) ?? 0) + Number(item.cantidad ?? 1))
-      }
-
-      const ordenados = [...contador.entries()]
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, limit)
-        .map(([id]) => id)
+      const ordenados = (data ?? []).map((fila: { producto_id: string }) =>
+        String(fila.producto_id),
+      )
 
       const ids = await cargarProductosPorIds(ordenados)
       if (cancelled) return
@@ -196,7 +186,7 @@ export const RESENAS_FALLBACK: ResenaDestacada[] = [
     nombre_usuario: 'Joaquín Pérez',
     puntuacion: 5,
     comentario:
-      'Excelente calidad en todas las prendas. Pedí por transferencia y tuve un 10% de descuento, un golazo.',
+      'Excelente calidad en todas las prendas. Pedí por transferencia y tuve un 20% de descuento, un golazo.',
     imagen_url: null,
     producto_nombre: 'Remera Oversize',
     created_at: '',

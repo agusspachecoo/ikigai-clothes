@@ -338,6 +338,7 @@ export function AuthModal() {
                 {modo !== 'recuperar' && (
                   <>
                     <AuthField
+                      key={`password-${modo}`}
                       label="Contraseña"
                       type="password"
                       autoComplete={modo === 'login' ? 'current-password' : 'new-password'}
@@ -364,6 +365,7 @@ export function AuthModal() {
 
                 {modo === 'registro' && (
                   <AuthField
+                    key="password-confirm"
                     label="Repetí la contraseña"
                     type="password"
                     autoComplete="new-password"

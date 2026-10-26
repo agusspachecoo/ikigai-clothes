@@ -5,36 +5,64 @@ Funciones para el pago con **Mercado Pago** (Checkout Pro) + webhook/IPN.
 ## Funciones
 | Función | Descripción |
 | --- | --- |
-| `crear-orden` | **Única vía para crear una orden.** Recalcula en el servidor el subtotal (leyendo `productos`), el descuento por transferencia y el envío gratis (desde `config_tienda`) y el cupón, e inserta `ordenes` + `orden_items` con `service_role`. El cliente NO envía `monto_total` ni descuentos: se ignoran. Devuelve el desglose real (`monto_total`, `subtotal`, `descuento_transferencia`, `descuento_cupon`, `costo_envio`, `envio_gratis`). |
-| `crear-cuenta-invitado` | Crea la cuenta de Supabase Auth para un pedido de invitado usando el email guardado en la orden y la vincula con `ordenes.cliente_id`. Devuelve una clave temporal solo cuando la cuenta es nueva; si el email ya existe no inicia sesión. Se invoca después de confirmar el pago o al registrar una orden por transferencia. |
-| `registrar-comprobante` | Vincula un comprobante ya subido a Storage con su pedido de transferencia, validando que el path pertenezca a la orden. Usa `service_role` para evitar que el invitado necesite una policy de `UPDATE` sobre `ordenes`. |
-| `create-preference` | Crea la preferencia de pago en Mercado Pago. Ignora el `precio_unitario` del cliente y relee los precios de `productos`; el costo de envío lo toma de `ordenes.costo_envio` (ya validado por `crear-orden`), no del body. Rechaza órdenes cuyo `metodo_pago` no sea `mercadopago`. Devuelve `preference_id` e `init_point`. |
+| `crear-orden` | **Única vía para crear una orden.** Recalcula en el servidor el subtotal (leyendo `productos`), el descuento por transferencia y el envío gratis (desde `config_tienda`), el cupón y el outfit, e inserta `ordenes` + `orden_items` con `service_role`. El cliente NO envía `monto_total` ni descuentos: se ignoran. Verifica la firma HMAC de la cotización de envío. Si no hay sesión, genera un token de invitado (en DB solo queda su SHA-256) y lo devuelve en `guestToken`. |
+| `cotizar-envio` | Cotiza el envío en el servidor (Oberá gratis, MiCorreo o tarifario local) y firma cada opción con HMAC-SHA256 (`SHIPPING_QUOTE_SECRET`). El navegador recibe `quote_token` y `crear-orden` lo revalida contra CP, carrito, costo y vencimiento (15 min). |
+| `acceso-invitado` | Con `action: "consultar"` devuelve el pedido a su dueño (JWT) o al invitado con token. Con `action: "reclamar"` vincula la orden al usuario autenticado si su email confirmado coincide, y borra el token. No requiere contraseña: el frontend usa un magic link de Supabase Auth. |
+| `preparar-comprobante` | Valida ownership/token y genera una signed upload URL para el bucket privado `comprobantes`. El path lo decide el servidor; no hay INSERT anónimo en Storage. |
+| `registrar-comprobante` | Vincula un comprobante ya subido a Storage con su pedido de transferencia, revalidando ownership/token, estado y antigüedad. Usa `service_role` para evitar que el invitado necesite una policy de `UPDATE` sobre `ordenes`. |
+| `create-preference` | Crea la preferencia de pago en Mercado Pago. Recibe solo `ordenId` (+ `ordenToken` de invitado), lee los ítems desde `orden_items`, relee precios/stock y toma el envío de `ordenes.costo_envio` (ya validado por `crear-orden`). Rechaza órdenes ajenas, pagadas, canceladas o que no sean `mercadopago`. |
 | `mercadopago-webhook` | Recibe las notificaciones (IPN) de Mercado Pago, consulta el estado real del pago, actualiza la orden en Supabase a `pagado` y **descuenta el stock** de las prendas del pedido. |
 | `zippin-envio` | Cotiza el envío de un pedido contra Zipnova (ex Zippin). Recibe un código postal destino y los ítems del carrito, y devuelve las opciones de transporte disponibles (Andreani, Correo Argentino, etc.) con costo y tiempo estimado. |
 | `enviopack-envio` | Cotiza el envío contra la API de EnvíoPack (`GET /cotizar/costo`) y devuelve los carriers disponibles normalizados con el mismo formato que el frontend espera. |
 | `andreani-envio` | Cotiza el envío **directamente** contra la API de Andreani PYME (`https://apis.andreani.com`) enviando el DNI/CUIT registrado en el campo `contrato`. Respuesta en el mismo formato uniforme del frontend. |
 | `oca-envio` | Cotiza el envío **directamente** contra el Web Service público de OCA `Tarifar_Envio_Corporativo` (webservice de e-Pak). Solo necesita un CUIT registrado (sin credenciales de usuario) y devuelve las opciones de OCA (a domicilio y a sucursal) en el mismo formato uniforme. |
-| `micorreo-envio` | Integración con la API **MiCorreo de Correo Argentino** (`api.correoargentino.com.ar/micorreo/v1`). Tres acciones vía campo `action`: `rates` (cotización), `shipping/import` (alta de envío) y `shipping/tracking` (seguimiento). Autentica con HTTP Basic y cachea el JWT en Deno KV. **Todavía no la consume el checkout** (sigue con el tarifario local de `tarifasEnvio.ts`); el cliente está en `src/lib/micorreo.ts`. |
+| `micorreo-envio` | Integración con la API **MiCorreo de Correo Argentino** (`api.correoargentino.com.ar/micorreo/v1`). Tres acciones vía campo `action`: `rates` (cotización), `shipping/import` (alta de envío) y `shipping/tracking` (seguimiento). Autentica con HTTP Basic y cachea el JWT en Deno KV. `cotizar-envio` usa `rates` como fuente de precios; `shipping/import` y `shipping/tracking` exigen JWT de admin. |
 
-## Guest checkout y cuenta automática
+## Guest checkout con token + magic link
 
-El checkout funciona sin sesión. La orden se crea con `crear-orden`; después del pago aprobado (o del alta por transferencia) el frontend invoca `crear-cuenta-invitado` con el `ordenId`.
+El checkout funciona sin sesión. `crear-orden` genera un token aleatorio de 32 bytes y lo devuelve al navegador; en la base solo se guarda su SHA-256. El token viaja en el `sessionStorage` del resumen y en el body de las Edge Functions, **nunca en la URL**.
 
-- La función busca el email en la orden, no confía en datos del navegador.
-- Si el email ya tiene cuenta, responde `existente: true` y el frontend no auto-loguea.
-- Si crea la cuenta, devuelve una clave temporal y el frontend inicia sesión. El comprador puede definir su contraseña desde el aviso de éxito.
-- Solo acepta órdenes de hasta 30 días.
+- `acceso-invitado` (`consultar`) permite ver el pedido con ese token aunque no haya cuenta.
+- Después del pago, el comprador puede guardar el pedido con un magic link (`signInWithOtp`) y `acceso-invitado` (`reclamar`), que vincula `cliente_id` solo si el email confirmado de Auth coincide con el de la orden.
+- No se crean cuentas con contraseñas temporales ni se confirma el email sin que el comprador lo controle.
+- Los tokens vencen a los 30 días y el comprador puede seguir consultando sin registrarse.
 
-Deploy:
+Deploy (el `config.toml` ya define `verify_jwt` por función):
 
 ```bash
-supabase functions deploy crear-cuenta-invitado
+supabase functions deploy crear-orden
+supabase functions deploy cotizar-envio
+supabase functions deploy create-preference
+supabase functions deploy preparar-comprobante
 supabase functions deploy registrar-comprobante
+supabase functions deploy acceso-invitado
+supabase functions deploy micorreo-envio
+supabase functions deploy mercadopago-webhook --no-verify-jwt
+# eliminar la función vieja del flujo inseguro, si sigue desplegada:
+supabase functions delete crear-cuenta-invitado
 ```
 
-Ambas verifican el JWT que envía el frontend (anon key o sesión). No requieren `--no-verify-jwt`.
+Antes de desplegar, aplicar `027_guest_checkout_auth.sql` y después `028_seguridad_ordenes_invitados.sql`. La 028 elimina el INSERT anónimo de Storage y las policies de escritura pública de `ordenes`/`orden_items`.
 
-Para el comprobante de transferencia, aplicar antes la migración `027_guest_checkout_auth.sql`, que permite subir a `comprobantes/` tanto a `anon` como a `authenticated` (después del auto-login el rol cambia).
+## Secret obligatorio para firmar envíos
+
+```bash
+# Mínimo 32 caracteres. Usá un valor aleatorio, no una frase corta.
+supabase secrets set SHIPPING_QUOTE_SECRET=...
+```
+
+Sin este secret, `cotizar-envio` responde 503 y `crear-orden` responde 409 al intentar validar el envío.
+
+## Magic link
+
+En Supabase Dashboard → Authentication → URL Configuration, agregá como redirect permitido:
+
+```
+https://TU-DOMINIO/checkout/pending
+http://localhost:5173/checkout/pending
+```
+
+El magic link redirige a `/checkout/pending?external_reference=<ordenId>`; el token de invitado no se incluye en la URL.
 
 ## Dónde configurar los tokens de Mercado Pago
 

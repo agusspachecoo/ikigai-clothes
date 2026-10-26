@@ -14,6 +14,8 @@ export interface AuthContextValue {
   cargando: boolean
   authModalAbierto: boolean
   authModalModo: ModoAuth
+  /** Hay un enlace de recuperación de contraseña recién validado. */
+  recuperacionPendiente: boolean
   abrirAuthModal: (modo?: ModoAuth) => void
   cerrarAuthModal: () => void
   iniciarSesion: (email: string, password: string) => Promise<ResultadoAuth>

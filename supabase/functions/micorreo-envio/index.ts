@@ -22,6 +22,7 @@
 // ============================================================
 
 import { corsHeaders, json } from '../_shared/cors.ts'
+import { getSupabaseAdmin, getUsuarioAdmin } from '../_shared/auth.ts'
 
 const API_BASE = 'https://api.correoargentino.com.ar/micorreo/v1'
 
@@ -744,6 +745,13 @@ Deno.serve(async (req) => {
     }
 
     if (accion === 'rates') return json(await cotizarRates(cuerpo))
+
+    // Importar y consultar envíos expone datos del destinatario: solo admin.
+    const admin = await getUsuarioAdmin(req, getSupabaseAdmin())
+    if (!admin) {
+      return json({ error: 'No autorizado.' }, { status: 403 })
+    }
+
     if (accion === 'import') return json(await importarEnvio(cuerpo))
     return json(await seguirEnvio(cuerpo, url.searchParams))
   } catch (err) {

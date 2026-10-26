@@ -6,21 +6,23 @@
 // (Supabase Dashboard -> Edge Functions -> Secrets, o `supabase secrets set`).
 //
 // ============================================================
-// Sudá de seguridad (no negociable):
+// Reglas de seguridad (no negociable):
 //
-// 1. El precio_unitario que envía el cliente se IGNORA por completo. Se releen
-//    los productos desde `productos` y se recalcula el precio real.
-// 2. Se valida que cada producto exista y esté activo.
-// 3. Se valida que cada talle exista en `variaciones_stock`.
-// 4. Se valida el stock disponible.
-// 5. Se valida que el total recalculado coincida con `ordenes.monto_total`.
+// 1. El navegador solo manda `ordenId` (y el token invitado si no hay sesión).
+//    Los productos y precios salen de `orden_items`, no del body.
+// 2. Se valida que el pedido exista y pertenezca al usuario o al token.
+// 3. Se rechazan pedidos ya pagados, cancelados o que no sean de Mercado Pago.
+// 4. Se releen los productos desde `productos` y se recalcula el precio real.
+// 5. Se valida que cada producto exista, esté activo, que el talle exista en
+//    `variaciones_stock` y que haya stock disponible.
+// 6. El total y el envío se comparan contra lo que guardó `crear-orden`.
 //
-// Con esto, mandar precio_unitario: 1 en el body ya no alcanza para comprar una
-// remera de $50.000 por $1.
+// Con esto, mandar precios o ítems arbitrarios en el body ya no alcanza para
+// pagar menos de lo que corresponde.
 // ============================================================
 
-import { createClient } from 'npm:@supabase/supabase-js@2'
 import { corsHeaders, json } from '../_shared/cors.ts'
+import { getSupabaseAdmin, getUsuario, puedeAccederOrden } from '../_shared/auth.ts'
 import { validarCupon, type Cupon } from '../_shared/cupones.ts'
 import { precioUnitarioReal, round2, type ProductoPrecio } from '../_shared/precios.ts'
 import { calcularDescuentoOutfit, type OutfitComposicion } from '../_shared/outfits.ts'
@@ -36,15 +38,6 @@ interface ItemInput {
 
 interface ProductoConTalles extends ProductoPrecio {
   variaciones_stock: { talle: string; stock_disponible: number }[]
-}
-
-function getSupabaseAdmin() {
-  const url = Deno.env.get('SUPABASE_URL')
-  const key = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-  if (!url || !key) {
-    throw new Error('Faltan SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY')
-  }
-  return createClient(url, key)
 }
 
 const hostLocales = ['localhost', '127.0.0.1', '0.0.0.0']
@@ -102,13 +95,13 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json()
-    const { ordenId, items, cliente, urls, costo_envio = 0, carrier_envio, cupon_codigo } = body
+    const { ordenId, ordenToken } = body
 
-    if (!ordenId || !Array.isArray(items) || items.length === 0) {
-      return json({ error: 'Faltan datos: ordenId e items son obligatorios.' }, { status: 400 })
+    if (!ordenId) {
+      return json({ error: 'Falta el ID del pedido.' }, { status: 400 })
     }
 
-    const backUrls = obtenerBackUrls(urls?.back)
+    const backUrls = obtenerBackUrls(undefined)
     if (!backUrls) {
       return json(
         {
@@ -119,21 +112,30 @@ Deno.serve(async (req) => {
       )
     }
 
-    if (!urls?.notification) {
-      return json({ error: 'Falta la URL de notificaciones (webhook).' }, { status: 400 })
-    }
-
     const supabase = getSupabaseAdmin()
+    const usuario = await getUsuario(req, supabase)
 
-    // Validar que el pedido exista y que el monto coincida
     const { data: orden } = await supabase
       .from('ordenes')
-      .select('monto_total, costo_envio, metodo_pago, cliente_nombre, cliente_email, cliente_telefono, cliente_dni, codigo_postal, envio_detalle, cupon_codigo, descuento_cupon, descuento_outfit')
+      .select('id, cliente_id, cliente_email, guest_token_hash, guest_token_expira_at, monto_total, costo_envio, metodo_pago, estado, estado_pago, cliente_nombre, cliente_telefono, cliente_dni, codigo_postal, envio_detalle, cupon_codigo, descuento_cupon, descuento_outfit')
       .eq('id', ordenId)
       .maybeSingle()
 
+    // 404 también cuando no tiene permiso: no se filtra si el pedido existe.
     if (!orden) {
       return json({ error: 'El pedido no existe.' }, { status: 404 })
+    }
+
+    const autorizado = await puedeAccederOrden(orden, usuario, String(ordenToken ?? '').trim())
+    if (!autorizado) {
+      return json({ error: 'El pedido no existe.' }, { status: 404 })
+    }
+
+    if (orden.estado_pago === 'pagado') {
+      return json({ error: 'Este pedido ya está pagado.', ya_pagada: true }, { status: 409 })
+    }
+    if (orden.estado === 'cancelado') {
+      return json({ error: 'Este pedido fue cancelado.' }, { status: 409 })
     }
 
     // Solo Mercado Pago genera preferencias acá. Si la orden es por
@@ -145,37 +147,49 @@ Deno.serve(async (req) => {
       )
     }
 
-    // El costo de envío se toma del que YA validó `crear-orden` al guardar la
-    // orden, no del body. Si difieren, el total de abajo no va a coincidir y
-    // la preferencia se rechaza, pero lo comparamos explícitamente para que el
-    // error sea entendible.
-    const costoEnvioOrden = Number(orden.costo_envio ?? 0) || 0
-    const costoEnvioBody = Number(costo_envio) || 0
-    if (Math.abs(costoEnvioOrden - costoEnvioBody) > 0.01) {
-      return json(
-        { error: 'El costo de envío no coincide con el pedido.' },
-        { status: 409 },
-      )
+    // Los ítems salen de `orden_items`, no del navegador. El cliente ya no
+    // puede elegir qué productos ni qué precios se cobran en la preferencia.
+    const { data: filasItems, error: errorItemsOrden } = await supabase
+      .from('orden_items')
+      .select('producto_id, talle, cantidad, precio_unitario')
+      .eq('orden_id', ordenId)
+
+    if (errorItemsOrden) {
+      console.error('Error leyendo orden_items:', errorItemsOrden)
+      return json({ error: 'No pudimos leer los productos del pedido.' }, { status: 500 })
     }
 
-    const carrierEnvioOrden =
-      (orden.envio_detalle as { carrier?: string | null } | null)?.carrier ?? carrier_envio
+    if (!filasItems || filasItems.length === 0) {
+      return json({ error: 'El pedido no tiene productos.' }, { status: 409 })
+    }
 
-    const itemsInput = items as ItemInput[]
+    const costoEnvioOrden = Number(orden.costo_envio ?? 0) || 0
+    const carrierEnvioOrden =
+      (orden.envio_detalle as { carrier?: string | null } | null)?.carrier ?? null
+
+    const itemsInput: ItemInput[] = filasItems.map((i) => ({
+      producto_id: String(i.producto_id),
+      nombre: '',
+      talle: String(i.talle),
+      cantidad: Number(i.cantidad),
+      precio_unitario: Number(i.precio_unitario),
+    }))
 
     // ---------------------------------------------------------------
     // PASO 1: releer los precios REALES desde la base de datos.
     // ---------------------------------------------------------------
-    const ids = [...new Set(itemsInput.map((i) => String(i.producto_id ?? '')).filter(Boolean))]
+    const ids = itemsInput.map((i) => String(i.producto_id ?? '').trim())
 
-    if (ids.length !== itemsInput.length) {
+    if (ids.some((id) => !id)) {
       return json({ error: 'Hay ítems sin producto_id.' }, { status: 400 })
     }
+
+    const idsUnicos = [...new Set(ids)]
 
     const { data: productos, error: errorProductos } = await supabase
       .from('productos')
       .select('id, nombre, precio, discount_percent, activo, variaciones_stock(talle, stock_disponible)')
-      .in('id', ids)
+      .in('id', idsUnicos)
 
     if (errorProductos) {
       console.error('Error leyendo productos:', errorProductos)
@@ -186,7 +200,7 @@ Deno.serve(async (req) => {
       ((productos ?? []) as ProductoConTalles[]).map((p) => [String(p.id), p]),
     )
 
-    const faltantes = ids.filter((id) => !catalogo.has(id))
+    const faltantes = idsUnicos.filter((id) => !catalogo.has(id))
     if (faltantes.length > 0) {
       return json(
         { error: `Producto inexistente: ${faltantes.join(', ')}.` },
@@ -194,7 +208,7 @@ Deno.serve(async (req) => {
       )
     }
 
-    const inactivos = ids.filter((id) => catalogo.get(id)?.activo === false)
+    const inactivos = idsUnicos.filter((id) => catalogo.get(id)?.activo === false)
     if (inactivos.length > 0) {
       return json(
         { error: 'Uno o más productos del carrito ya no están disponibles.' },
@@ -216,7 +230,7 @@ Deno.serve(async (req) => {
     const itemsResueltos: ItemResuelto[] = []
 
     for (const item of itemsInput) {
-      const producto = catalogo.get(String(item.producto_id))!
+      const producto = catalogo.get(String(item.producto_id ?? '').trim())!
 
       const cantidad = Math.floor(Number(item.cantidad))
       if (!Number.isFinite(cantidad) || cantidad < 1 || cantidad > 99) {
@@ -327,7 +341,7 @@ Deno.serve(async (req) => {
     // El cupón se recalcula acá: el descuento que envía el cliente no se confía
     let descuentoCupon = 0
     let etiquetaCupon = ''
-    const codigoCupon = String(cupon_codigo ?? orden.cupon_codigo ?? '').trim().toUpperCase()
+    const codigoCupon = String(orden.cupon_codigo ?? '').trim().toUpperCase()
 
     if (codigoCupon) {
       const { data: cupon } = await supabase
@@ -439,24 +453,26 @@ Deno.serve(async (req) => {
       statement_descriptor: 'IKIGAI CLOTHES',
       items: mpItems,
       payer: {
-        name: cliente?.nombre ?? orden.cliente_nombre,
-        email: cliente?.email ?? orden.cliente_email,
+        name: orden.cliente_nombre,
+        email: orden.cliente_email,
         phone: {
           area_code: '54',
-          number: String(cliente?.telefono ?? orden.cliente_telefono)
+          number: String(orden.cliente_telefono)
             .replace(/\D/g, '')
             .replace(/^54/, '')
             .slice(0, 15),
         },
         identification: {
           type: 'DNI',
-          number: String(cliente?.dni ?? orden.cliente_dni).replace(/\D/g, ''),
+          number: String(orden.cliente_dni).replace(/\D/g, ''),
         },
       },
       external_reference: String(ordenId),
       back_urls: backUrls,
       auto_return: 'approved',
-      notification_url: urls.notification,
+      // El webhook se arma server-side: un cliente no puede desviar las
+      // notificaciones a un dominio propio.
+      notification_url: `${Deno.env.get('SUPABASE_URL')}/functions/v1/mercadopago-webhook`,
     }
 
     const mpRes = await fetch('https://api.mercadopago.com/checkout/preferences', {
