@@ -63,6 +63,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error: null }
   }, [])
 
+  const recuperarPassword = useCallback(async (email: string): Promise<ResultadoAuth> => {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/restablecer-password`,
+    })
+    if (error) return { error: traducirError(error.message) }
+    return { error: null }
+  }, [])
+
+  const cambiarPassword = useCallback(async (password: string): Promise<ResultadoAuth> => {
+    const { error } = await supabase.auth.updateUser({ password })
+    if (error) return { error: traducirError(error.message) }
+    return { error: null }
+  }, [])
+
   const cerrarSesion = useCallback(async () => {
     await supabase.auth.signOut()
   }, [])
@@ -78,9 +92,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       cerrarAuthModal,
       iniciarSesion,
       registrar,
+      recuperarPassword,
+      cambiarPassword,
       cerrarSesion,
     }),
-    [user, session, cargando, authModalAbierto, authModalModo, abrirAuthModal, cerrarAuthModal, iniciarSesion, registrar, cerrarSesion],
+    [user, session, cargando, authModalAbierto, authModalModo, abrirAuthModal, cerrarAuthModal, iniciarSesion, registrar, recuperarPassword, cambiarPassword, cerrarSesion],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
@@ -91,7 +107,16 @@ function traducirError(mensaje: string): string {
   if (msg.includes('invalid login credentials')) return 'Email o contraseña incorrectos.'
   if (msg.includes('email not confirmed')) return 'Confirmá tu email antes de iniciar sesión.'
   if (msg.includes('already registered')) return 'Ese email ya está registrado. Iniciá sesión.'
-  if (msg.includes('password')) return 'La contraseña debe tener al menos 6 caracteres.'
+  if (msg.includes('invalid email') || msg.includes('invalid format')) {
+    return 'Ingresá un email válido.'
+  }
+  if (msg.includes('should be different') || msg.includes('same password')) {
+    return 'La nueva contraseña debe ser distinta a la anterior.'
+  }
+  if (msg.includes('auth session missing') || msg.includes('session expired')) {
+    return 'Tu sesión venció. Pedí un nuevo enlace de recuperación.'
+  }
+  if (msg.includes('password')) return 'La contraseña debe tener al menos 8 caracteres.'
   if (msg.includes('rate limit')) return 'Demasiados intentos. Esperá unos minutos y volvé a intentar.'
   return mensaje
 }

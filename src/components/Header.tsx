@@ -51,7 +51,7 @@ export function Header() {
     setCarritoAbierto(true)
   }, [setCarritoAbierto])
 
-  const porcentajeDescuento = descuento_transferencia ? Math.round(descuento_transferencia * 100) : 20;
+  const porcentajeDescuento = descuento_transferencia ? Math.round(descuento_transferencia * 100) : 20
 
   const mensajes = [
     `${porcentajeDescuento}% OFF pagando por transferencia`,
@@ -73,14 +73,24 @@ export function Header() {
 
   return (
     <>
-      {/* ────────── ADBAR (Marquee con animación forzada por estilos en línea) ────────── */}
+      <style>{`
+        @keyframes ikigaiMarquee {
+          0% { transform: translateX(0%); }
+          100% { transform: translateX(-33.333%); }
+        }
+        .animate-ikigai-marquee {
+          display: flex;
+          width: max-content;
+          animation: ikigaiMarquee 25s linear infinite;
+        }
+        .animate-ikigai-marquee:hover {
+          animation-play-state: paused;
+        }
+      `}</style>
+
+      {/* ────────── ADBAR (Marquee fluido con animación garantizada) ────────── */}
       <div className="relative w-full bg-adbar text-adbar-content h-9 flex items-center overflow-hidden">
-        <div 
-          className="flex w-max shrink-0 [will-change:transform]"
-          style={{
-            animation: 'marquee 25s linear infinite',
-          }}
-        >
+        <div className="animate-ikigai-marquee">
           {[0, 1, 2].map((copia) => (
             <ul
               key={copia}
@@ -116,7 +126,7 @@ export function Header() {
             </div>
           </div>
 
-          {/* Centro: Logo (Tamaño optimizado en mobile y desktop) */}
+          {/* Centro: Logo */}
           <div className="flex justify-center items-center z-10">
             <Link
               to="/"
@@ -152,7 +162,7 @@ export function Header() {
               {perfilMenuAbierto && (
                 <>
                   <div className="fixed inset-0 z-40" onClick={() => setPerfilMenuAbierto(false)} />
-                  <div className="absolute right-0 top-full mt-2 z-50 w-56 bg-base-100 text-base-content border border-line p-1.5">
+                  <div className="absolute right-0 top-full mt-2 z-50 w-56 bg-base-100 text-base-content border border-line p-1.5 shadow-xl rounded-2xl">
                     {cargandoAuth ? (
                       <div className="px-3 py-2">
                         <span className="loading loading-spinner loading-xs align-middle" />
@@ -260,7 +270,7 @@ export function Header() {
                 </div>
                 <ul
                   tabIndex={0}
-                  className="dropdown-content menu bg-base-100 text-base-content border border-line w-56 z-50 p-1.5 rounded-none"
+                  className="dropdown-content menu bg-base-100 text-base-content border border-line w-56 z-50 p-1.5 rounded-none shadow-xl"
                 >
                   <li>
                     <Link to="/catalogo">Ver todos los productos</Link>

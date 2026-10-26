@@ -40,6 +40,9 @@ const Perfil = lazy(() => import('./pages/Perfil').then((m) => ({ default: m.Per
 const CheckoutGuard = lazy(() =>
   import('./components/CheckoutGuard').then((m) => ({ default: m.CheckoutGuard })),
 )
+const RestablecerPassword = lazy(() =>
+  import('./pages/RestablecerPassword').then((m) => ({ default: m.RestablecerPassword })),
+)
 const CheckoutResultado = lazy(() =>
   import('./pages/CheckoutResultado').then((m) => ({ default: m.CheckoutResultado })),
 )
@@ -109,6 +112,7 @@ function App() {
           <Route path="/politica-de-privacidad" element={<PoliticaPrivacidad />} />
           <Route path="/terminos-y-condiciones" element={<TerminosCondiciones />} />
           <Route path="/perfil" element={<Perfil />} />
+          <Route path="/restablecer-password" element={<RestablecerPassword />} />
           <Route path="/checkout" element={<CheckoutGuard />} />
           <Route path="/checkout/success" element={<CheckoutResultado status="success" />} />
           <Route path="/checkout/failure" element={<CheckoutResultado status="failure" />} />

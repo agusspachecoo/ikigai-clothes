@@ -18,6 +18,8 @@ export function StoreLayout() {
   useEffect(() => {
     if (cargando || user) return
     if (location.pathname.startsWith('/admin')) return
+    if (location.pathname.startsWith('/checkout')) return
+    if (location.pathname.startsWith('/restablecer-password')) return
     if (sessionStorage.getItem(WELCOME_FLAG)) return
 
     sessionStorage.setItem(WELCOME_FLAG, '1')

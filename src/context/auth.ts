@@ -1,7 +1,7 @@
 import { createContext, useContext } from 'react'
 import type { Session, User } from '@supabase/supabase-js'
 
-export type ModoAuth = 'login' | 'registro'
+export type ModoAuth = 'login' | 'registro' | 'recuperar'
 
 export interface ResultadoAuth {
   error: string | null
@@ -18,6 +18,8 @@ export interface AuthContextValue {
   cerrarAuthModal: () => void
   iniciarSesion: (email: string, password: string) => Promise<ResultadoAuth>
   registrar: (email: string, password: string) => Promise<ResultadoAuth>
+  recuperarPassword: (email: string) => Promise<ResultadoAuth>
+  cambiarPassword: (password: string) => Promise<ResultadoAuth>
   cerrarSesion: () => Promise<void>
 }
 

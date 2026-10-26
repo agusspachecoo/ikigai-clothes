@@ -3,7 +3,7 @@ import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/auth'
 import { getMisPedidos, ESTADO_PEDIDO_LABEL, ESTADO_PEDIDO_CLASS } from '../lib/misPedidos'
 import type { OrdenConItems } from '../lib/misPedidos'
-import { imagenProducto, srcsetImagen } from '../lib/imagenes'
+import { imagenProducto } from '../lib/imagenes'
 import { usePerfil, type DatosPerfil } from '../hooks/usePerfil'
 import { listarProductosFavoritos } from '../lib/favoritos'
 import { ProductCard } from '../components/ProductCard'
@@ -111,7 +111,6 @@ function PerfilAutenticado({
     }
   }, [email])
 
-  // Favoritos: se cargan recién al abrir la pestaña, no en el arranque del perfil.
   const [productosFav, setProductosFav] = useState<ProductoConStock[]>([])
   const [cargandoFavs, setCargandoFavs] = useState(false)
   const [errorFavs, setErrorFavs] = useState<string | null>(null)
@@ -137,7 +136,6 @@ function PerfilAutenticado({
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-10">
-      {/* Cabecera del perfil */}
       <div className="card bg-base-100 shadow-sm p-6 mb-6 flex flex-col sm:flex-row sm:items-center gap-4">
         <div className="flex items-center gap-4 flex-1 min-w-0">
           <div className="avatar placeholder">
@@ -155,7 +153,6 @@ function PerfilAutenticado({
         </button>
       </div>
 
-      {/* Tabs */}
       <div role="tablist" className="tabs tabs-boxed gap-1 p-1 mb-6 w-fit">
         <button
           role="tab"
@@ -221,32 +218,41 @@ function PerfilAutenticado({
 
                   <div className="p-5">
                     <ul className="space-y-3">
-                      {pedido.orden_items.map((item, i) => (
-                        <li key={`${item.orden_id}-${i}`} className="flex items-center gap-3">
-                          <img
-                            src={imagenProducto(item.producto?.imagenes[0], 0)}
-                            srcSet={srcsetImagen(item.producto?.imagenes[0], 48).srcset}
-                            sizes={srcsetImagen(item.producto?.imagenes[0], 48).sizes}
-                            alt={`${item.producto?.nombre ?? 'Producto'}, talle ${item.talle || 'único'}`}
-                            loading="lazy"
-                            decoding="async"
-                            width={48}
-                            height={56}
-                            className="w-12 h-14 rounded-lg object-cover bg-base-300 shrink-0"
-                          />
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium truncate">
-                              {item.producto?.nombre ?? 'Producto eliminado'}
+                      {pedido.orden_items.map((item, i) => {
+                        const imagenUrl = item.producto?.imagenes?.[0]
+                        const imagenValida =
+                          imagenUrl && imagenUrl.trim() !== '' ? imagenUrl : null
+
+                        return (
+                          <li key={`${item.orden_id}-${i}`} className="flex items-center gap-3">
+                            <div className="w-12 h-14 rounded-lg overflow-hidden bg-base-300 border border-line/40 flex items-center justify-center shrink-0">
+                              <img
+                                src={imagenValida ? imagenValida : imagenProducto(null, i)}
+                                alt={`${item.producto?.nombre ?? 'Producto'}, talle ${item.talle || 'único'}`}
+                                loading="lazy"
+                                decoding="async"
+                                width={48}
+                                height={56}
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  e.currentTarget.src = imagenProducto(null, i)
+                                }}
+                              />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium truncate">
+                                {item.producto?.nombre ?? 'Producto eliminado'}
+                              </p>
+                              <p className="text-xs opacity-60">
+                                Talle {item.talle} · Cant. {item.cantidad}
+                              </p>
+                            </div>
+                            <p className="text-sm font-semibold">
+                              ${(item.precio_unitario * item.cantidad).toLocaleString('es-AR')}
                             </p>
-                            <p className="text-xs opacity-60">
-                              Talle {item.talle} · Cant. {item.cantidad}
-                            </p>
-                          </div>
-                          <p className="text-sm font-semibold">
-                            ${(item.precio_unitario * item.cantidad).toLocaleString('es-AR')}
-                          </p>
-                        </li>
-                      ))}
+                          </li>
+                        )
+                      })}
                     </ul>
 
                     <div className="divider my-4" />
@@ -304,7 +310,7 @@ function PerfilAutenticado({
         </section>
       )}
 
-{tab === 'cuenta' && (
+      {tab === 'cuenta' && (
         <section className="card bg-base-100 shadow-sm p-6 space-y-4">
           <div className="flex items-center justify-between">
             <div>

@@ -5,6 +5,7 @@ import { useAuth } from '../context/auth'
 import { useTienda } from '../context/tienda'
 import { usePerfil } from '../hooks/usePerfil'
 import { crearOrden } from '../lib/ordenes'
+import { crearCuentaInvitado, type ResultadoCuentaInvitado } from '../lib/cuentaInvitado'
 import { crearPreferenciaMP } from '../lib/mercadopago'
 import { claveOpcion, nombreTransporte, ORIGEN_CP, type OpcionEnvio, type ResultadoCotizacion } from '../lib/tarifasEnvio'
 import { cotizarEnvio } from '../lib/cotizacionEnvio'
@@ -12,6 +13,8 @@ import { PASOS_PAGO, TEXTO_METODO, type MetodoPago } from '../lib/pagos'
 import { guardarResumen, type ResumenPedido } from '../lib/resumenPedido'
 import { CouponInput } from '../components/CouponInput'
 import { DatosBancarios } from '../components/DatosBancarios'
+import { AvisoCuentaInvitado } from '../components/AvisoCuentaInvitado'
+import { AccesoCheckout } from '../components/AccesoCheckout'
 import { formatearPrecio } from '../lib/precios'
 import { subirComprobante, actualizarComprobanteOrden } from '../lib/adminApi'
 import { comprimirImagen, blobToFile, tamañoEnKB } from '../lib/imageCompression'
@@ -25,7 +28,6 @@ import { imagenProducto } from '../lib/imagenes'
 
 const initialState = {
   nombre: '',
-  apellido: '',
   email: '',
   telefono: '',
   dni: '',
@@ -83,9 +85,9 @@ export function Checkout() {
   useEffect(() => {
     async function sincronizarPerfil() {
       if (!perfil) return
+      const nombrePerfil = [perfil.nombre, perfil.apellido].filter(Boolean).join(' ').trim()
       setForm((prev) => ({
-        nombre: prev.nombre || perfil.nombre || '',
-        apellido: prev.apellido || perfil.apellido || '',
+        nombre: prev.nombre || nombrePerfil,
         dni: prev.dni || perfil.dni || '',
         telefono: prev.telefono || perfil.telefono || '',
         email: prev.email || user?.email || '',
@@ -94,7 +96,7 @@ export function Checkout() {
       }))
     }
     sincronizarPerfil()
-  }, [perfil?.id])
+  }, [perfil, user?.email])
 
   const [metodoPago, setMetodoPago] = useState<MetodoPago>('mercadopago')
   const [enviando, setEnviando] = useState(false)
@@ -103,6 +105,7 @@ export function Checkout() {
   const [tocados, setTocados] = useState<Partial<Record<Campo, boolean>>>({})
   const [enviado, setEnviado] = useState(false)
   const [confirmacion, setConfirmacion] = useState<PedidoConfirmado | null>(null)
+  const [cuentaInvitado, setCuentaInvitado] = useState<ResultadoCuentaInvitado | null>(null)
 
   const [opcionesEnvio, setOpcionesEnvio] = useState<OpcionEnvio[]>([])
   const [errorEnvio, setErrorEnvio] = useState<string | null>(null)
@@ -198,7 +201,7 @@ export function Checkout() {
 
   const primeraFalta = (campos: Campo[]) => campos.find((c) => errores[c])
   const faltaContacto =
-    primeraFalta(['nombre', 'apellido', 'email', 'telefono', 'dni']) ??
+    primeraFalta(['nombre', 'email', 'telefono', 'dni']) ??
     (retiro ? undefined : primeraFalta(['direccion', 'codigo_postal']))
 
   const datosCompletos = Object.keys(errores).length === 0
@@ -256,6 +259,7 @@ export function Checkout() {
     return (
       <ConfirmacionPedido
         pedido={confirmacion}
+        cuentaInvitado={cuentaInvitado}
         enviado={enviado}
         onComprobanteEnviado={() => setEnviado(true)}
         onVolver={() => (
@@ -309,10 +313,10 @@ export function Checkout() {
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
     setErrorMsg(null)
+    setCuentaInvitado(null)
 
     setTocados({
       nombre: true,
-      apellido: true,
       email: true,
       telefono: true,
       dni: true,
@@ -338,7 +342,7 @@ export function Checkout() {
 
     setEnviando(true)
 
-    const nombreCompleto = `${form.nombre.trim()} ${form.apellido.trim()}`.trim()
+    const nombreCompleto = form.nombre.trim()
     const envioLabel = retiro
       ? 'Retiro en showroom'
       : cpActual === '3360'
@@ -407,6 +411,9 @@ export function Checkout() {
     }
 
     if (metodoPago === 'transferencia') {
+      if (!user) {
+        setCuentaInvitado(await crearCuentaInvitado(res.ordenId))
+      }
       setEnviando(false)
       setConfirmacion(pedido)
       vaciar()
@@ -450,30 +457,25 @@ export function Checkout() {
         mandarte la confirmación y tu teléfono para coordinar la entrega.
       </p>
 
+      <AccesoCheckout />
+
       <form onSubmit={handleSubmit} noValidate className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Formulario */}
         <div className="lg:col-span-2 space-y-6">
           <fieldset className="bg-base-200 rounded-2xl p-5">
             <legend className="font-semibold text-sm px-2 mb-1">Datos de contacto</legend>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Campo
-                etiqueta="Nombre"
-                campo="nombre"
-                valor={form.nombre}
-                error={errorVisible('nombre')}
-                autoComplete="given-name"
-                onChange={(v) => actualizar('nombre', v)}
-                onBlur={() => marcarTocado('nombre')}
-              />
-              <Campo
-                etiqueta="Apellido"
-                campo="apellido"
-                valor={form.apellido}
-                error={errorVisible('apellido')}
-                autoComplete="family-name"
-                onChange={(v) => actualizar('apellido', v)}
-                onBlur={() => marcarTocado('apellido')}
-              />
+              <div className="sm:col-span-2">
+                <Campo
+                  etiqueta="Nombre y Apellido"
+                  campo="nombre"
+                  valor={form.nombre}
+                  error={errorVisible('nombre')}
+                  autoComplete="name"
+                  onChange={(v) => actualizar('nombre', v)}
+                  onBlur={() => marcarTocado('nombre')}
+                />
+              </div>
               <Campo
                 etiqueta="Email"
                 campo="email"
@@ -776,144 +778,193 @@ export function Checkout() {
 
         {/* Resumen */}
         <div className="lg:col-span-1">
-          <div className="bg-base-200 rounded-2xl p-5 sticky top-24">
-            <p className="font-semibold text-sm mb-4">Tu pedido</p>
-            <ul className="space-y-3 mb-4">
-              {items.map((item, i) => (
-                <li key={`${item.producto_id}-${item.talle}`} className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg overflow-hidden bg-neutral-200 flex items-center justify-center shrink-0 border border-line/40">
-                    <img
-                      src={item.imagen && item.imagen.trim() !== '' ? item.imagen : imagenProducto(null, i)}
-                      alt={`${item.nombre}, talle ${item.talle || 'único'}`}
-                      loading="lazy"
-                      decoding="async"
-                      width={40}
-                      height={40}
-                      onError={(e) => {
-                        e.currentTarget.style.display = 'none';
-                        if (e.currentTarget.parentElement) {
-                          e.currentTarget.parentElement.classList.add('bg-neutral-300');
-                          e.currentTarget.parentElement.innerHTML = '<span class="text-[9px] font-bold uppercase opacity-50">Ikigai</span>';
-                        }
-                      }}
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                  <div className="flex-1 text-sm min-w-0">
-                    <p className="font-medium truncate">{item.nombre}</p>
-                    <p className="opacity-50 text-xs">Talle {item.talle} × {item.cantidad}</p>
-                  </div>
-                  <span className="text-sm font-bold whitespace-nowrap">
-                    ${(item.precio_unitario * item.cantidad).toLocaleString('es-AR')}
-                  </span>
-                </li>
-              ))}
-            </ul>
-            <div className="mb-4">
-              <CouponInput />
+          <aside
+            aria-label="Resumen del pedido"
+            className="sticky top-24 overflow-hidden rounded-2xl border border-line/60 bg-base-100 shadow-sm"
+          >
+            <div className="flex items-center justify-between gap-3 border-b border-line/60 px-5 py-4">
+              <div>
+                <h2 className="font-sans text-sm font-semibold text-base-content">Tu pedido</h2>
+                <p className="mt-0.5 text-xs text-base-content/50">
+                  {items.length} {items.length === 1 ? 'artículo' : 'artículos'}
+                </p>
+              </div>
+              <span className="rounded-full bg-base-200 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-base-content/60">
+                Resumen
+              </span>
             </div>
-            <div className="border-t border-line pt-3 space-y-2">
-              <div className="flex justify-between text-sm">
-                <span className="opacity-60">Subtotal</span>
-                <span className="font-medium">${formatearPrecio(total)}</span>
+
+            <div className="p-5">
+              <ul className="divide-y divide-line/60">
+                {items.map((item, i) => (
+                  <li
+                    key={`${item.producto_id}-${item.talle}`}
+                    className="flex items-start gap-3 py-3 first:pt-0 last:pb-0"
+                  >
+                    <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-line/60 bg-base-200">
+                      <img
+                        src={item.imagen && item.imagen.trim() !== '' ? item.imagen : imagenProducto(null, i)}
+                        alt={`${item.nombre}, talle ${item.talle || 'único'}`}
+                        loading="lazy"
+                        decoding="async"
+                        width={56}
+                        height={56}
+                        onError={(e) => {
+                          e.currentTarget.style.display = 'none';
+                          if (e.currentTarget.parentElement) {
+                            e.currentTarget.parentElement.classList.add('bg-neutral-300');
+                            e.currentTarget.parentElement.innerHTML = '<span class="text-[10px] font-bold uppercase opacity-50">Ikigai</span>';
+                          }
+                        }}
+                        className="h-full w-full object-cover"
+                      />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="line-clamp-2 text-sm font-semibold leading-snug text-base-content">
+                        {item.nombre}
+                      </p>
+                      <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-base-content/50">
+                        <span>Talle {item.talle || 'único'}</span>
+                        <span aria-hidden="true" className="h-1 w-1 rounded-full bg-base-content/30" />
+                        <span>Cant. {item.cantidad}</span>
+                      </p>
+                    </div>
+                    <span className="shrink-0 text-sm font-semibold tabular-nums">
+                      ${(item.precio_unitario * item.cantidad).toLocaleString('es-AR')}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+
+              <div className="mt-5 border-t border-line/60 pt-5">
+                <CouponInput variant="checkout" />
               </div>
 
-              {descuentoOutfit > 0 && (
-                <div className="flex justify-between text-sm text-success font-medium">
-                  <span>Descuento outfit</span>
-                  <span>-${formatearPrecio(descuentoOutfit)}</span>
+              <dl className="mt-5 space-y-3 text-sm">
+                <div className="flex items-baseline justify-between gap-4">
+                  <dt className="text-base-content/50">Subtotal</dt>
+                  <dd className="font-medium tabular-nums">${formatearPrecio(total)}</dd>
                 </div>
-              )}
 
-              {descuentoTransferencia > 0 && (
-                <div className="flex justify-between text-sm text-success font-medium">
-                  <span>
-                    Descuento transferencia -{Math.round(descuento_transferencia * 100)}%
-                  </span>
-                  <span>-${formatearPrecio(descuentoTransferencia)}</span>
+                {(descuentoOutfit > 0 || descuentoTransferencia > 0 || descuentoCupon > 0) && (
+                  <div className="space-y-2 rounded-xl bg-success/5 px-3 py-2.5">
+                    {descuentoOutfit > 0 && (
+                      <div className="flex items-baseline justify-between gap-4 text-success">
+                        <dt className="font-medium">Descuento outfit</dt>
+                        <dd className="font-semibold tabular-nums">
+                          -${formatearPrecio(descuentoOutfit)}
+                        </dd>
+                      </div>
+                    )}
+
+                    {descuentoTransferencia > 0 && (
+                      <div className="flex items-baseline justify-between gap-4 text-success">
+                        <dt className="font-medium">
+                          Descuento transferencia -{Math.round(descuento_transferencia * 100)}%
+                        </dt>
+                        <dd className="font-semibold tabular-nums">
+                          -${formatearPrecio(descuentoTransferencia)}
+                        </dd>
+                      </div>
+                    )}
+
+                    {descuentoCupon > 0 && (
+                      <div className="flex items-baseline justify-between gap-4 text-success">
+                        <dt className="font-medium">Cupón {cupon?.codigo}</dt>
+                        <dd className="font-semibold tabular-nums">
+                          -${formatearPrecio(descuentoCupon)}
+                        </dd>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <div>
+                  <div className="flex items-baseline justify-between gap-4">
+                    <dt className="text-base-content/50">Envío</dt>
+                    <dd className="text-right font-medium">
+                      {retiro
+                        ? 'Sin cargo'
+                        : esEnvioGratisObera
+                          ? 'Envío gratis · GRATIS'
+                          : correspondeEnvioGratis
+                            ? opcionEnvio
+                              ? `${etiquetaTransporte(opcionEnvio)} · GRATIS`
+                              : 'Gratis'
+                            : opcionEnvio
+                              ? `${etiquetaTransporte(opcionEnvio)} · $${formatearPrecio(costoEnvio)}`
+                              : 'Calculá tu envío'}
+                    </dd>
+                  </div>
+
+                  {!retiro &&
+                    !esEnvioGratisObera &&
+                    !correspondeEnvioGratis &&
+                    faltaParaEnvioGratis > 0 && (
+                      <p className="mt-1 text-right text-xs text-base-content/50">
+                        Te faltan ${formatearPrecio(faltaParaEnvioGratis)} para el envío gratis
+                      </p>
+                    )}
                 </div>
-              )}
+              </dl>
 
-              {descuentoCupon > 0 && (
-                <div className="flex justify-between text-sm text-success font-medium">
-                  <span>Cupón {cupon?.codigo}</span>
-                  <span>-${formatearPrecio(descuentoCupon)}</span>
+              <div className="mt-5 rounded-2xl bg-base-200/70 p-4">
+                <div className="flex flex-wrap items-end justify-between gap-2">
+                  <div>
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-base-content/50">
+                      Total final
+                    </p>
+                    <p className="mt-1 text-2xl font-bold tracking-tight tabular-nums">
+                      ${formatearPrecio(totalFinal)}
+                    </p>
+                  </div>
+
+                  {descuentoTransferencia > 0 && (
+                    <span className="shrink-0 rounded-full bg-success/10 px-2.5 py-1 text-[10px] font-semibold text-success">
+                      Ahorrás ${formatearPrecio(descuentoTransferencia + descuentoCupon)}
+                    </span>
+                  )}
                 </div>
-              )}
 
-              <div className="flex justify-between text-sm">
-                <span className="opacity-60">Envío</span>
-                <span className="font-medium">
-                  {retiro
-                    ? 'Sin cargo'
-                    : esEnvioGratisObera
-                      ? 'Envío gratis · GRATIS'
-                      : correspondeEnvioGratis
-                        ? opcionEnvio
-                          ? `${etiquetaTransporte(opcionEnvio)} · GRATIS`
-                          : 'Gratis'
-                        : opcionEnvio
-                          ? `${etiquetaTransporte(opcionEnvio)} · $${formatearPrecio(costoEnvio)}`
-                          : 'Calculá tu envío'}
-                </span>
+                {metodoPago === 'mercadopago' && cuotas_sin_interes > 1 && (
+                  <p className="mt-2 text-xs text-base-content/50">
+                    o {cuotas_sin_interes} cuotas sin interés de $
+                    {formatearPrecio(totalFinal / cuotas_sin_interes)}
+                  </p>
+                )}
               </div>
 
-              {!retiro && !esEnvioGratisObera && !correspondeEnvioGratis && faltaParaEnvioGratis > 0 && (
-                <p className="text-xs text-right opacity-70">
-                  Te faltan ${formatearPrecio(faltaParaEnvioGratis)} para el envío gratis
+              <button
+                type="submit"
+                disabled={enviando || !puedePagar}
+                className={`btn btn-lg btn-block mt-4 rounded-xl shadow-sm transition-shadow disabled:pointer-events-auto disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none ${
+                  puedePagar
+                    ? esTransferencia
+                      ? 'btn-success'
+                      : 'btn-primary'
+                    : 'bg-base-300 text-base-content/50 border-base-300'
+                }`}
+              >
+                {enviando ? (
+                  <span className="loading loading-spinner loading-sm" />
+                ) : esTransferencia ? (
+                  `Confirmar pedido por $${formatearPrecio(totalFinal)}`
+                ) : (
+                  'Pagar con Mercado Pago'
+                )}
+              </button>
+
+              {faltaContacto ? (
+                <p className="mt-2 text-center text-xs text-base-content/50">
+                  {`Falta completar: ${faltaContacto.replace('_', ' ')}.`}
                 </p>
-              )}
-
-              <div className="h-px bg-line my-1"></div>
-
-              <div className="flex justify-between font-semibold">
-                <span>Total</span>
-                <span className="text-lg">${formatearPrecio(totalFinal)}</span>
-              </div>
-
-              {metodoPago === 'mercadopago' && cuotas_sin_interes > 1 && (
-                <p className="text-xs opacity-60 text-right">
-                  o {cuotas_sin_interes} cuotas sin interés de $
-                  {formatearPrecio(totalFinal / cuotas_sin_interes)}
+              ) : !opcionEnvio && !retiro && !esEnvioGratisObera ? (
+                <p className="mt-2 text-center text-xs text-base-content/50">
+                  Elegí una opción de envío para continuar.
                 </p>
-              )}
-
-              {descuentoTransferencia > 0 && (
-                <p className="text-xs text-success font-medium text-right">
-                  Ahorrás ${formatearPrecio(descuentoTransferencia + descuentoCupon)} pagando por
-                  transferencia
-                </p>
-              )}
+              ) : null}
             </div>
-            <button
-              type="submit"
-              disabled={enviando || !puedePagar}
-              className={`btn btn-block mt-5 disabled:pointer-events-auto disabled:cursor-not-allowed disabled:opacity-50 ${
-                puedePagar
-                  ? esTransferencia
-                    ? 'btn-success'
-                    : 'btn-primary'
-                  : 'bg-base-300 text-base-content/50 border-base-300'
-              }`}
-            >
-              {enviando ? (
-                <span className="loading loading-spinner loading-sm" />
-              ) : esTransferencia ? (
-                `Confirmar pedido por $${formatearPrecio(totalFinal)}`
-              ) : (
-                'Pagar con Mercado Pago'
-              )}
-            </button>
-            {faltaContacto ? (
-              <p className="text-xs opacity-60 text-center mt-2">
-                {`Falta completar: ${faltaContacto.replace('_', ' ')}.`}
-              </p>
-            ) : !opcionEnvio && !retiro && !esEnvioGratisObera ? (
-              <p className="text-xs opacity-60 text-center mt-2">
-                Elegí una opción de envío para continuar.
-              </p>
-            ) : null}
-          </div>
+          </aside>
         </div>
       </form>
     </div>
@@ -1034,11 +1085,13 @@ function MetodoBoton({
 
 function ConfirmacionPedido({
   pedido,
+  cuentaInvitado,
   enviado,
   onComprobanteEnviado,
   onVolver,
 }: {
   pedido: PedidoConfirmado
+  cuentaInvitado: ResultadoCuentaInvitado | null
   enviado: boolean
   onComprobanteEnviado: () => void
   onVolver: () => React.ReactNode
@@ -1079,6 +1132,12 @@ function ConfirmacionPedido({
           </p>
         </div>
       </div>
+
+      {cuentaInvitado && (
+        <div className="mb-6">
+          <AvisoCuentaInvitado resultado={cuentaInvitado} />
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
         <div className="lg:col-span-3 space-y-6">

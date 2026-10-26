@@ -146,7 +146,6 @@ export const MENSAJE_OBLIGATORIO = 'Campo obligatorio.'
 
 export type Campo =
   | 'nombre'
-  | 'apellido'
   | 'email'
   | 'telefono'
   | 'dni'
@@ -157,7 +156,6 @@ export type ErroresFormulario = Partial<Record<Campo, string>>
 
 export interface DatosFormulario {
   nombre: string
-  apellido: string
   email: string
   telefono: string
   dni: string
@@ -184,7 +182,6 @@ export function validarCampo(
 
   switch (campo) {
     case 'nombre':
-    case 'apellido':
       if (!v) return MENSAJE_OBLIGATORIO
       if (v.length < 2) return 'Escribí al menos 2 letras.'
       if (/\d/.test(v)) return 'No puede contener números.'
@@ -233,7 +230,6 @@ export function validarFormulario(
 ): ErroresFormulario {
   const campos: Campo[] = [
     'nombre',
-    'apellido',
     'email',
     'telefono',
     'dni',

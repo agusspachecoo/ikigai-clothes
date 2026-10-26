@@ -1,6 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom'
 import { useCart } from '../context/cart'
-import { useAuth } from '../context/auth'
 import { useTienda } from '../context/tienda'
 import { useCierreModal } from '../hooks/useCierreModal'
 import { CouponInput } from './CouponInput'
@@ -20,7 +19,6 @@ export function CarritoDrawer() {
     carritoAbierto,
     setCarritoAbierto,
   } = useCart()
-  const { user, abrirAuthModal } = useAuth()
   const { umbral_envio_gratis, cuotas_sin_interes } = useTienda()
   const navigate = useNavigate()
 
@@ -33,7 +31,6 @@ export function CarritoDrawer() {
   function finalizarCompra() {
     cerrar()
     navigate('/checkout')
-    if (!user) abrirAuthModal()
   }
 
   return (

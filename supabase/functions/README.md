@@ -6,6 +6,8 @@ Funciones para el pago con **Mercado Pago** (Checkout Pro) + webhook/IPN.
 | Función | Descripción |
 | --- | --- |
 | `crear-orden` | **Única vía para crear una orden.** Recalcula en el servidor el subtotal (leyendo `productos`), el descuento por transferencia y el envío gratis (desde `config_tienda`) y el cupón, e inserta `ordenes` + `orden_items` con `service_role`. El cliente NO envía `monto_total` ni descuentos: se ignoran. Devuelve el desglose real (`monto_total`, `subtotal`, `descuento_transferencia`, `descuento_cupon`, `costo_envio`, `envio_gratis`). |
+| `crear-cuenta-invitado` | Crea la cuenta de Supabase Auth para un pedido de invitado usando el email guardado en la orden y la vincula con `ordenes.cliente_id`. Devuelve una clave temporal solo cuando la cuenta es nueva; si el email ya existe no inicia sesión. Se invoca después de confirmar el pago o al registrar una orden por transferencia. |
+| `registrar-comprobante` | Vincula un comprobante ya subido a Storage con su pedido de transferencia, validando que el path pertenezca a la orden. Usa `service_role` para evitar que el invitado necesite una policy de `UPDATE` sobre `ordenes`. |
 | `create-preference` | Crea la preferencia de pago en Mercado Pago. Ignora el `precio_unitario` del cliente y relee los precios de `productos`; el costo de envío lo toma de `ordenes.costo_envio` (ya validado por `crear-orden`), no del body. Rechaza órdenes cuyo `metodo_pago` no sea `mercadopago`. Devuelve `preference_id` e `init_point`. |
 | `mercadopago-webhook` | Recibe las notificaciones (IPN) de Mercado Pago, consulta el estado real del pago, actualiza la orden en Supabase a `pagado` y **descuenta el stock** de las prendas del pedido. |
 | `zippin-envio` | Cotiza el envío de un pedido contra Zipnova (ex Zippin). Recibe un código postal destino y los ítems del carrito, y devuelve las opciones de transporte disponibles (Andreani, Correo Argentino, etc.) con costo y tiempo estimado. |
@@ -13,6 +15,26 @@ Funciones para el pago con **Mercado Pago** (Checkout Pro) + webhook/IPN.
 | `andreani-envio` | Cotiza el envío **directamente** contra la API de Andreani PYME (`https://apis.andreani.com`) enviando el DNI/CUIT registrado en el campo `contrato`. Respuesta en el mismo formato uniforme del frontend. |
 | `oca-envio` | Cotiza el envío **directamente** contra el Web Service público de OCA `Tarifar_Envio_Corporativo` (webservice de e-Pak). Solo necesita un CUIT registrado (sin credenciales de usuario) y devuelve las opciones de OCA (a domicilio y a sucursal) en el mismo formato uniforme. |
 | `micorreo-envio` | Integración con la API **MiCorreo de Correo Argentino** (`api.correoargentino.com.ar/micorreo/v1`). Tres acciones vía campo `action`: `rates` (cotización), `shipping/import` (alta de envío) y `shipping/tracking` (seguimiento). Autentica con HTTP Basic y cachea el JWT en Deno KV. **Todavía no la consume el checkout** (sigue con el tarifario local de `tarifasEnvio.ts`); el cliente está en `src/lib/micorreo.ts`. |
+
+## Guest checkout y cuenta automática
+
+El checkout funciona sin sesión. La orden se crea con `crear-orden`; después del pago aprobado (o del alta por transferencia) el frontend invoca `crear-cuenta-invitado` con el `ordenId`.
+
+- La función busca el email en la orden, no confía en datos del navegador.
+- Si el email ya tiene cuenta, responde `existente: true` y el frontend no auto-loguea.
+- Si crea la cuenta, devuelve una clave temporal y el frontend inicia sesión. El comprador puede definir su contraseña desde el aviso de éxito.
+- Solo acepta órdenes de hasta 30 días.
+
+Deploy:
+
+```bash
+supabase functions deploy crear-cuenta-invitado
+supabase functions deploy registrar-comprobante
+```
+
+Ambas verifican el JWT que envía el frontend (anon key o sesión). No requieren `--no-verify-jwt`.
+
+Para el comprobante de transferencia, aplicar antes la migración `027_guest_checkout_auth.sql`, que permite subir a `comprobantes/` tanto a `anon` como a `authenticated` (después del auto-login el rol cambia).
 
 ## Dónde configurar los tokens de Mercado Pago
 

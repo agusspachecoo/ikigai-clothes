@@ -446,17 +446,38 @@ export async function actualizarEstadoOrden(id: string, estado: EstadoOrden) {
 }
 
 export async function actualizarComprobanteOrden(id: string, comprobanteUrl: string) {
-  const { error } = await supabase
-    .from('ordenes')
-    .update({ comprobante_url: comprobanteUrl, estado: 'pendiente_verificacion' })
-    .eq('id', id)
-  return { error: error?.message ?? null }
+  const { data, error } = await supabase.functions.invoke('registrar-comprobante', {
+    body: { ordenId: id, path: comprobanteUrl },
+  })
+
+  if (error) {
+    let mensaje = error.message
+    try {
+      const contexto = (error as { context?: Response }).context
+      if (contexto && typeof contexto.json === 'function') {
+        const cuerpo = (await contexto.json()) as { error?: string }
+        if (cuerpo?.error) mensaje = cuerpo.error
+      }
+    } catch {
+      return { error: mensaje }
+    }
+    return { error: mensaje }
+  }
+
+  const respuesta = (data ?? {}) as { ok?: boolean; error?: string }
+  if (!respuesta.ok) {
+    return { error: respuesta.error ?? 'No se pudo vincular el comprobante.' }
+  }
+
+  return { error: null }
 }
 
 export const BUCKET_COMPROBANTES = 'comprobantes'
 
 export async function subirComprobante(file: File, ordenId: string) {
-  const ext = file.name.split('.').pop() || 'jpg'
+  const ext =
+    (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 5) ||
+    'jpg'
   const nombre = `comprobantes/${ordenId}-${Date.now()}.${ext}`
 
   const { error } = await supabase.storage.from(BUCKET_COMPROBANTES).upload(nombre, file, {

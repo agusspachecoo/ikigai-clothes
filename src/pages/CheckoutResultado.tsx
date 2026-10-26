@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
+import { useAuth } from '../context/auth'
 import { useCart } from '../context/cart'
+import { AvisoCuentaInvitado } from '../components/AvisoCuentaInvitado'
+import { crearCuentaInvitado, type ResultadoCuentaInvitado } from '../lib/cuentaInvitado'
 import { CONTACTO } from '../lib/contacto'
 import { formatearPrecio } from '../lib/precios'
 import { imagenProducto, srcsetImagen } from '../lib/imagenes'
@@ -74,7 +77,10 @@ const CONFIG = {
 export function CheckoutResultado({ status }: Props) {
   const [searchParams] = useSearchParams()
   const { vaciar } = useCart()
+  const { user, cargando: cargandoAuth } = useAuth()
   const limpiado = useRef(false)
+  const cuentaIntentada = useRef('')
+  const [cuentaInvitado, setCuentaInvitado] = useState<ResultadoCuentaInvitado | null>(null)
 
   // Mercado Pago devuelve `external_reference` con el UUID de la orden. Si no
   // viene (el usuario cerró la pestaña del checkout y volvió al navegador a
@@ -99,6 +105,16 @@ export function CheckoutResultado({ status }: Props) {
     // resúmenes de intentos anteriores ya no sirven para nada.
     if (resumen) podarResumen(resumen.id)
   }, [resumen])
+
+  useEffect(() => {
+    if (status !== 'success' || cargandoAuth || user) return
+
+    const ordenId = resumen?.id ?? orderRef
+    if (!ordenId || cuentaIntentada.current === ordenId) return
+
+    cuentaIntentada.current = ordenId
+    void crearCuentaInvitado(ordenId).then(setCuentaInvitado)
+  }, [status, cargandoAuth, user, resumen, orderRef])
 
   const cfg = CONFIG[status]
   const codigoPedido = (resumen?.id ?? orderRef).slice(0, 8).toUpperCase()
@@ -127,6 +143,12 @@ export function CheckoutResultado({ status }: Props) {
           </div>
         )}
       </div>
+
+      {cuentaInvitado && (
+        <div className="mt-8">
+          <AvisoCuentaInvitado resultado={cuentaInvitado} />
+        </div>
+      )}
 
       {resumen && (
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 mt-8">
