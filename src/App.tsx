@@ -69,9 +69,6 @@ const CommunityAdmin = lazy(() =>
 const CuponesAdmin = lazy(() =>
   import('./pages/admin/CuponesAdmin').then((m) => ({ default: m.CuponesAdmin })),
 )
-const NewsletterAdmin = lazy(() =>
-  import('./pages/admin/NewsletterAdmin').then((m) => ({ default: m.NewsletterAdmin })),
-)
 const ConfigAdmin = lazy(() =>
   import('./pages/admin/ConfigAdmin').then((m) => ({ default: m.ConfigAdmin })),
 )
@@ -119,7 +116,6 @@ function App() {
             <Route path="resenas" element={<ResenasAdmin />} />
             <Route path="comunidad" element={<CommunityAdmin />} />
             <Route path="cupones" element={<CuponesAdmin />} />
-            <Route path="newsletter" element={<NewsletterAdmin />} />
             <Route path="config" element={<ConfigAdmin />} />
           </Route>
 

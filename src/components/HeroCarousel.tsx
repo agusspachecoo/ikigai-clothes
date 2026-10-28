@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { getBannersPublic } from '../lib/adminApi'
-import { srcsetImagen } from '../lib/imagenes'
+import { IMAGEN_FALLBACK, normalizarUrlImagen, srcsetImagen } from '../lib/imagenes'
 import type { Banner } from '../types/database'
+import { ImagenSegura } from './ImagenSegura'
 
 const BANNERS_POR_DEFECTO: Banner[] = [
   {
@@ -52,24 +53,98 @@ const BANNERS_POR_DEFECTO: Banner[] = [
 ]
 
 const AUTOPLAY_MS = 5000
+const CLASE_HERO =
+  'relative aspect-[4/3] md:aspect-[21/9] md:max-h-[80vh] w-full overflow-hidden bg-base-200 animate-fade-in'
+
+function BannerImagen({
+  banner,
+  prioridad,
+  onReady,
+}: {
+  banner: Banner
+  prioridad: boolean
+  onReady: () => void
+}) {
+  const [fallo, setFallo] = useState(false)
+
+  if (fallo) {
+    return (
+      <img
+        src={IMAGEN_FALLBACK}
+        alt={banner.titulo ?? 'Ikigai Clothes'}
+        loading={prioridad ? 'eager' : 'lazy'}
+        decoding={prioridad ? 'sync' : 'async'}
+        width={1920}
+        height={820}
+        onLoad={onReady}
+        onError={(e) => {
+          ;(e.currentTarget as HTMLElement).style.display = 'none'
+        }}
+        className="h-full w-full object-cover md:object-contain"
+      />
+    )
+  }
+
+  const srcsetMovil = banner.imagen_mobile
+    ? (srcsetImagen(banner.imagen_mobile, 640, true, { carpeta: 'banners' }).srcset ??
+      normalizarUrlImagen(banner.imagen_mobile, { carpeta: 'banners' }))
+    : null
+  const srcsetDesktop =
+    srcsetImagen(banner.imagen_url, 1600, true, { carpeta: 'banners' }).srcset ??
+    normalizarUrlImagen(banner.imagen_url, { carpeta: 'banners' })
+
+  return (
+    <picture>
+      {srcsetMovil && (
+        <source media="(max-width: 767px)" srcSet={srcsetMovil} sizes="100vw" />
+      )}
+      <source media="(min-width: 768px)" srcSet={srcsetDesktop} sizes="100vw" />
+      <ImagenSegura
+        carpeta="banners"
+        src={banner.imagen_url}
+        srcSet={srcsetDesktop}
+        sizes="100vw"
+        alt={banner.titulo ?? 'Ikigai Clothes'}
+        loading={prioridad ? 'eager' : 'lazy'}
+        fetchPriority={prioridad ? 'high' : 'auto'}
+        decoding={prioridad ? 'sync' : 'async'}
+        width={1920}
+        height={820}
+        onLoad={onReady}
+        onError={() => setFallo(true)}
+        className="h-full w-full object-cover md:object-contain"
+      />
+    </picture>
+  )
+}
 
 export function HeroCarousel() {
-  const [banners, setBanners] = useState<Banner[]>(BANNERS_POR_DEFECTO)
+  const [banners, setBanners] = useState<Banner[]>([])
+  const [cargando, setCargando] = useState(true)
+  const [primeraImagenLista, setPrimeraImagenLista] = useState(false)
   const [actual, setActual] = useState(0)
 
   useEffect(() => {
     let activo = true
 
-    getBannersPublic().then((res) => {
-      if (!activo) return
-      if (res.error) {
-        setBanners(BANNERS_POR_DEFECTO)
-        return
+    async function cargarBanners() {
+      try {
+        const res = await getBannersPublic()
+        if (!activo) return
+        if (res.error) {
+          setBanners(BANNERS_POR_DEFECTO)
+        } else {
+          const configurados = res.data.filter((b) => b.imagen_url.trim() !== '')
+          setBanners(configurados.length > 0 ? configurados : BANNERS_POR_DEFECTO)
+        }
+      } catch {
+        if (activo) setBanners(BANNERS_POR_DEFECTO)
+      } finally {
+        if (activo) setCargando(false)
       }
-      const configurados = res.data.filter((b) => b.imagen_url.trim() !== '')
-      setBanners(configurados.length > 0 ? configurados : BANNERS_POR_DEFECTO)
-    })
+    }
 
+    void cargarBanners()
     return () => {
       activo = false
     }
@@ -77,29 +152,38 @@ export function HeroCarousel() {
 
   const total = banners.length
   const pausado = useRef(false)
+  const listo = primeraImagenLista && !cargando
 
   useEffect(() => {
-    if (total <= 1) return
+    if (!listo || total <= 1) return
     const timer = window.setInterval(() => {
       if (!pausado.current) setActual((i) => (i + 1) % total)
     }, AUTOPLAY_MS)
     return () => window.clearInterval(timer)
-  }, [total])
+  }, [listo, total])
 
-  if (total === 0) return null
+  if (cargando || total === 0) {
+    return (
+      <section className={CLASE_HERO} aria-busy="true" aria-label="Cargando banner">
+        <div className="absolute inset-0 skeleton rounded-none" />
+        <div className="absolute inset-x-0 bottom-0 space-y-3 p-6 md:p-10">
+          <div className="skeleton h-7 w-56 rounded md:h-10 md:w-80" />
+          <div className="skeleton h-9 w-32 rounded" />
+        </div>
+        <span className="sr-only">Cargando banner principal</span>
+      </section>
+    )
+  }
 
   function irA(index: number) {
     setActual((index + total) % total)
   }
 
-  // El hero ocupa todo el ancho: el mismo banner va de ~400px en mobile a
-  // ~1900px en desktop, así que necesita el rango completo de variantes.
-  const srcsetHero = (url: string) => srcsetImagen(url, 1600, true)
-  const srcsetHeroMovil = (url: string) => srcsetImagen(url, 640, true)
-
   return (
     <section
-      className="relative aspect-[4/3] md:aspect-[21/9] md:max-h-[80vh] w-full overflow-hidden bg-base-200 animate-fade-in"
+      className={CLASE_HERO}
+      aria-label="Banner principal"
+      aria-busy={!listo}
       onMouseEnter={() => { pausado.current = true }}
       onMouseLeave={() => { pausado.current = false }}
     >
@@ -109,45 +193,13 @@ export function HeroCarousel() {
       >
         {banners.map((banner, i) => (
           <div key={banner.id} className="relative h-full w-full shrink-0">
-            {banner.imagen_mobile ? (
-              <picture>
-                <source
-                  media="(max-width: 767px)"
-                  srcSet={srcsetHeroMovil(banner.imagen_mobile).srcset ?? banner.imagen_mobile}
-                  sizes="100vw"
-                />
-                <source
-                  media="(min-width: 768px)"
-                  srcSet={srcsetHero(banner.imagen_url).srcset ?? banner.imagen_url}
-                  sizes="100vw"
-                />
-                <img
-                  src={banner.imagen_url}
-                  srcSet={srcsetHero(banner.imagen_url).srcset}
-                  sizes="100vw"
-                  alt={banner.titulo ?? 'Ikigai Clothes'}
-                  loading={i === 0 ? 'eager' : 'lazy'}
-                  fetchPriority={i === 0 ? 'high' : 'auto'}
-                  decoding={i === 0 ? 'sync' : 'async'}
-                  width={1920}
-                  height={820}
-                  className="h-full w-full object-cover md:object-contain"
-                />
-              </picture>
-            ) : (
-              <img
-                src={banner.imagen_url}
-                srcSet={srcsetHero(banner.imagen_url).srcset}
-                sizes="100vw"
-                alt={banner.titulo ?? 'Ikigai Clothes'}
-                loading={i === 0 ? 'eager' : 'lazy'}
-                fetchPriority={i === 0 ? 'high' : 'auto'}
-                decoding={i === 0 ? 'sync' : 'async'}
-                width={1920}
-                height={820}
-                className="h-full w-full object-cover md:object-contain"
-              />
-            )}
+            <BannerImagen
+              banner={banner}
+              prioridad={i === 0}
+              onReady={() => {
+                if (i === 0) setPrimeraImagenLista(true)
+              }}
+            />
             <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
 
             {banner.link_url ? (
@@ -179,8 +231,18 @@ export function HeroCarousel() {
         ))}
       </div>
 
+      {!primeraImagenLista && (
+        <div className="absolute inset-0 z-30 bg-base-200" aria-hidden="true">
+          <div className="absolute inset-0 skeleton rounded-none" />
+          <div className="absolute inset-x-0 bottom-0 space-y-3 p-6 md:p-10">
+            <div className="skeleton h-7 w-56 rounded md:h-10 md:w-80" />
+            <div className="skeleton h-9 w-32 rounded" />
+          </div>
+        </div>
+      )}
+
       {/* Flechas */}
-      {total > 1 && (
+      {listo && total > 1 && (
         <>
           <button
             aria-label="Slide anterior"
@@ -204,7 +266,7 @@ export function HeroCarousel() {
       )}
 
       {/* Puntos */}
-      {total > 1 && (
+      {listo && total > 1 && (
         <div className="absolute bottom-4 left-0 right-0 flex items-center justify-center gap-2">
           {banners.map((banner, i) => (
             <button

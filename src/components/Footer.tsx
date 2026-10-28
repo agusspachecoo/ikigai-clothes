@@ -29,6 +29,9 @@ export function Footer() {
                 decoding="async"
                 width={500}
                 height={500}
+                onError={(e) => {
+                  ;(e.currentTarget as HTMLElement).style.display = 'none'
+                }}
                 className="h-12 md:h-14 w-auto"
               />
             </Link>

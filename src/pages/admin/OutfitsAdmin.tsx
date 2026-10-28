@@ -8,7 +8,7 @@ import {
   type OutfitInput,
 } from '../../lib/adminApi'
 import { ImageUploader } from '../../components/ImageUploader'
-import { imagenOutfit, imagenProducto } from '../../lib/imagenes'
+import { ImagenSegura } from '../../components/ImagenSegura'
 import { formatearPrecio, precioConDescuento } from '../../lib/precios'
 import { useCierreModal } from '../../hooks/useCierreModal'
 import type { OutfitConItems, ProductoConStock } from '../../types/database'
@@ -94,11 +94,12 @@ export function OutfitsAdmin() {
         <div className="text-center py-16 opacity-60">No hay outfits</div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {outfits.map((o, i) => (
+          {outfits.map((o) => (
             <div key={o.id} className={`card bg-base-100 shadow-sm overflow-hidden ${o.activo ? '' : 'opacity-50'}`}>
               <figure className="aspect-[9/16] bg-base-300">
-                <img
-                  src={imagenOutfit(o.imagen_portada, i)}
+                <ImagenSegura
+                  carpeta="outfits"
+                  src={o.imagen_portada}
                   alt={`Portada del look ${o.nombre}`}
                   loading="lazy"
                   decoding="async"
@@ -327,7 +328,7 @@ function OutfitFormModal({ outfit, productos, onCerrar, onGuardado }: FormProps)
               <p className="text-sm opacity-60">No hay productos disponibles.</p>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-64 overflow-y-auto pr-1">
-                {productos.map((p, i) => {
+                {productos.map((p) => {
                   const seleccionado = form.producto_ids.includes(p.id)
                   return (
                     <button
@@ -340,8 +341,9 @@ function OutfitFormModal({ outfit, productos, onCerrar, onGuardado }: FormProps)
                           : 'border-base-300 hover:border-primary/40'
                       } ${p.activo ? '' : 'opacity-50'}`}
                     >
-                      <img
-                        src={imagenProducto(p.imagenes[0], i)}
+                      <ImagenSegura
+                        carpeta="outfits"
+                        src={p.imagenes[0]}
                         alt={`Foto de ${p.nombre}`}
                         loading="lazy"
                         decoding="async"

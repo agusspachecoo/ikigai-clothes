@@ -7,6 +7,7 @@ import type { CuponAplicado } from '../lib/cupones'
 import { calcularDescuentoCupon } from '../lib/cupones'
 import { calcularDescuentoOutfit, type OutfitComposicion } from '../lib/outfits'
 import { detectarColisiones, idsOutfitsARemover, type Colision } from '../lib/conflictos'
+import { normalizarUrlImagen } from '../lib/imagenes'
 
 const STORAGE_KEY = 'ikigai-cart'
 const CUPON_STORAGE_KEY = 'ikigai-cupon'
@@ -18,7 +19,11 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<CartItem[]>(() => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY)
-      return raw ? (JSON.parse(raw) as CartItem[]) : []
+      if (!raw) return []
+      return (JSON.parse(raw) as CartItem[]).map((item) => ({
+        ...item,
+        imagen: normalizarUrlImagen(item.imagen, { carpeta: 'productos' }),
+      }))
     } catch {
       return []
     }
@@ -99,7 +104,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     return {
       producto_id: nuevo.producto_id,
       nombre: nuevo.nombre,
-      imagen: nuevo.imagen,
+      imagen: normalizarUrlImagen(nuevo.imagen, { carpeta: 'productos' }),
       talle: nuevo.talle,
       precio_unitario: nuevo.precio_unitario,
       cantidad: nuevo.cantidad ?? 1,
@@ -124,7 +129,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         return {
           producto_id: prenda.producto_id,
           nombre: info?.nombre ?? '',
-          imagen: info?.imagen ?? '',
+          imagen: normalizarUrlImagen(info?.imagen, { carpeta: 'productos' }),
           talle: prenda.talle,
           precio_unitario: info?.precio_unitario ?? 0,
           cantidad: 1,

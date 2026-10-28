@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import type { OutfitConItems } from '../types/database'
-import { imagenOutfit, srcsetImagen } from '../lib/imagenes'
+import { srcsetImagen } from '../lib/imagenes'
 import { BuyOutfitModal } from './BuyOutfitModal'
+import { ImagenSegura } from './ImagenSegura'
 
 interface Props {
   outfits: OutfitConItems[]
@@ -41,31 +42,24 @@ export function OutfitCarousel({ outfits }: Props) {
           <>
             {/* Grid de outfits */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
-              {visibles.map((o, i) => (
+              {visibles.map((o) => (
                 <div key={o.id}>
                   <button
                     onClick={() => setOutfitSeleccionado(o)}
                     aria-label={`Ver detalle del look ${o.nombre}`}
                     className="relative block w-full aspect-[9/16] rounded-2xl overflow-hidden bg-neutral-100 cursor-pointer group focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
                   >
-                      <img
-                        src={imagenOutfit(o.imagen_portada, i)}
-                        srcSet={srcsetImagen(o.imagen_portada, 280).srcset}
-                        sizes={srcsetImagen(o.imagen_portada, 280).sizes}
+                      <ImagenSegura
+                        carpeta="outfits"
+                        src={o.imagen_portada}
+                        srcSet={srcsetImagen(o.imagen_portada, 280, false, { carpeta: 'outfits' }).srcset}
+                        sizes={srcsetImagen(o.imagen_portada, 280, false, { carpeta: 'outfits' }).sizes}
                         alt={`Look ${o.nombre} con precio de combo`}
                         className="w-full h-full object-cover object-[center_20%] transition-transform duration-700 ease-out group-hover:scale-105"
                         loading="lazy"
                         decoding="async"
                         width={280}
                         height={498}
-                        onError={(e) => {
-                          const img = e.currentTarget
-                          if (!img.dataset.fallback) {
-                            img.dataset.fallback = '1'
-                            img.removeAttribute('srcset')
-                            img.src = imagenOutfit(null, i)
-                          }
-                        }}
                       />
                     <div className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-black/35 to-transparent" />
 

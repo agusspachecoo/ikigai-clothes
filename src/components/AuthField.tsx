@@ -1,4 +1,4 @@
-import { useId, useState, type InputHTMLAttributes } from 'react'
+import { useId, useRef, useState, type InputHTMLAttributes } from 'react'
 
 interface AuthFieldProps extends InputHTMLAttributes<HTMLInputElement> {
   label: string
@@ -11,6 +11,24 @@ export function AuthField({ label, hint, id, className, type, ...props }: AuthFi
   const hintId = hint ? `${inputId}-hint` : undefined
   const esPassword = type === 'password'
   const [mostrarPassword, setMostrarPassword] = useState(false)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  function alternarPassword() {
+    const input = inputRef.current
+    if (!input) return
+
+    const start = input.selectionStart
+    const end = input.selectionEnd
+
+    setMostrarPassword((visible) => !visible)
+
+    requestAnimationFrame(() => {
+      const actual = inputRef.current
+      if (!actual) return
+      actual.focus({ preventScroll: true })
+      actual.setSelectionRange(start, end)
+    })
+  }
 
   return (
     <div>
@@ -22,10 +40,11 @@ export function AuthField({ label, hint, id, className, type, ...props }: AuthFi
       </label>
       <div className="relative">
         <input
+          ref={inputRef}
           id={inputId}
           type={esPassword && mostrarPassword ? 'text' : type}
           aria-describedby={hintId}
-          className={`input input-bordered h-12 w-full rounded-xl border-line/70 bg-base-100 pl-4 text-sm text-base-content transition-colors duration-200 placeholder:text-base-content/40 focus:border-neutral focus:outline-none focus:ring-2 focus:ring-black/15 disabled:cursor-not-allowed disabled:opacity-60 ${
+          className={`input input-bordered h-12 w-full rounded-xl border border-neutral-300 bg-base-100 pl-4 text-sm text-base-content transition-colors duration-200 placeholder:text-base-content/40 focus:border-neutral focus:outline-none focus:ring-2 focus:ring-black/15 disabled:cursor-not-allowed disabled:opacity-60 dark:border-neutral-700 dark:focus:ring-white/20 ${
             esPassword ? 'pr-12' : 'pr-4'
           } ${className ?? ''}`}
           {...props}
@@ -33,7 +52,7 @@ export function AuthField({ label, hint, id, className, type, ...props }: AuthFi
         {esPassword && (
           <button
             type="button"
-            onClick={() => setMostrarPassword((visible) => !visible)}
+            onClick={alternarPassword}
             onMouseDown={(e) => e.preventDefault()}
             aria-label={mostrarPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
             aria-pressed={mostrarPassword}

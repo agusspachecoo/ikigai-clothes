@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { Link } from 'react-router'
 import { getProductosAdmin, eliminarProducto, setProductoActivo, getCategoriasAdmin, getTallesAdmin } from '../../lib/adminApi'
 import { ProductoFormModal } from '../../components/ProductoFormModal'
-import { imagenProducto } from '../../lib/imagenes'
+import { ImagenSegura } from '../../components/ImagenSegura'
 import { CATEGORIAS_FALLBACK } from '../../lib/categorias'
 import type { ProductoConStock } from '../../types/database'
 
@@ -154,7 +154,7 @@ export function ProductosAdmin() {
                 </tr>
               </thead>
               <tbody>
-                {filtrados.map((p, i) => {
+                {filtrados.map((p) => {
                   const stockTotal = p.variaciones_stock.reduce((n, v) => n + v.stock_disponible, 0)
                   return (
                     <tr key={p.id} className={p.activo ? '' : 'opacity-50'}>
@@ -162,8 +162,9 @@ export function ProductosAdmin() {
                         <div className="flex items-center gap-3">
                           <div className="avatar">
                             <div className="w-10 h-12 rounded-lg bg-base-300">
-                              <img
-                                src={imagenProducto(p.imagenes[0], i)}
+                              <ImagenSegura
+                                carpeta="productos"
+                                src={p.imagenes[0]}
                                 alt={`Foto de ${p.nombre}`}
                                 loading="lazy"
                                 decoding="async"

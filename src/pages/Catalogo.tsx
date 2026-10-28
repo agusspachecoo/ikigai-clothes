@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useCatalogo } from '../hooks/useCatalogo'
 import { useCategorias } from '../hooks/useCategorias'
@@ -7,22 +7,27 @@ import { useCierreModal } from '../hooks/useCierreModal'
 import { useTalles } from '../hooks/useTalles'
 import { ProductCard } from '../components/ProductCard'
 import { PanelFiltros } from '../components/PanelFiltros'
-import { FILTROS_INICIALES, tallesDelCatalogo, type EstadoFiltros } from '../lib/filtros'
+import {
+  FILTROS_INICIALES,
+  ORDENES_CATALOGO,
+  hayFiltrosActivos,
+  tallesDelCatalogo,
+  type EstadoFiltros,
+} from '../lib/filtros'
 import { Breadcrumbs } from '../components/Breadcrumbs'
 import { useSeo } from '../hooks/useSeo'
 
 export function Catalogo() {
   useSeo()
 
-  const [searchParams] = useSearchParams()
-  const inicial = searchParams.get('buscar') ?? ''
-  const [ultimoParam, setUltimoParam] = useState(inicial)
-  const [buscar, setBuscar] = useState(inicial)
-  const [busqueda, setBusqueda] = useState(inicial)
+  const [searchParams, setSearchParams] = useSearchParams()
+  const inicialBuscar = searchParams.get('buscar') ?? ''
+  const [ultimoParamBuscar, setUltimoParamBuscar] = useState(inicialBuscar)
+  const [busqueda, setBusqueda] = useState(inicialBuscar)
 
   const slugInicial = searchParams.get('categoria') ?? ''
   const [ultimoSlug, setUltimoSlug] = useState(slugInicial)
-  const [categoriaSlug, setCategoriaSlug] = useState(slugInicial)
+  const [categoriasSeleccionadas, setCategoriasSeleccionadas] = useState<string[]>([])
 
   const descuentosInicial = searchParams.get('descuentos') === '1'
   const [ultimoDesc, setUltimoDesc] = useState(descuentosInicial)
@@ -30,31 +35,64 @@ export function Catalogo() {
 
   const [filtros, setFiltros] = useState<EstadoFiltros>(FILTROS_INICIALES)
   const [panelAbierto, setPanelAbierto] = useState(false)
+  const [filtroDropdownAbierto, setFiltroDropdownAbierto] = useState(false)
+  const filtroRef = useRef<HTMLDivElement>(null)
 
   const { categorias } = useCategorias()
   const { orden: ordenTalles } = useTalles()
   useCierreModal(panelAbierto, () => setPanelAbierto(false))
 
-  if (inicial !== ultimoParam) {
-    setUltimoParam(inicial)
-    setBuscar(inicial)
-    setBusqueda(inicial)
+  useEffect(() => {
+    function onClickFuera(e: MouseEvent) {
+      if (filtroRef.current && !filtroRef.current.contains(e.target as Node)) {
+        setFiltroDropdownAbierto(false)
+      }
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') setFiltroDropdownAbierto(false)
+    }
+    document.addEventListener('mousedown', onClickFuera)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', onClickFuera)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [])
+
+  if (inicialBuscar !== ultimoParamBuscar) {
+    setUltimoParamBuscar(inicialBuscar)
+    setBusqueda(inicialBuscar)
   }
 
   if (slugInicial !== ultimoSlug) {
     setUltimoSlug(slugInicial)
-    setCategoriaSlug(slugInicial)
+    if (descuentosInicial) {
+      setCategoriasSeleccionadas([])
+    } else if (slugInicial) {
+      setCategoriasSeleccionadas([slugInicial])
+    } else {
+      setCategoriasSeleccionadas([])
+    }
   }
 
   if (descuentosInicial !== ultimoDesc) {
     setUltimoDesc(descuentosInicial)
     setDescuentos(descuentosInicial)
+    if (descuentosInicial) {
+      setCategoriasSeleccionadas([])
+    }
   }
 
-  const categoriaNombre = categorias.find((c) => c.slug === categoriaSlug)?.nombre
+  const categoriaNombre = descuentos ? undefined : categorias.find((c) => categoriasSeleccionadas.includes(c.slug))?.nombre
+  const activosFiltro = hayFiltrosActivos(filtros) || categoriasSeleccionadas.length > 0
 
   const { productos, total, hayMas, loading, cargarMas } = useCatalogo({
     categoria: categoriaNombre,
+    categorias: descuentos
+      ? []
+      : categoriasSeleccionadas
+          .map((slug) => categorias.find((c) => c.slug === slug)?.nombre)
+          .filter((n): n is string => Boolean(n)),
     buscar: busqueda,
     descuentos,
     orden: filtros.orden,
@@ -64,19 +102,31 @@ export function Catalogo() {
     soloConStock: filtros.soloConStock,
   })
 
-  // El panel necesita el listado completo para ofrecer los talles disponibles.
   const { productos: todos } = useProductos({
     categoria: categoriaNombre,
     buscar: busqueda,
     descuentos,
   })
 
-  function handleSearch(e: React.FormEvent) {
-    e.preventDefault()
-    setBusqueda(buscar)
+  function toggleCategoria(slug: string) {
+    if (descuentos) return
+    setCategoriasSeleccionadas((prev) => {
+      if (prev.includes(slug)) {
+        return prev.filter((s) => s !== slug)
+      }
+      return [...prev, slug]
+    })
   }
 
   const tallesDisponibles = tallesDelCatalogo(todos, ordenTalles)
+
+  function limpiarBusqueda() {
+    setBusqueda('')
+    setUltimoParamBuscar('')
+    const params = new URLSearchParams(searchParams)
+    params.delete('buscar')
+    setSearchParams(params, { replace: true })
+  }
 
   return (
     <div className="max-w-[1600px] mx-auto px-3 sm:px-5 py-6">
@@ -94,44 +144,17 @@ export function Catalogo() {
         </div>
       )}
 
-      {/* Categorías */}
-      <div className="flex flex-wrap items-center gap-2 mb-4">
-        <button
-          className={`btn btn-xs rounded-none ${
-            !categoriaSlug && !descuentos ? 'btn-primary' : 'btn-outline'
-          }`}
-          onClick={() => {
-            setCategoriaSlug('')
-            setDescuentos(false)
-          }}
-        >
-          Todos
-        </button>
-        <button
-          className={`btn btn-xs rounded-none ${descuentos ? 'btn-primary' : 'btn-outline'}`}
-          onClick={() => setDescuentos(true)}
-        >
-          Ofertas
-        </button>
-        {categorias.map((cat) => (
+      <div className="flex flex-wrap items-center justify-end gap-3 border-y border-line py-3 mb-6">
+        {busqueda && (
           <button
-            key={cat.id}
-            className={`btn btn-xs rounded-none ${
-              categoriaSlug === cat.slug ? 'btn-primary' : 'btn-outline'
-            }`}
-            onClick={() => setCategoriaSlug(cat.slug)}
+            type="button"
+            onClick={limpiarBusqueda}
+            className="btn btn-xs btn-outline rounded-none"
           >
-            {cat.nombre}
+            Búsqueda: {busqueda} ×
           </button>
-        ))}
-      </div>
-
-      {/* Orden + filtros mobile.
-          Por debajo de 380px los tres controles en una fila no entran: el select
-          con "Precio: menor a mayor" + botón Filtrar + input de 160px se pasaban
-          del viewport y generaban scroll horizontal en toda la página. */}
-      <div className="flex flex-wrap items-center gap-3 border-y border-line py-3 mb-6">
-        <div className="relative min-w-0">
+        )}
+        <div className="relative min-w-0 ml-auto">
           <select
             aria-label="Ordenar productos"
             className="select select-sm rounded-none max-w-full"
@@ -140,101 +163,116 @@ export function Catalogo() {
               setFiltros({ ...filtros, orden: e.target.value as EstadoFiltros['orden'] })
             }
           >
-            <option value="nuevos">Novedades</option>
-            <option value="precio-asc">Precio: menor a mayor</option>
-            <option value="precio-desc">Precio: mayor a menor</option>
-            <option value="descuento">Mayor descuento</option>
-            <option value="nombre">Alfabético</option>
+            {ORDENES_CATALOGO.map((o) => (
+              <option key={o.valor} value={o.valor}>
+                {o.label}
+              </option>
+            ))}
           </select>
+        </div>
+
+        <div className="relative hidden md:block" ref={filtroRef}>
+          <button
+            type="button"
+            onClick={() => setFiltroDropdownAbierto((v) => !v)}
+            className="btn btn-sm btn-outline rounded-none shrink-0"
+          >
+            Filtrar{activosFiltro ? ' •' : ''}
+          </button>
+          <div
+            className={`absolute right-0 top-full mt-2 w-[320px] max-w-[90vw] bg-base-100 border border-line shadow-xl z-40 ${
+              filtroDropdownAbierto ? 'block' : 'hidden'
+            }`}
+          >
+            <div className="p-4">
+              <PanelFiltros
+                estado={filtros}
+                onChange={(estado) => setFiltros(estado)}
+                productos={todos}
+                total={total}
+                totalSinFiltrar={todos.length}
+                categorias={categorias}
+                categoriaSlug={categoriasSeleccionadas[0] ?? ''}
+                onCategoriaChange={(slug) => toggleCategoria(slug)}
+                categoriasSeleccionadas={categoriasSeleccionadas}
+                onCategoriasChange={setCategoriasSeleccionadas}
+                mostrarCategorias={!descuentos}
+              />
+            </div>
+            <div className="border-t border-line p-3">
+              <button
+                type="button"
+                onClick={() => setFiltroDropdownAbierto(false)}
+                className="btn btn-outline btn-sm rounded-none w-full"
+              >
+                Aplicar
+              </button>
+            </div>
+          </div>
         </div>
 
         <button
           type="button"
           onClick={() => setPanelAbierto(true)}
-          className="btn btn-sm btn-outline rounded-none lg:hidden shrink-0"
+          className="btn btn-sm btn-outline rounded-none md:hidden shrink-0"
         >
           Filtrar
         </button>
-
-        <form onSubmit={handleSearch} className="w-full min-w-0 sm:w-auto sm:ml-auto">
-          <input
-            type="search"
-            className="input input-sm rounded-none w-full sm:w-56"
-            placeholder="Buscar..."
-            aria-label="Buscar productos"
-            value={buscar}
-            onChange={(e) => setBuscar(e.target.value)}
-          />
-        </form>
       </div>
 
-      <div className="grid lg:grid-cols-[220px_1fr] gap-8">
-        {/* Panel lateral desktop */}
-        <aside className="hidden lg:block">
-          <div className="sticky top-24">
-            <PanelFiltros
-              estado={filtros}
-              onChange={setFiltros}
-              productos={todos}
-              total={total}
-              totalSinFiltrar={todos.length}
-            />
+      <div>
+        <p className="text-xs opacity-60 mb-4">
+          {loading
+            ? 'Cargando productos...'
+            : `${total} ${total === 1 ? 'producto' : 'productos'}`}
+          {tallesDisponibles.length > 0 && ` · ${tallesDisponibles.length} talles`}
+        </p>
+
+        {loading ? (
+          <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div key={i} className="skeleton aspect-[3/4] w-full rounded-none" />
+            ))}
           </div>
-        </aside>
-
-        {/* Resultados */}
-        <div>
-          <p className="text-xs opacity-60 mb-4">
-            {loading
-              ? 'Cargando productos...'
-              : `${total} ${total === 1 ? 'producto' : 'productos'}`}
-            {tallesDisponibles.length > 0 && ` · ${tallesDisponibles.length} talles`}
-          </p>
-
-          {loading ? (
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-              {Array.from({ length: 8 }).map((_, i) => (
-                <div key={i} className="skeleton aspect-[3/4] w-full rounded-none" />
+        ) : productos.length === 0 ? (
+          <div className="text-center py-20">
+            <p className="opacity-60">No se encontraron productos</p>
+            <button
+              type="button"
+              onClick={() => {
+                setFiltros(FILTROS_INICIALES)
+                limpiarBusqueda()
+              }}
+              className="btn btn-outline btn-sm rounded-none mt-4"
+            >
+              Limpiar filtros
+            </button>
+          </div>
+        ) : (
+          <>
+            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
+              {productos.map((p) => (
+                <ProductCard key={p.id} producto={p} />
               ))}
             </div>
-          ) : productos.length === 0 ? (
-            <div className="text-center py-20">
-              <p className="opacity-60">No se encontraron productos</p>
-              <button
-                type="button"
-                onClick={() => setFiltros(FILTROS_INICIALES)}
-                className="btn btn-outline btn-sm rounded-none mt-4"
-              >
-                Limpiar filtros
-              </button>
-            </div>
-          ) : (
-            <>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                {productos.map((p) => (
-                  <ProductCard key={p.id} producto={p} />
-                ))}
-              </div>
 
-              {hayMas && (
-                <div className="text-center mt-10">
-                  <button
-                    type="button"
-                    onClick={cargarMas}
-                    className="btn btn-outline rounded-none px-10"
-                  >
-                    Cargar más
-                  </button>
-                </div>
-              )}
-            </>
-          )}
-        </div>
+            {hayMas && (
+              <div className="text-center mt-10">
+                <button
+                  type="button"
+                  onClick={cargarMas}
+                  className="btn btn-outline rounded-none px-10"
+                >
+                  Cargar más
+                </button>
+              </div>
+            )}
+          </>
+        )}
       </div>
 
-      {/* Panel de filtros mobile */}
       {panelAbierto && (
-        <div className="fixed inset-0 z-50 lg:hidden">
+        <div className="fixed inset-0 z-50">
           <div className="absolute inset-0 bg-black/50" onClick={() => setPanelAbierto(false)} />
           <aside className="absolute inset-y-0 right-0 w-80 max-w-[88vw] bg-base-100 border-l border-line p-4 overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
@@ -253,6 +291,12 @@ export function Catalogo() {
               productos={todos}
               total={total}
               totalSinFiltrar={todos.length}
+              categorias={categorias}
+              categoriaSlug={categoriasSeleccionadas[0] ?? ''}
+              onCategoriaChange={(slug) => toggleCategoria(slug)}
+              categoriasSeleccionadas={categoriasSeleccionadas}
+              onCategoriasChange={setCategoriasSeleccionadas}
+              mostrarCategorias={!descuentos}
             />
             <button
               type="button"

@@ -9,6 +9,7 @@ import {
   type OrdenConItems,
 } from '../../lib/adminApi'
 import { useCierreModal } from '../../hooks/useCierreModal'
+import { ImagenSegura } from '../../components/ImagenSegura'
 
 const BADGE: Record<EstadoOrden, string> = {
   pendiente: 'badge-error',
@@ -442,7 +443,7 @@ function PedidoDetalle({
                   title="Comprobante"
                 />
               ) : (
-                <img
+                <ImagenSegura
                   src={comprobante.url}
                   alt="Comprobante de pago"
                   className="max-w-full max-h-[70vh] mx-auto rounded-lg object-contain"

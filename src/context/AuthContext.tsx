@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, useCallback } from 'react'
 import type { ReactNode } from 'react'
 import type { Session, User } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabase'
-import { urlRestablecerPassword } from '../lib/authUrls'
+import { leerRecuperacionDeUrl, urlRestablecerPassword } from '../lib/authUrls'
 import { AuthContext } from './auth'
 import type { ModoAuth, ResultadoAuth } from './auth'
 
@@ -12,21 +12,61 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [cargando, setCargando] = useState(true)
   const [authModalAbierto, setAuthModalAbierto] = useState(false)
   const [authModalModo, setAuthModalModo] = useState<ModoAuth>('login')
-  const [recuperacionPendiente, setRecuperacionPendiente] = useState(false)
+  const [recuperacionPendiente, setRecuperacionPendiente] = useState(
+    () => leerRecuperacionDeUrl().esRecuperacion,
+  )
 
   useEffect(() => {
     let activo = true
+    const recuperacionUrl = leerRecuperacionDeUrl()
 
-    supabase.auth.getSession().then(({ data }) => {
+    supabase.auth.getSession().then(async ({ data }) => {
       if (!activo) return
-      setSession(data.session)
-      setUser(data.session?.user ?? null)
+
+      let sesionActual = data.session
+
+      // Fallback: si Supabase no procesó el enlace automáticamente, consumimos
+      // el token capturado de la URL (implícito, PKCE o token_hash).
+      if (!sesionActual && recuperacionUrl.esRecuperacion) {
+        if (recuperacionUrl.accessToken && recuperacionUrl.refreshToken) {
+          const { data: datosSesion } = await supabase.auth.setSession({
+            access_token: recuperacionUrl.accessToken,
+            refresh_token: recuperacionUrl.refreshToken,
+          })
+          if (!activo) return
+          sesionActual = datosSesion.session
+        } else if (recuperacionUrl.code) {
+          const { data: datosSesion } = await supabase.auth.exchangeCodeForSession(
+            recuperacionUrl.code,
+          )
+          if (!activo) return
+          sesionActual = datosSesion.session
+        } else if (recuperacionUrl.tokenHash) {
+          const { data: datosSesion } = await supabase.auth.verifyOtp({
+            type: 'recovery',
+            token_hash: recuperacionUrl.tokenHash,
+          })
+          if (!activo) return
+          sesionActual = datosSesion.session
+        }
+      }
+
+      setSession(sesionActual)
+      setUser(sesionActual?.user ?? null)
       setCargando(false)
     })
 
     const { data: sub } = supabase.auth.onAuthStateChange((event, nextSession) => {
       if (!activo) return
-      if (event === 'PASSWORD_RECOVERY') {
+
+      // `PASSWORD_RECOVERY` es el evento esperado. Algunos flujos (PKCE/code)
+      // emiten `SIGNED_IN`: si la URL venía marcada como recuperación, lo
+      // tratamos igual para no abrir el modal de login tradicional.
+      const esRecuperacion =
+        event === 'PASSWORD_RECOVERY' ||
+        (event === 'SIGNED_IN' && recuperacionUrl.esRecuperacion)
+
+      if (esRecuperacion) {
         setRecuperacionPendiente(true)
         setAuthModalAbierto(false)
       }

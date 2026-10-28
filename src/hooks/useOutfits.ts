@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
+import { outfitTieneStock } from '../lib/outfits'
 import type { OutfitConItems } from '../types/database'
 
 export function useOutfits() {
@@ -19,8 +20,12 @@ export function useOutfits() {
         .order('created_at', { ascending: false })
 
       if (!cancelled) {
-        if (err) setError(err.message)
-        else setOutfits(data as OutfitConItems[])
+        if (err) {
+          setError(err.message)
+        } else {
+          const list = (data ?? []) as OutfitConItems[]
+          setOutfits(list.filter((o) => outfitTieneStock(o)))
+        }
         setLoading(false)
       }
     }

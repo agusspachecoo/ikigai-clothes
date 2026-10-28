@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import type { ComunidadFoto } from '../types/database'
 import { srcsetImagen } from '../lib/imagenes'
+import { ImagenSegura } from './ImagenSegura'
 
 const NOMBRE_USUARIOS = [
   '@lucas.fit',
@@ -36,6 +37,7 @@ export function CommunitySection() {
   const carouselRef = useRef<HTMLDivElement>(null)
   const [fotos, setFotos] = useState<FotoDisplay[]>([])
   const [cargado, setCargado] = useState(false)
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null)
 
   useEffect(() => {
     let activo = true
@@ -77,6 +79,38 @@ export function CommunitySection() {
     return () => { activo = false }
   }, [])
 
+  useEffect(() => {
+    if (lightboxIndex === null) return
+
+    function onKey(e: KeyboardEvent) {
+      const total = fotos.length
+      if (e.key === 'Escape') {
+        setLightboxIndex(null)
+        return
+      }
+      if (e.key === 'ArrowLeft') {
+        e.preventDefault()
+        setLightboxIndex((i) => ((i ?? 0) - 1 + total) % total)
+        return
+      }
+      if (e.key === 'ArrowRight') {
+        e.preventDefault()
+        setLightboxIndex((i) => ((i ?? 0) + 1) % total)
+      }
+    }
+
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [lightboxIndex, fotos.length])
+
+  const irASiguiente = useCallback(() => {
+    setLightboxIndex((i) => ((i ?? 0) + 1) % fotos.length)
+  }, [fotos.length])
+
+  const irAAnterior = useCallback(() => {
+    setLightboxIndex((i) => ((i ?? 0) - 1 + fotos.length) % fotos.length)
+  }, [fotos.length])
+
   if (!cargado) {
     return (
       <section className="max-w-[1600px] mx-auto px-3 sm:px-5 py-6">
@@ -103,34 +137,96 @@ export function CommunitySection() {
           ref={carouselRef}
           className="flex gap-3 overflow-x-auto snap-x snap-mandatory pb-3 scrollbar-thin-ikigai"
         >
-          {fotos.map((foto) => (
+          {fotos.map((foto, i) => (
             <div
               key={foto.id}
               className="snap-center shrink-0 w-40 md:w-44 aspect-[9/16] rounded-sm overflow-hidden bg-base-200 border border-base-300/60 relative group"
             >
-              <img
-                src={foto.img}
-                srcSet={srcsetImagen(foto.img, 176).srcset}
-                sizes={srcsetImagen(foto.img, 176).sizes}
-                alt={
-                  foto.handle
-                    ? `Look de la comunidad de ${foto.autor} (${foto.handle})`
-                    : `Look de la comunidad de ${foto.autor}`
-                }
-                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                loading="lazy"
-                decoding="async"
-                width={176}
-                height={313}
-              />
-              <div className="absolute inset-x-0 bottom-0 h-14 bg-gradient-to-t from-black/50 to-transparent" />
-              <span className="absolute bottom-2 left-2 text-white text-xs font-semibold drop-shadow">
-                {foto.autor}
-              </span>
+              <button
+                type="button"
+                aria-label={`Ver foto ampliada de ${foto.autor}`}
+                onClick={() => setLightboxIndex(i)}
+                className="w-full h-full block relative cursor-pointer"
+              >
+                <ImagenSegura
+                  src={foto.img}
+                  carpeta="comunidad"
+                  srcSet={srcsetImagen(foto.img, 176, false, { carpeta: 'comunidad' }).srcset}
+                  sizes={srcsetImagen(foto.img, 176, false, { carpeta: 'comunidad' }).sizes}
+                  alt={
+                    foto.handle
+                      ? `Look de la comunidad de ${foto.autor} (${foto.handle})`
+                      : `Look de la comunidad de ${foto.autor}`
+                  }
+                  className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                  loading="lazy"
+                  decoding="async"
+                  width={176}
+                  height={313}
+                />
+                <div className="absolute inset-x-0 bottom-0 h-14 bg-gradient-to-t from-black/50 to-transparent pointer-events-none" />
+                <span className="absolute bottom-2 left-2 text-white text-xs font-semibold drop-shadow">
+                  {foto.autor}
+                </span>
+              </button>
             </div>
           ))}
         </div>
       </div>
+
+      {lightboxIndex !== null && fotos.length > 0 && (
+        <div
+          className="fixed inset-0 z-50 bg-black/90 flex flex-col items-center justify-center p-4 cursor-zoom-out"
+          onClick={() => setLightboxIndex(null)}
+        >
+          <button
+            type="button"
+            aria-label="Cerrar imagen"
+            className="absolute top-4 right-4 btn btn-circle btn-sm bg-white/90 text-black z-20"
+            onClick={(e) => {
+              e.stopPropagation()
+              setLightboxIndex(null)
+            }}
+          >
+            ✕
+          </button>
+          <button
+            type="button"
+            aria-label="Foto anterior"
+            className="absolute left-2 md:left-6 btn btn-circle btn-sm bg-white/90 text-black z-20"
+            onClick={(e) => {
+              e.stopPropagation()
+              irAAnterior()
+            }}
+          >
+            ‹
+          </button>
+          <div className="relative w-full max-w-[960px] flex items-center justify-center overflow-hidden">
+            <ImagenSegura
+              src={fotos[lightboxIndex].img}
+              carpeta="comunidad"
+              alt={`Look de la comunidad de ${fotos[lightboxIndex].autor}`}
+              decoding="async"
+              className="max-w-full max-h-[85vh] rounded-lg object-contain select-none"
+              onClick={(e) => e.stopPropagation()}
+            />
+          </div>
+          <button
+            type="button"
+            aria-label="Foto siguiente"
+            className="absolute right-2 md:right-6 btn btn-circle btn-sm bg-white/90 text-black z-20"
+            onClick={(e) => {
+              e.stopPropagation()
+              irASiguiente()
+            }}
+          >
+            ›
+          </button>
+          <p className="mt-3 text-sm text-white">
+            {lightboxIndex + 1} de {fotos.length}
+          </p>
+        </div>
+      )}
     </section>
   )
 }

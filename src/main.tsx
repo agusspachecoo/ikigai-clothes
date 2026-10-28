@@ -6,6 +6,9 @@ import { ErrorBoundary } from './components/ErrorBoundary'
 import { CartProvider } from './context/CartContext'
 import { AuthProvider } from './context/AuthContext'
 import { FavoritosProvider } from './context/FavoritosContext'
+import { instalarFallbackGlobalImagenes } from './lib/fallbackImagenes'
+
+instalarFallbackGlobalImagenes()
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

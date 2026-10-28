@@ -1,11 +1,7 @@
 import { formatearPrecio } from '../lib/precios'
-import {
-  FILTROS_INICIALES,
-  ORDENES_CATALOGO,
-  hayFiltrosActivos,
-  type EstadoFiltros,
-} from '../lib/filtros'
+import { FILTROS_INICIALES, hayFiltrosActivos, type EstadoFiltros } from '../lib/filtros'
 import type { ProductoConStock } from '../types/database'
+import type { Categoria } from '../types/database'
 
 interface Props {
   estado: EstadoFiltros
@@ -13,9 +9,27 @@ interface Props {
   productos: ProductoConStock[]
   total: number
   totalSinFiltrar: number
+  categorias?: Categoria[]
+  categoriaSlug?: string
+  onCategoriaChange?: (slug: string) => void
+  categoriasSeleccionadas?: string[]
+  onCategoriasChange?: (slugs: string[]) => void
+  mostrarCategorias?: boolean
 }
 
-export function PanelFiltros({ estado, onChange, productos, total, totalSinFiltrar }: Props) {
+export function PanelFiltros({
+  estado,
+  onChange,
+  productos,
+  total,
+  totalSinFiltrar,
+  categorias = [],
+  categoriaSlug = '',
+  onCategoriaChange,
+  categoriasSeleccionadas = [],
+  onCategoriasChange,
+  mostrarCategorias = false,
+}: Props) {
   const activos = hayFiltrosActivos(estado)
 
   function alternarTalle(talle: string) {
@@ -28,7 +42,13 @@ export function PanelFiltros({ estado, onChange, productos, total, totalSinFiltr
   }
 
   const talles = new Set<string>()
-  for (const p of productos) for (const v of p.variaciones_stock) talles.add(v.talle)
+  for (const p of productos) {
+    for (const v of p.variaciones_stock) {
+      if ((v.stock_disponible ?? 0) > 0) {
+        talles.add(v.talle)
+      }
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -45,25 +65,50 @@ export function PanelFiltros({ estado, onChange, productos, total, totalSinFiltr
         )}
       </div>
 
-      <div>
-        <p className="text-xs uppercase tracking-widest opacity-50 mb-2">Ordenar por</p>
-        <ul className="space-y-1">
-          {ORDENES_CATALOGO.map((o) => (
-            <li key={o.valor}>
-              <label className="flex items-center gap-2 text-sm cursor-pointer">
-                <input
-                  type="radio"
-                  name="orden-catalogo"
-                  className="radio radio-xs"
-                  checked={estado.orden === o.valor}
-                  onChange={() => onChange({ ...estado, orden: o.valor })}
-                />
-                {o.label}
-              </label>
-            </li>
-          ))}
-        </ul>
-      </div>
+      {mostrarCategorias && categorias.length > 0 && (
+        <div>
+          <p className="text-xs uppercase tracking-widest opacity-50 mb-2">Categorías</p>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                if (onCategoriasChange) onCategoriasChange([])
+                else onCategoriaChange?.('')
+              }}
+              className={`btn btn-xs rounded-none ${
+                categoriasSeleccionadas.length === 0 && !categoriaSlug
+                  ? 'btn-primary'
+                  : 'btn-outline'
+              }`}
+            >
+              Todos
+            </button>
+            {categorias.map((cat) => {
+              const activa = categoriasSeleccionadas.includes(cat.slug) || categoriaSlug === cat.slug
+              return (
+                <button
+                  key={cat.id}
+                  type="button"
+                  onClick={() => {
+                    if (onCategoriasChange) {
+                      if (categoriasSeleccionadas.includes(cat.slug)) {
+                        onCategoriasChange(categoriasSeleccionadas.filter((s) => s !== cat.slug))
+                      } else {
+                        onCategoriasChange([...categoriasSeleccionadas, cat.slug])
+                      }
+                    } else {
+                      onCategoriaChange?.(cat.slug)
+                    }
+                  }}
+                  className={`btn btn-xs rounded-none ${activa ? 'btn-primary' : 'btn-outline'}`}
+                >
+                  {cat.nombre}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       {talles.size > 0 && (
         <div>

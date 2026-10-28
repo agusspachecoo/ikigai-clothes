@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { ProductCard } from './ProductCard'
+import { ImagenSegura } from './ImagenSegura'
 import { useCountdown } from '../hooks/useCountdown'
 import type { DropVista } from '../hooks/useDropsDestacados'
 
@@ -23,7 +24,8 @@ function TarjetaBloqueada({ imagen, revelado }: { imagen: string | null; revelad
     <div className="flex h-full flex-col">
       <div className="relative aspect-[3/4] w-full overflow-hidden bg-neutral-200">
         {imagen && (
-          <img
+          <ImagenSegura
+            carpeta="productos"
             src={imagen}
             alt="Vista previa del próximo lanzamiento"
             loading="lazy"

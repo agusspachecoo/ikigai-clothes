@@ -8,6 +8,7 @@ import {
   getProductosAdmin,
 } from '../../lib/adminApi'
 import { ImageUploader } from '../../components/ImageUploader'
+import { ImagenSegura } from '../../components/ImagenSegura'
 import { slugify } from '../../lib/categorias'
 import { useCierreModal } from '../../hooks/useCierreModal'
 import type { Categoria } from '../../types/database'
@@ -144,7 +145,8 @@ export function CategoriasAdmin() {
                     <tr key={c.id}>
                       <td>
                         {c.imagen_url ? (
-                          <img
+                          <ImagenSegura
+                            carpeta="categorias"
                             src={c.imagen_url}
                             alt={`Imagen de la categoría ${c.nombre}`}
                             loading="lazy"

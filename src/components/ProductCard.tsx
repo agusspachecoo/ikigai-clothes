@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom'
 import type { ProductoConStock } from '../types/database'
 import { BotonFavorito } from './BotonFavorito'
 import { useTienda } from '../context/tienda'
-import { imagenProducto } from '../lib/imagenes'
+import { ImagenSegura } from './ImagenSegura'
 import {
   formatearPrecio,
   precioConDescuento,
@@ -25,7 +25,8 @@ export function ProductCard({
         <div className="flex grow flex-col">
           <figure className="w-full aspect-[3/4] relative bg-neutral-100 m-0 p-0 overflow-hidden shrink-0">
             {producto.imagenes[0] && (
-              <img
+              <ImagenSegura
+                carpeta="productos"
                 src={producto.imagenes[0]}
                 alt="Vista previa de un próximo lanzamiento"
                 loading="lazy"
@@ -76,23 +77,22 @@ export function ProductCard({
       >
         <figure className="w-full aspect-[3/4] relative bg-neutral-100 m-0 p-0 overflow-hidden shrink-0">
           {producto.imagenes[0] && (
-            <img
-              src={imagenProducto(producto.imagenes[0], 0)}
+            <ImagenSegura
+              carpeta="productos"
+              src={producto.imagenes[0]}
               alt={`${producto.nombre} de ${producto.categoria}, vista frontal`}
               loading="lazy"
               decoding="async"
               width={320}
               height={427}
               onLoad={onImageLoad}
-              onError={(e) => {
-                e.currentTarget.src = imagenProducto(null, 0)
-              }}
               className="absolute inset-0 block w-full h-full object-cover object-[center_20%] transition-transform duration-500 ease-out group-hover:scale-105"
             />
           )}
           {producto.imagenes[1] && (
-            <img
-              src={imagenProducto(producto.imagenes[1], 1)}
+            <ImagenSegura
+              carpeta="productos"
+              src={producto.imagenes[1]}
               alt=""
               aria-hidden="true"
               loading="lazy"
@@ -100,9 +100,6 @@ export function ProductCard({
               width={320}
               height={427}
               onLoad={onImageLoad}
-              onError={(e) => {
-                e.currentTarget.src = imagenProducto(null, 1)
-              }}
               className="absolute inset-0 block w-full h-full object-cover object-[center_20%] opacity-0 group-hover:opacity-100 transition-all duration-700 ease-out group-hover:scale-105"
             />
           )}

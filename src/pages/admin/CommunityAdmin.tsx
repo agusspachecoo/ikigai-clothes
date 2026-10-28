@@ -7,6 +7,7 @@ import {
   subirImagen,
 } from '../../lib/adminApi'
 import { comprimirImagen, blobToFile } from '../../lib/imageCompression'
+import { ImagenSegura } from '../../components/ImagenSegura'
 import type { ComunidadFoto } from '../../types/database'
 
 export function CommunityAdmin() {
@@ -127,7 +128,7 @@ export function CommunityAdmin() {
             <label className="flex items-center justify-center w-full h-44 border-2 border-dashed border-base-300 rounded-xl cursor-pointer hover:border-primary transition-colors overflow-hidden relative">
               {vistaPrevia ? (
                 <>
-                  <img
+                  <ImagenSegura
                     src={vistaPrevia}
                     alt="Vista previa de la foto que vas a subir"
                     decoding="async"
@@ -211,8 +212,9 @@ export function CommunityAdmin() {
                   className={`card bg-base-100 shadow-sm overflow-hidden border ${f.aprobado ? 'border-base-200' : 'border-warning'}`}
                 >
                   <figure className="aspect-[9/16] bg-base-300 overflow-hidden">
-                    <img
+                    <ImagenSegura
                       src={f.imagen_url}
+                      carpeta="comunidad"
                       alt={`Foto enviada por ${f.nombre_usuario}`}
                       loading="lazy"
                       decoding="async"

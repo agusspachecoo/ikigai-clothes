@@ -2,7 +2,8 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useOutfits } from '../hooks/useOutfits'
 import { BuyOutfitModal } from '../components/BuyOutfitModal'
-import { imagenOutfit, srcsetImagen } from '../lib/imagenes'
+import { srcsetImagen } from '../lib/imagenes'
+import { ImagenSegura } from '../components/ImagenSegura'
 import type { OutfitConItems } from '../types/database'
 import { useSeo } from '../hooks/useSeo'
 
@@ -13,7 +14,8 @@ export function Outfits() {
   const [outfitSeleccionado, setOutfitSeleccionado] = useState<OutfitConItems | null>(null)
 
   // Todas las cards de outfit se renderizan al mismo ancho.
-  const srcsetOutfit = (url: string | null | undefined) => srcsetImagen(url, 420)
+  const srcsetOutfit = (url: string | null | undefined) =>
+    srcsetImagen(url, 420, false, { carpeta: 'outfits' })
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
@@ -42,8 +44,9 @@ export function Outfits() {
                   aria-label={`Ver detalle del look ${o.nombre}`}
                   className="w-full h-full block cursor-pointer"
                 >
-                  <img
-                    src={imagenOutfit(o.imagen_portada, 0)}
+                  <ImagenSegura
+                    carpeta="outfits"
+                    src={o.imagen_portada}
                     srcSet={srcsetOutfit(o.imagen_portada).srcset}
                     sizes={srcsetOutfit(o.imagen_portada).sizes}
                     alt={`Look ${o.nombre}: ${o.outfit_items.length} prendas combinadas`}

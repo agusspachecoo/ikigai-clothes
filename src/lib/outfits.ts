@@ -9,6 +9,9 @@
 // (mínimo 2), esas prendas reciben 5% de descuento. No se aplica al subtotal
 // completo para que un combo barato no descuente las prendas sueltas.
 
+import { tieneStock } from './talles'
+import type { OutfitConItems } from '../types/database'
+
 export const DESCUENTO_OUTFIT_PCT = 0.05
 
 /** Cantidad mínima de prendas para considerar que un outfit está completo. */
@@ -26,9 +29,6 @@ export interface OutfitComposicion {
 
 /**
  * Ids de los productos que completan al menos un outfit entero en el carrito.
- *
- * Se devuelve un `Set` para que un producto compartido por dos outfits no
- * cuente dos veces. La presencia se evalúa por producto, sin importar el talle.
  */
 export function productosEnOutfitsCompletos(
   items: ItemOutfit[],
@@ -50,8 +50,6 @@ export function productosEnOutfitsCompletos(
 
 /**
  * Descuento por outfit, en pesos, redondeado a 2 decimales.
- *
- * `pct` es la fracción (0.05 = 5%). Por defecto usa DESCUENTO_OUTFIT_PCT.
  */
 export function calcularDescuentoOutfit(
   items: ItemOutfit[],
@@ -69,4 +67,14 @@ export function calcularDescuentoOutfit(
     .reduce((n, i) => n + i.precio_unitario * i.cantidad, 0)
 
   return Math.round(base * porcentaje * 100) / 100
+}
+
+/** Verifica que todas las prendas del outfit tengan stock disponible. */
+export function outfitTieneStock(outfit: OutfitConItems): boolean {
+  if (!outfit.outfit_items || outfit.outfit_items.length === 0) return false
+  return outfit.outfit_items.every((item) => {
+    const producto = item.producto
+    if (!producto) return false
+    return tieneStock(producto.variaciones_stock)
+  })
 }

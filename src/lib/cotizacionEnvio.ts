@@ -61,7 +61,12 @@ export async function cotizarEnvio(
 
   const respuesta = data as (ResultadoCotizacion & { error?: string }) | null
   if (!respuesta) return error('No pudimos cotizar el envío.')
-  if (respuesta.error) return { ...respuesta, opciones: respuesta.opciones ?? [] }
+  // Si la Edge Function reportó error (CP inexistente, sin cobertura, etc.)
+  // nunca se devuelven opciones: el frontend no debe mostrar precios de un
+  // código postal que no tiene cobertura logística.
+  if (respuesta.error) {
+    return { ...respuesta, opciones: [] }
+  }
 
   return {
     ...respuesta,

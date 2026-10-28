@@ -140,6 +140,9 @@ export function Header() {
                 decoding="async"
                 width={500}
                 height={500}
+                onError={(e) => {
+                  ;(e.currentTarget as HTMLElement).style.display = 'none'
+                }}
                 className="h-14 md:h-16 w-auto max-w-[180px] md:max-w-[200px] object-contain cursor-pointer"
               />
             </Link>
@@ -256,44 +259,17 @@ export function Header() {
 
         {/* Navegación desktop */}
         <nav className="hidden lg:flex items-center justify-center border-t border-white/10">
-          {NAV_ITEMS.map((item) =>
-            item.label === 'Productos' ? (
-              <div key={item.to} className="dropdown dropdown-hover">
-                <div
-                  tabIndex={0}
-                  role="button"
-                  className={`px-4 py-3 text-[11px] uppercase tracking-[0.15em] cursor-pointer ${
-                    esActivo(item.to) ? 'text-white' : 'text-white/60 hover:text-white'
-                  }`}
-                >
-                  {item.label}
-                </div>
-                <ul
-                  tabIndex={0}
-                  className="dropdown-content menu bg-base-100 text-base-content border border-line w-56 z-50 p-1.5 rounded-none shadow-xl"
-                >
-                  <li>
-                    <Link to="/catalogo">Ver todos los productos</Link>
-                  </li>
-                  {categorias.map((cat) => (
-                    <li key={cat.id}>
-                      <Link to={`/catalogo?categoria=${cat.slug}`}>{cat.nombre}</Link>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ) : (
-              <Link
-                key={item.to}
-                to={item.to}
-                className={`px-4 py-3 text-[11px] uppercase tracking-[0.15em] border-l border-white/10 ${
-                  esActivo(item.to) ? 'text-white' : 'text-white/60 hover:text-white'
-                }`}
-              >
-                {item.label}
-              </Link>
-            ),
-          )}
+          {NAV_ITEMS.map((item) => (
+            <Link
+              key={item.to}
+              to={item.to}
+              className={`px-4 py-3 text-[11px] uppercase tracking-[0.15em] border-l border-white/10 ${
+                esActivo(item.to) ? 'text-white' : 'text-white/60 hover:text-white'
+              }`}
+            >
+              {item.label}
+            </Link>
+          ))}
         </nav>
       </header>
 

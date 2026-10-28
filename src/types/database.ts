@@ -146,13 +146,6 @@ export interface Cupon {
   created_at: string
 }
 
-export interface SuscriptorNewsletter {
-  id: string
-  email: string
-  activo: boolean
-  created_at: string
-}
-
 export interface OrdenItem {
   id: string
   orden_id: string
@@ -175,12 +168,22 @@ export interface Resena {
 
 export function parseResenaImagenes(url: string | null): string[] {
   if (!url) return []
+  const valor = String(url).trim()
+  if (!valor) return []
   try {
-    const parsed = JSON.parse(url)
-    return Array.isArray(parsed) ? parsed.filter((u): u is string => typeof u === 'string') : []
+    const parsed = JSON.parse(valor)
+    if (Array.isArray(parsed)) {
+      return parsed
+        .filter((u): u is string => typeof u === 'string' && u.trim().length > 0)
+        .map((u) => u.trim())
+    }
+    if (typeof parsed === 'string' && parsed.trim()) return [parsed.trim()]
   } catch {
-    return url.startsWith('http') ? [url] : []
+    // No es JSON: puede ser una URL, un path o un nombre de archivo viejo.
   }
+  // Se devuelve el valor crudo. La normalización (bucket, carpeta, URL base)
+  // vive en `normalizarUrlImagen`, no en el parser de la base de datos.
+  return [valor]
 }
 
 export interface ComunidadFoto {
@@ -297,11 +300,6 @@ export interface Database {
         Row: { clave: string; valor: string; descripcion: string | null; updated_at: string }
         Insert: { clave: string; valor: string; descripcion?: string | null }
         Update: { valor: string }
-      }
-      suscriptores_newsletter: {
-        Row: SuscriptorNewsletter
-        Insert: { email: string; activo?: boolean }
-        Update: Partial<Omit<SuscriptorNewsletter, 'id' | 'created_at'>>
       }
     }
   }

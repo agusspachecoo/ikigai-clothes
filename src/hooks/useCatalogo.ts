@@ -1,12 +1,13 @@
 import { useMemo, useState } from 'react'
 import { useProductos } from './useProductos'
 import { precioConDescuento } from '../lib/precios'
-import { stockDeTalle } from '../lib/talles'
+import { stockDeTalle, tieneStock } from '../lib/talles'
 import type { OrdenCatalogo } from '../lib/filtros'
 import type { ProductoConStock } from '../types/database'
 
 export interface FiltrosCatalogo {
   categoria?: string
+  categorias?: string[]
   buscar?: string
   descuentos?: boolean
   orden?: OrdenCatalogo
@@ -43,9 +44,6 @@ function ordenar(lista: ProductoConStock[], orden: OrdenCatalogo) {
 
 /**
  * Catálogo con filtros y ordenamiento del lado del cliente.
- * El catálogo de una boutique es chico, así que se trae una sola vez y se
- * filtra en memoria: así el filtro por talle (que depende de
- * `variaciones_stock`) y por precio final (con descuento) son exactos.
  */
 export function useCatalogo(filtros: FiltrosCatalogo) {
   const { productos, loading, error } = useProductos({
@@ -57,11 +55,12 @@ export function useCatalogo(filtros: FiltrosCatalogo) {
   const [visibles, setVisibles] = useState(POR_PAGINA)
 
   const talles = useMemo(() => filtros.talles ?? [], [filtros.talles])
+  const categoriasSel = useMemo(() => filtros.categorias ?? [], [filtros.categorias])
   const orden = filtros.orden ?? 'nuevos'
 
-  // Al cambiar cualquier filtro se vuelve a la primera página.
   const clave = JSON.stringify([
     filtros.categoria,
+    categoriasSel,
     filtros.buscar,
     filtros.descuentos,
     orden,
@@ -77,18 +76,17 @@ export function useCatalogo(filtros: FiltrosCatalogo) {
   }
 
   const filtrados = useMemo(() => {
-    // Los productos de drops futuros vienen enmascarados y no tienen stock:
-    // salen de los filtros de talle/precio para que no desaparezcan ni
-    // distorsionen el rango. Se muestran al final, después de los reales.
     const bloqueados = productos.filter((p) => p.bloqueado)
     let lista = productos.filter((p) => !p.bloqueado)
 
+    if (categoriasSel.length > 0) {
+      lista = lista.filter((p) => categoriasSel.includes(p.categoria))
+    } else if (filtros.categoria) {
+      lista = lista.filter((p) => p.categoria === filtros.categoria)
+    }
+
     if (filtros.soloConStock) {
-      lista = lista.filter(
-        (p) =>
-          p.variaciones_stock.length === 0 ||
-          p.variaciones_stock.some((v) => (v.stock_disponible ?? 0) > 0),
-      )
+      lista = lista.filter((p) => tieneStock(p.variaciones_stock))
     }
 
     if (talles.length > 0) {
@@ -102,8 +100,12 @@ export function useCatalogo(filtros: FiltrosCatalogo) {
       lista = lista.filter((p) => precioFinal(p) <= filtros.precioMax!)
     }
 
-    return [...ordenar(lista, orden), ...bloqueados]
-  }, [productos, filtros.soloConStock, talles, orden, filtros.precioMin, filtros.precioMax])
+    const conStock = lista.filter((p) => tieneStock(p.variaciones_stock))
+    const sinStock = lista.filter((p) => !tieneStock(p.variaciones_stock))
+    const ordenados = [...ordenar(conStock, orden), ...ordenar(sinStock, orden)]
+
+    return [...ordenados, ...bloqueados]
+  }, [productos, filtros.soloConStock, talles, categoriasSel, filtros.categoria, orden, filtros.precioMin, filtros.precioMax])
 
   const visiblesEnPantalla = filtrados.slice(0, visibles)
   const hayMas = visiblesEnPantalla.length < filtrados.length

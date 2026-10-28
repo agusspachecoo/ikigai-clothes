@@ -6,7 +6,8 @@ import { AvisoReclamoPedido } from '../components/AvisoReclamoPedido'
 import { consultarPedidoInvitado, reclamarPedidoInvitado } from '../lib/accesoInvitado'
 import { CONTACTO } from '../lib/contacto'
 import { formatearPrecio } from '../lib/precios'
-import { imagenProducto, srcsetImagen } from '../lib/imagenes'
+import { srcsetImagen } from '../lib/imagenes'
+import { ImagenSegura } from '../components/ImagenSegura'
 import { TEXTO_METODO } from '../lib/pagos'
 import { leerResumen, podarResumen, type ResumenPedido } from '../lib/resumenPedido'
 
@@ -171,18 +172,16 @@ export function CheckoutResultado({ status }: Props) {
               <ul className="space-y-3 mb-4">
                 {resumen.items.map((item, i) => (
                   <li key={`${item.producto_id}-${item.talle}-${i}`} className="flex items-center gap-3">
-                  <img
-                    src={imagenProducto(item.imagen || null, i)}
-                    srcSet={srcsetImagen(item.imagen || null, 48).srcset}
-                    sizes={srcsetImagen(item.imagen || null, 48).sizes}
+                  <ImagenSegura
+                    carpeta="productos"
+                    src={item.imagen}
+                    srcSet={srcsetImagen(item.imagen, 48, false, { carpeta: 'productos' }).srcset}
+                    sizes={srcsetImagen(item.imagen, 48, false, { carpeta: 'productos' }).sizes}
                     alt={`${item.nombre}, talle ${item.talle || 'único'}`}
                     loading="lazy"
                     decoding="async"
                     width={48}
                     height={48}
-                    onError={(e) => {
-                      e.currentTarget.src = imagenProducto(null, i)
-                    }}
                     className="w-12 h-12 rounded-lg object-cover shrink-0 bg-neutral-100"
                   />
                     <div className="flex-1 text-sm min-w-0">

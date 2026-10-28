@@ -10,6 +10,7 @@ import {
 } from '../../lib/adminApi'
 import type { ComunidadFoto } from '../../types/database'
 import { parseResenaImagenes } from '../../types/database'
+import { ImagenSegura } from '../../components/ImagenSegura'
 
 export function ResenasAdmin() {
   const [resenas, setResenas] = useState<ResenaConProducto[]>([])
@@ -168,9 +169,10 @@ function ResenasList({
               {new Date(r.created_at).toLocaleDateString('es-AR')}
             </p>
           </div>
-          {r.imagen_url && (
-            <img
-              src={parseResenaImagenes(r.imagen_url)[0] ?? r.imagen_url}
+          {r.imagen_url && parseResenaImagenes(r.imagen_url)[0] && (
+            <ImagenSegura
+              src={parseResenaImagenes(r.imagen_url)[0]}
+              carpeta="reviews"
               alt={`Foto enviada por ${r.nombre_usuario} en su reseña`}
               loading="lazy"
               decoding="async"
@@ -246,7 +248,7 @@ function ComunidadFotosGrid({
     return (
       <div key={f.id} className={`card bg-base-100 shadow-sm overflow-hidden ${f.aprobado ? '' : 'border-2 border-warning'}`}>
         <figure className="aspect-square bg-base-300">
-          <img
+          <ImagenSegura
             src={f.imagen_url}
             alt={`Foto de la comunidad de ${f.nombre_usuario}`}
             loading="lazy"

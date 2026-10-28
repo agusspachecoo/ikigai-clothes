@@ -29,6 +29,27 @@ describe('AuthField', () => {
     )
   })
 
+  it('conserva el foco y la selección al alternar la visibilidad', async () => {
+    const user = userEvent.setup()
+    render(<AuthField label="Contraseña" type="password" defaultValue="secreto" />)
+
+    const input = screen.getByLabelText('Contraseña') as HTMLInputElement
+    await user.click(input)
+    input.setSelectionRange(2, 5)
+
+    await user.click(screen.getByRole('button', { name: 'Mostrar contraseña' }))
+
+    expect(input).toHaveFocus()
+    expect(input.selectionStart).toBe(2)
+    expect(input.selectionEnd).toBe(5)
+  })
+
+  it('usa un borde visible en los campos de autenticación', () => {
+    render(<AuthField label="Email" type="email" />)
+
+    expect(screen.getByLabelText('Email')).toHaveClass('border-neutral-300')
+  })
+
   it('no muestra el toggle en campos que no son contraseña', () => {
     render(<AuthField label="Email" type="email" />)
 

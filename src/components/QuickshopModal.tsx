@@ -7,6 +7,7 @@ import { useTalles } from '../hooks/useTalles'
 import { tallesDisponibles } from '../lib/talles'
 import { formatearPrecio, precioConDescuento, precioTransferencia } from '../lib/precios'
 import { imagenProducto, srcsetImagen } from '../lib/imagenes'
+import { ImagenSegura } from './ImagenSegura'
 import type { ProductoConStock } from '../types/database'
 import { ConflictModal } from './ConflictModal'
 import type { Colision } from '../lib/conflictos'
@@ -30,7 +31,7 @@ export function QuickshopModal({
   useCierreModal(true, onCerrar)
 
   const precio = precioConDescuento(producto.precio, producto.discount_percent)
-  const srcsetQuickshop = srcsetImagen(producto.imagenes[0], 360)
+  const srcsetQuickshop = srcsetImagen(producto.imagenes[0], 360, false, { carpeta: 'productos' })
   const opciones = tallesDisponibles(producto.variaciones_stock, ordenTalles)
   const sinTalles = opciones.length === 0
   const stockTotal = opciones.reduce((sum, o) => sum + (o.stock || 0), 0)
@@ -101,8 +102,9 @@ export function QuickshopModal({
         <div className="grid sm:grid-cols-2">
           <figure className="hidden sm:block aspect-[3/4] bg-base-200 overflow-hidden rounded-tl-lg rounded-bl-lg">
             {producto.imagenes[0] && (
-              <img
-                src={imagenProducto(producto.imagenes[0], 0)}
+              <ImagenSegura
+                carpeta="productos"
+                src={producto.imagenes[0]}
                 srcSet={srcsetQuickshop.srcset}
                 sizes={srcsetQuickshop.sizes}
                 alt={`${producto.nombre} de ${producto.categoria}`}

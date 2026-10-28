@@ -56,3 +56,9 @@ export function stockDeTalle(variaciones: VariacionStock[], talle: string): numb
       .reduce((n, v) => n + (v.stock_disponible ?? 0), 0)
   )
 }
+
+/** Indica si el producto tiene al menos una variación con stock disponible. */
+export function tieneStock(variaciones: VariacionStock[] | null | undefined): boolean {
+  if (!variaciones || variaciones.length === 0) return false
+  return variaciones.some((v) => (v.stock_disponible ?? 0) > 0)
+}

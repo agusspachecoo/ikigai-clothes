@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import type { OutfitConItems } from '../types/database'
 import { useCart } from '../context/cart'
 import { imagenProducto } from '../lib/imagenes'
+import { ImagenSegura } from './ImagenSegura'
 import { useCierreModal } from '../hooks/useCierreModal'
 import { formatearPrecio, precioConDescuento } from '../lib/precios'
 import { DESCUENTO_OUTFIT_PCT } from '../lib/outfits'
@@ -178,7 +179,8 @@ function OutfitModalContent({ outfit, onClose }: { outfit: OutfitConItems; onClo
                 className="w-16 h-16 rounded-xl overflow-hidden bg-white flex items-center justify-center border border-line/50 p-1"
                 style={{ minWidth: '64px', minHeight: '64px', flexShrink: 0 }}
               >
-                <img
+                <ImagenSegura
+                  carpeta="productos"
                   src={producto.imagenes[0]}
                   alt={producto.nombre}
                   loading="lazy"

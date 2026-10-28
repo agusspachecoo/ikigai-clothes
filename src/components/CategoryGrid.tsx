@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { useCategorias } from '../hooks/useCategorias'
 import { srcsetImagen } from '../lib/imagenes'
+import { ImagenSegura } from './ImagenSegura'
 
 const BLOQUES = [
   {
@@ -62,23 +63,16 @@ export function CategoryGrid() {
               to={link}
               className="group relative block aspect-[16/10] sm:aspect-[3/3] md:aspect-[4/3] overflow-hidden rounded-sm bg-white transition-all duration-300 ease-in-out hover:-translate-y-1 hover:shadow-lg border border-base-300/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600"
             >
-                <img
+                <ImagenSegura
+                  carpeta="categorias"
                   src={imagen}
-                  srcSet={srcsetImagen(imagen, 480).srcset}
-                  sizes={srcsetImagen(imagen, 480).sizes}
+                  srcSet={srcsetImagen(imagen, 480, false, { carpeta: 'categorias' }).srcset}
+                  sizes={srcsetImagen(imagen, 480, false, { carpeta: 'categorias' }).sizes}
                   alt={`Ver ${b.titulo} del catálogo`}
                   loading="lazy"
                   decoding="async"
                   width={480}
                   height={360}
-                  onError={(e) => {
-                    const img = e.currentTarget
-                    if (!img.dataset.fallback) {
-                      img.dataset.fallback = '1'
-                      img.removeAttribute('srcset')
-                      img.src = `https://picsum.photos/seed/${b.seed}/600/600`
-                    }
-                  }}
                   className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-105"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-white via-white/25 to-transparent" />

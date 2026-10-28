@@ -12,6 +12,7 @@ import { ProductoFormModal } from '../../components/ProductoFormModal'
 import { CATEGORIAS_FALLBACK } from '../../lib/categorias'
 import { ordenarTalles } from '../../lib/talles'
 import { useCierreModal } from '../../hooks/useCierreModal'
+import { ImagenSegura } from '../../components/ImagenSegura'
 
 const TALLES_FALLBACK = ['S', 'M', 'L', 'XL', 'XXL', '38', '40', '42', '44', '46', '48']
 
@@ -211,7 +212,12 @@ export function DropsAdmin() {
                           <div className="avatar">
                             <div className="w-8 h-10 rounded bg-base-300">
                               {p.imagenes[0] && (
-                                <img src={p.imagenes[0]} alt={p.nombre} className="object-cover" />
+                                <ImagenSegura
+                                  carpeta="productos"
+                                  src={p.imagenes[0]}
+                                  alt={p.nombre}
+                                  className="object-cover"
+                                />
                               )}
                             </div>
                           </div>

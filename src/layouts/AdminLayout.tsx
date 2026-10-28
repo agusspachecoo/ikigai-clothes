@@ -14,7 +14,6 @@ const TABS = [
   { to: '/admin/resenas', label: 'Reseñas' },
   { to: '/admin/comunidad', label: 'Comunidad' },
   { to: '/admin/cupones', label: 'Cupones' },
-  { to: '/admin/newsletter', label: 'Newsletter' },
   { to: '/admin/config', label: 'Configuración' },
 ]
 

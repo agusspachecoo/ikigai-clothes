@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom'
 import { MAPS_SHOWROOM_URL, SHOWROOM, WHATSAPP_SHOWROOM_URL } from '../lib/contacto'
-import { srcsetImagen } from '../lib/imagenes'
 import { useTienda } from '../context/tienda'
+import { obtenerUrlImagen } from '../lib/imagenes'
 
 const ICONO_UBICACION = (
   <svg className="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
@@ -31,8 +31,7 @@ const ICONO_RELOJ = (
 /** Bloque de cierre: invitación a visitar el showroom con imagen configurable. */
 export function ShowroomSection() {
   const { imagen_showroom } = useTienda()
-  // La imagen sale del panel; la variable de entorno queda como respaldo.
-  const imagen = imagen_showroom || SHOWROOM.imagen
+  const imagen = obtenerUrlImagen(imagen_showroom || SHOWROOM.imagen)
 
   return (
     <section className="bg-base-100 border-t border-line">
@@ -41,14 +40,13 @@ export function ShowroomSection() {
           {imagen ? (
             <img
               src={imagen}
-              srcSet={srcsetImagen(imagen, 640).srcset}
-              sizes="(max-width: 1024px) 100vw, 640px"
               alt={`Showroom de Ikigai Clothes en ${SHOWROOM.direccion}`}
               loading="lazy"
               decoding="async"
-              width={640}
-              height={480}
               className="absolute inset-0 w-full h-full object-cover"
+              onError={(e) => {
+                ;(e.currentTarget as HTMLElement).style.display = 'none'
+              }}
             />
           ) : (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-center px-6">
@@ -72,8 +70,6 @@ export function ShowroomSection() {
           <ul className="space-y-2 text-sm">
             <li className="flex items-center gap-2">
               {ICONO_UBICACION}
-              {/* Enlace a Google Maps: además de sirvir al usuario, el enlace
-                  con la dirección exacta es lo que refuerza laNAP con Google. */}
               <a
                 href={MAPS_SHOWROOM_URL}
                 target="_blank"

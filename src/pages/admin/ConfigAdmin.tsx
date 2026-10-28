@@ -119,14 +119,9 @@ export function ConfigAdmin() {
 
       {notificacion && <div className="alert alert-success text-sm mb-4">{notificacion}</div>}
 
-      {error ? (
-        <div className="alert alert-error text-sm">
-          {error}
-          <p className="mt-1 text-xs">
-            Ejecutá la migración <span className="font-mono">017_config_newsletter.sql</span>.
-          </p>
-        </div>
-      ) : loading ? (
+          {error ? (
+            <div className="alert alert-error text-sm">{error}</div>
+          ) : loading ? (
         <div className="space-y-3">
           {Array.from({ length: 6 }).map((_, i) => (
             <div key={i} className="skeleton h-14 w-full" />

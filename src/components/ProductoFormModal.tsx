@@ -127,6 +127,14 @@ export function ProductoFormModal({
     setField('imagenes', form.imagenes.filter((_, idx) => idx !== i))
   }
 
+  /**
+   * Agrega las URLs de un lote masivo al final del array de imágenes del
+   * producto, conservando las que ya existían (sin pisarlas).
+   */
+  function agregarImagenes(urls: string[]) {
+    setField('imagenes', [...form.imagenes, ...urls])
+  }
+
   function addTalleSugerido(t: string) {
     if (form.talles.some((r) => r.talle.trim() === t)) return
     setField('talles', [...form.talles, { talle: t, stock_disponible: '0' }])
@@ -359,6 +367,20 @@ export function ProductoFormModal({
                   />
                 </div>
               ))}
+            </div>
+            <div className="mt-4 pt-4 border-t border-neutral-200">
+              <p className="text-xs text-neutral-500 mb-2">
+                Cargá varias imágenes de una vez (máximo 10 por tanda). Se
+                comprimen y suben en orden, y se agregan automáticamente al
+                formulario.
+              </p>
+              <ImageUploader
+                carpeta="productos"
+                multiple
+                onUrls={agregarImagenes}
+                texto="Carga masiva de imágenes"
+                altoMinimo="h-32"
+              />
             </div>
             <button type="button" className="btn btn-outline btn-sm mt-3" onClick={addImagen}>
               Agregar imagen

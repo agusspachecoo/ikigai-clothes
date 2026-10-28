@@ -4,7 +4,7 @@ import { useTienda } from '../context/tienda'
 import { useCierreModal } from '../hooks/useCierreModal'
 import { CouponInput } from './CouponInput'
 import { formatearPrecio, montoCuota } from '../lib/precios'
-import { imagenProducto } from '../lib/imagenes'
+import { ImagenSegura } from './ImagenSegura'
 
 export function CarritoDrawer() {
   const {
@@ -90,20 +90,14 @@ export function CarritoDrawer() {
                     className="w-16 h-16 rounded-xl overflow-hidden bg-neutral-200 flex items-center justify-center border border-line/40 shrink-0 hover:border-primary/50 transition-colors"
                     style={{ minWidth: '64px', minHeight: '64px', flexShrink: 0 }}
                   >
-                    <img
-                      src={it.imagen && it.imagen.trim() !== '' ? it.imagen : imagenProducto(null, 0)}
+                    <ImagenSegura
+                      src={it.imagen}
+                      carpeta="productos"
                       alt={it.nombre}
                       loading="lazy"
                       decoding="async"
                       width={64}
                       height={64}
-                      onError={(e) => {
-                        e.currentTarget.style.display = 'none';
-                        if (e.currentTarget.parentElement) {
-                          e.currentTarget.parentElement.classList.add('bg-neutral-300');
-                          e.currentTarget.parentElement.innerHTML = '<span class="text-[10px] font-bold uppercase opacity-50">Ikigai</span>';
-                        }
-                      }}
                       className="w-full h-full object-cover"
                     />
                   </Link>

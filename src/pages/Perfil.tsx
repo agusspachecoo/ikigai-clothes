@@ -3,7 +3,7 @@ import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/auth'
 import { getMisPedidos, ESTADO_PEDIDO_LABEL, ESTADO_PEDIDO_CLASS } from '../lib/misPedidos'
 import type { OrdenConItems } from '../lib/misPedidos'
-import { imagenProducto } from '../lib/imagenes'
+import { ImagenSegura } from '../components/ImagenSegura'
 import { usePerfil, type DatosPerfil } from '../hooks/usePerfil'
 import { listarProductosFavoritos } from '../lib/favoritos'
 import { ProductCard } from '../components/ProductCard'
@@ -226,17 +226,15 @@ function PerfilAutenticado({
                         return (
                           <li key={`${item.orden_id}-${i}`} className="flex items-center gap-3">
                             <div className="w-12 h-14 rounded-lg overflow-hidden bg-base-300 border border-line/40 flex items-center justify-center shrink-0">
-                              <img
-                                src={imagenValida ? imagenValida : imagenProducto(null, i)}
+                              <ImagenSegura
+                                carpeta="productos"
+                                src={imagenValida}
                                 alt={`${item.producto?.nombre ?? 'Producto'}, talle ${item.talle || 'único'}`}
                                 loading="lazy"
                                 decoding="async"
                                 width={48}
                                 height={56}
                                 className="w-full h-full object-cover"
-                                onError={(e) => {
-                                  e.currentTarget.src = imagenProducto(null, i)
-                                }}
                               />
                             </div>
                             <div className="flex-1 min-w-0">

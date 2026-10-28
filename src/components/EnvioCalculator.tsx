@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { claveOpcion, nombreTransporte, type OpcionEnvio, type ResultadoCotizacion } from '../lib/tarifasEnvio'
 import { cotizarEnvio } from '../lib/cotizacionEnvio'
 import type { CartItem } from '../types/cart'
+import { ImagenSegura } from './ImagenSegura'
 
 interface EnvioCalculatorProps {
   items: CartItem[]
@@ -26,6 +27,18 @@ export function EnvioCalculator({
   async function handleCalcular(e: React.FormEvent) {
     e.preventDefault()
     const limpio = cp.trim().replace(/\D/g, '')
+    if (!limpio || limpio.length < 4) {
+      setError('Ingresá un código postal válido')
+      setResultado(null)
+      return
+    }
+    // Rechazar patrones ficticios o repetidos (ej: 3333, 0000, 1111).
+    const primerDigito = limpio[0]
+    if (limpio.split('').every((d) => d === primerDigito)) {
+      setError('Ingresá un código postal válido')
+      setResultado(null)
+      return
+    }
     if (limpio === '3360') {
       setError(null)
       setCargando(false)
@@ -57,17 +70,18 @@ export function EnvioCalculator({
         })
       return
     }
-    if (limpio.length < 4) {
-      setError('El código postal debe tener al menos 4 dígitos.')
-      return
-    }
 
     setError(null)
     setCargando(true)
     try {
       const res = await cotizarEnvio(limpio, items)
-      if (res.error) {
-        setError(res.error)
+      const sinCobertura =
+        res.error ||
+        !res.opciones ||
+        res.opciones.length === 0 ||
+        res.codigo_postal !== limpio
+      if (sinCobertura) {
+        setError('El código postal ingresado no existe o no tiene cobertura de envío.')
         setResultado(null)
       } else {
         setResultado(res)
@@ -180,7 +194,7 @@ export function EnvioCalculator({
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         {opt.carrier.logo ? (
-                          <img
+                          <ImagenSegura
                             src={opt.carrier.logo}
                             alt=""
                             loading="lazy"

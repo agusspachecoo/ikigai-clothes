@@ -23,7 +23,7 @@ import {
   type Campo,
   type ErroresFormulario,
 } from '../lib/validacion'
-import { imagenProducto } from '../lib/imagenes'
+import { ImagenSegura } from '../components/ImagenSegura'
 
 const initialState = {
   nombre: '',
@@ -44,6 +44,18 @@ const SOLO_DIGITOS: Partial<Record<Campo, boolean>> = {
  */
 function digitosCp(valor: string): string {
   return valor.replace(/\D/g, '')
+}
+
+/**
+ * Valida que el código postal tenga exactamente 4 dígitos (formato argentino)
+ * y no sea un patrón ficticio/repetido (ej: 3333, 0000, 1111).
+ * Devuelve un mensaje de error o null.
+ */
+function validarCodigoPostal(cp: string): string | null {
+  if (!cp || cp.length !== 4) return 'Ingresá un código postal válido'
+  const primerDigito = cp[0]
+  if (cp.split('').every((d) => d === primerDigito)) return 'Ingresá un código postal válido'
+  return null
 }
 
 const OPCION_SHOWROOM: OpcionEnvio = {
@@ -123,22 +135,25 @@ export function Checkout() {
   )
 
   const aplicarCotizacion = useCallback(
-    (res: ResultadoCotizacion | null) => {
+    (res: ResultadoCotizacion | null, cpConsultado: string) => {
       if (!res) return
-      if (res.error) {
+      const sinCobertura =
+        res.error ||
+        !res.opciones ||
+        res.opciones.length === 0 ||
+        res.codigo_postal !== cpConsultado
+      if (sinCobertura) {
         setOpcionesEnvio([])
         setOpcionEnvio(null)
         setCotizacion(null)
         setOpcionesDeCp(null)
-        setErrorEnvio(res.error)
+        setErrorEnvio('El código postal ingresado no existe o no tiene cobertura de envío.')
         return
       }
       setCotizacion(res)
       setOpcionesEnvio(res.opciones)
       setOpcionesDeCp(res.codigo_postal)
-      setErrorEnvio(res.opciones.length === 0
-        ? 'No se encontraron opciones de envío para el código postal ingresado.'
-        : null)
+      setErrorEnvio(null)
       if (res.opciones.length === 0) {
         setOpcionEnvio(null)
       } else {
@@ -156,7 +171,19 @@ export function Checkout() {
 
   useEffect(() => {
     const cp = digitosCp(form.codigo_postal)
-    if (retiro || cp.length < 4) return
+    if (retiro) return
+
+    const invalido = validarCodigoPostal(cp)
+    if (invalido) {
+      setTimeout(() => {
+        setErrorEnvio(invalido)
+        setOpcionesEnvio([])
+        setOpcionEnvio(null)
+        setCotizacion(null)
+        setOpcionesDeCp(null)
+      }, 0)
+      return
+    }
 
     let cancelled = false
     const secuencia = ++secuenciaCotizacionRef.current
@@ -166,7 +193,7 @@ export function Checkout() {
       try {
         const res = await cotizarEnvio(cp, items, subtotalConDescuento)
         if (cancelled || secuencia !== secuenciaCotizacionRef.current) return
-        aplicarCotizacion(res)
+        aplicarCotizacion(res, cp)
       } finally {
         if (secuencia === secuenciaCotizacionRef.current) setCargandoEnvio(false)
       }
@@ -290,18 +317,24 @@ export function Checkout() {
       setOpcionesDeCp(limpio)
       return
     }
-    if (limpio.length < 4) {
-      setErrorEnvio('El código postal debe tener al menos 4 dígitos.')
+
+    const invalido = validarCodigoPostal(limpio)
+    if (invalido) {
+      setErrorEnvio(invalido)
+      setOpcionesEnvio([])
+      setOpcionEnvio(null)
+      setCotizacion(null)
+      setOpcionesDeCp(null)
       return
     }
+
     setErrorEnvio(null)
-    setOpcionEnvio(null)
 
     ++secuenciaCotizacionRef.current
     setCargandoEnvio(true)
     try {
       const res = await cotizarEnvio(limpio, items, subtotalConDescuento)
-      aplicarCotizacion(res)
+      aplicarCotizacion(res, limpio)
     } finally {
       setCargandoEnvio(false)
     }
@@ -779,26 +812,20 @@ export function Checkout() {
 
             <div className="p-5">
               <ul className="divide-y divide-line/60">
-                {items.map((item, i) => (
+                {items.map((item) => (
                   <li
                     key={`${item.producto_id}-${item.talle}`}
                     className="flex items-start gap-3 py-3 first:pt-0 last:pb-0"
                   >
                     <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-line/60 bg-base-200">
-                      <img
-                        src={item.imagen && item.imagen.trim() !== '' ? item.imagen : imagenProducto(null, i)}
+                      <ImagenSegura
+                        src={item.imagen}
+                        carpeta="productos"
                         alt={`${item.nombre}, talle ${item.talle || 'único'}`}
                         loading="lazy"
                         decoding="async"
                         width={56}
                         height={56}
-                        onError={(e) => {
-                          e.currentTarget.style.display = 'none';
-                          if (e.currentTarget.parentElement) {
-                            e.currentTarget.parentElement.classList.add('bg-neutral-300');
-                            e.currentTarget.parentElement.innerHTML = '<span class="text-[10px] font-bold uppercase opacity-50">Ikigai</span>';
-                          }
-                        }}
                         className="h-full w-full object-cover"
                       />
                     </div>
@@ -1127,20 +1154,14 @@ function ConfirmacionPedido({
               {pedido.items.map((item, i) => (
                 <li key={`${item.producto_id}-${item.talle}-${i}`} className="flex items-center gap-3">
                   <div className="w-12 h-12 rounded-lg overflow-hidden bg-neutral-200 flex items-center justify-center shrink-0 border border-line/40">
-                    <img
-                      src={item.imagen && item.imagen.trim() !== '' ? item.imagen : imagenProducto(null, i)}
+                    <ImagenSegura
+                      src={item.imagen}
+                      carpeta="productos"
                       alt={`${item.nombre}, talle ${item.talle || 'único'}`}
                       loading="lazy"
                       decoding="async"
                       width={48}
                       height={48}
-                      onError={(e) => {
-                        e.currentTarget.style.display = 'none';
-                        if (e.currentTarget.parentElement) {
-                          e.currentTarget.parentElement.classList.add('bg-neutral-300');
-                          e.currentTarget.parentElement.innerHTML = '<span class="text-[9px] font-bold uppercase opacity-50">Ikigai</span>';
-                        }
-                      }}
                       className="w-full h-full object-cover"
                     />
                   </div>
@@ -1419,7 +1440,11 @@ function UploadComprobante({
         />
 
         {comprobantePreview ? (
-          <img src={comprobantePreview} alt="Comprobante" className="max-h-32 mx-auto rounded-lg" />
+          <ImagenSegura
+            src={comprobantePreview}
+            alt="Comprobante"
+            className="max-h-32 mx-auto rounded-lg"
+          />
         ) : comprobanteFile ? (
           <div className="flex items-center justify-center gap-2 text-sm">
             <svg className="h-5 w-5 text-primary shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">

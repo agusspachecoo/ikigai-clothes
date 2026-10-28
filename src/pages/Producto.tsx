@@ -23,7 +23,7 @@ import { BotonCompartir } from '../components/BotonCompartir'
 import { tallesDisponibles } from '../lib/talles'
 import { useTalles } from '../hooks/useTalles'
 import { slugify } from '../lib/categorias'
-import { srcsetImagen } from '../lib/imagenes'
+import { ImagenSegura } from '../components/ImagenSegura'
 import {
   formatearPrecio,
   montoCuota,
@@ -47,9 +47,19 @@ export function Producto() {
   const [errorResena, setErrorResena] = useState<string | null>(null)
   const [exitoResena, setExitoResena] = useState(false)
   const [lightboxResena, setLightboxResena] = useState<{ resenaId: string, url: string } | null>(null)
+  const [zoomAbierto, setZoomAbierto] = useState(false)
+  const [zoomScale, setZoomScale] = useState(1)
+  const [zoomPos, setZoomPos] = useState({ x: 0, y: 0 })
+  const [arrastrando, setArrastrando] = useState(false)
+  const arrastreRef = useRef({ startX: 0, startY: 0, posX: 0, posY: 0 })
   const { descuento_transferencia, cuotas_sin_interes, umbral_envio_gratis, envio_gratis_activo } =
     useTienda()
   useCierreModal(Boolean(lightboxResena), () => setLightboxResena(null))
+  useCierreModal(zoomAbierto, () => {
+    setZoomAbierto(false)
+    setZoomScale(1)
+    setZoomPos({ x: 0, y: 0 })
+  })
 
   // Al navegar entre productos (mismo componente, sin remount) hay que resetear
   // todo el estado local para no mostrar datos stale del producto anterior.
@@ -67,8 +77,43 @@ export function Producto() {
       setErrorResena(null)
       setExitoResena(false)
       setLightboxResena(null)
+      setZoomAbierto(false)
+      setZoomScale(1)
+      setZoomPos({ x: 0, y: 0 })
     }
   }, [idProducto])
+
+  // La navegación entre productos reutiliza este componente: sin esto se
+  // mantiene el scroll de la página anterior.
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' })
+  }, [idProducto])
+
+  useEffect(() => {
+    if (!zoomAbierto) return
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'ArrowLeft') {
+        e.preventDefault()
+        setZoomScale(1)
+        setZoomPos({ x: 0, y: 0 })
+        setImagenActiva((i) => (i - 1 + (producto?.imagenes.length ?? 1)) % (producto?.imagenes.length ?? 1))
+      }
+      if (e.key === 'ArrowRight') {
+        e.preventDefault()
+        setZoomScale(1)
+        setZoomPos({ x: 0, y: 0 })
+        setImagenActiva((i) => (i + 1) % (producto?.imagenes.length ?? 1))
+      }
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        setZoomAbierto(false)
+        setZoomScale(1)
+        setZoomPos({ x: 0, y: 0 })
+      }
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [zoomAbierto, producto?.imagenes.length])
 
   const { resenas, insertarResena } = useResenas(id ?? null)
 
@@ -259,55 +304,192 @@ export function Producto() {
       />
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        {/* Galería */}
         <div>
-          <figure className="relative w-full max-w-[560px] mx-auto aspect-[3/4] bg-neutral-100 rounded-lg overflow-hidden flex items-center justify-center">
-            {producto.imagenes[imagenActiva] && (
-              /* Esta es la imagen LCP de la página: eager + fetchpriority high
-                 para que el navegador la empiece a bajar apenas parsea el HTML,
-                 en vez de esperar a que entre en viewport. Las demás van lazy.
-                 El marco es 3:4 y la foto va en object-cover para que llene el
-                 ancho completo sin bandas. Sin width/height ni srcSet a
-                 propósito: las dimensiones nativas dejan que el navegador elija
-                 el recurso. */
-              <img
-                src={producto.imagenes[imagenActiva]}
-                alt={
-                  imagenActiva === 0
-                    ? `${producto.nombre} de ${producto.categoria}, vista frontal`
-                    : `${producto.nombre}, foto ${imagenActiva + 1} de ${producto.imagenes.length}`
-                }
-                loading={imagenActiva === 0 ? 'eager' : 'lazy'}
-                fetchPriority={imagenActiva === 0 ? 'high' : 'auto'}
-                decoding={imagenActiva === 0 ? 'sync' : 'async'}
-                className="absolute inset-0 w-full h-full object-cover object-center select-none"
-              />
+          <div className="flex gap-3">
+            {producto.imagenes.length > 1 && (
+              <div className="hidden md:flex flex-col gap-2 max-h-[560px] overflow-y-auto pr-1" id="miniaturas-vertical">
+                {(() => {
+                  const total = producto.imagenes.length
+                  const maxVisibles = 6
+                  if (total <= maxVisibles) {
+                    return producto.imagenes.map((img, i) => (
+                      <button
+                        key={i}
+                        type="button"
+                        aria-label={`Ver foto ${i + 1} de ${producto.nombre}`}
+                        aria-current={i === imagenActiva}
+                        className={`relative w-16 h-20 shrink-0 bg-neutral-100 rounded-md overflow-hidden border transition-colors ${
+                          i === imagenActiva
+                            ? 'border-neutral ring-1 ring-neutral'
+                            : 'border-line hover:border-neutral/50'
+                        }`}
+                        onClick={() => setImagenActiva(i)}
+                      >
+                        <ImagenSegura
+                          carpeta="productos"
+                          src={img}
+                          alt=""
+                          loading="lazy"
+                          decoding="async"
+                          className="absolute inset-0 w-full h-full object-cover object-center"
+                        />
+                      </button>
+                    ))
+                  }
+                  const visibles = producto.imagenes.slice(0, maxVisibles - 1)
+                  const restantes = total - (maxVisibles - 1)
+                  return (
+                    <>
+                      {visibles.map((img, i) => (
+                        <button
+                          key={i}
+                          type="button"
+                          aria-label={`Ver foto ${i + 1} de ${producto.nombre}`}
+                          aria-current={i === imagenActiva}
+                          className={`relative w-16 h-20 shrink-0 bg-neutral-100 rounded-md overflow-hidden border transition-colors ${
+                            i === imagenActiva
+                              ? 'border-neutral ring-1 ring-neutral'
+                              : 'border-line hover:border-neutral/50'
+                          }`}
+                          onClick={() => setImagenActiva(i)}
+                        >
+                          <ImagenSegura
+                            carpeta="productos"
+                            src={img}
+                            alt=""
+                            loading="lazy"
+                            decoding="async"
+                            className="absolute inset-0 w-full h-full object-cover object-center"
+                          />
+                        </button>
+                      ))}
+                      <button
+                        type="button"
+                        aria-label={`Ver ${restantes} fotos más`}
+                        className="relative w-16 h-20 shrink-0 bg-neutral-100 rounded-md overflow-hidden border border-line"
+                        onClick={() => setImagenActiva(maxVisibles - 1)}
+                      >
+                        <ImagenSegura
+                          carpeta="productos"
+                          src={producto.imagenes[maxVisibles - 1]}
+                          alt=""
+                          loading="lazy"
+                          decoding="async"
+                          className="absolute inset-0 w-full h-full object-cover object-center"
+                        />
+                        <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                          <span className="text-white text-xs font-semibold">+{restantes}</span>
+                        </div>
+                      </button>
+                    </>
+                  )
+                })()}
+              </div>
             )}
-          </figure>
-
-          {/* Miniaturas */}
-          {producto.imagenes.length > 1 && (
-            <div className="flex gap-2 mt-3 overflow-x-auto pb-1">
-              {producto.imagenes.map((img, i) => (
-                <button
-                  key={i}
-                  type="button"
-                  aria-label={`Ver foto ${i + 1} de ${producto.nombre}`}
-                  aria-current={i === imagenActiva}
-                  className={`relative w-16 h-16 md:w-20 md:h-20 shrink-0 bg-neutral-100 rounded-md overflow-hidden border transition-colors ${
-                    i === imagenActiva ? 'border-neutral ring-1 ring-neutral' : 'border-line hover:border-neutral/50'
-                  }`}
-                  onClick={() => setImagenActiva(i)}
+            <figure className="relative w-full max-w-[560px] mx-auto aspect-[3/4] bg-neutral-100 rounded-lg overflow-hidden flex items-center justify-center">
+              {producto.imagenes[imagenActiva] && (
+            <button
+              type="button"
+              onClick={() => {
+                setZoomAbierto(true)
+                setZoomScale(1)
+                setZoomPos({ x: 0, y: 0 })
+              }}
+              className="absolute inset-0 w-full h-full cursor-zoom-in"
+              aria-label="Ampliar imagen"
                 >
-                  <img
-                    src={img}
-                    alt=""
-                    loading="lazy"
-                    decoding="async"
-                    className="absolute inset-0 w-full h-full object-contain p-1"
+                  <ImagenSegura
+                    carpeta="productos"
+                    src={producto.imagenes[imagenActiva]}
+                    alt={
+                      imagenActiva === 0
+                        ? `${producto.nombre} de ${producto.categoria}, vista frontal`
+                        : `${producto.nombre}, foto ${imagenActiva + 1} de ${producto.imagenes.length}`
+                    }
+                    loading={imagenActiva === 0 ? 'eager' : 'lazy'}
+                    fetchPriority={imagenActiva === 0 ? 'high' : 'auto'}
+                    decoding={imagenActiva === 0 ? 'sync' : 'async'}
+                    className="absolute inset-0 w-full h-full object-cover object-center select-none"
                   />
                 </button>
-              ))}
+              )}
+            </figure>
+          </div>
+
+          {producto.imagenes.length > 1 && (
+            <div className="flex md:hidden gap-2 mt-3 overflow-x-auto pb-1" id="miniaturas-horizontal">
+              {(() => {
+                const total = producto.imagenes.length
+                const maxVisibles = 5
+                if (total <= maxVisibles) {
+                  return producto.imagenes.map((img, i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      aria-label={`Ver foto ${i + 1} de ${producto.nombre}`}
+                      aria-current={i === imagenActiva}
+                      className={`relative w-16 h-20 shrink-0 bg-neutral-100 rounded-md overflow-hidden border transition-colors ${
+                        i === imagenActiva ? 'border-neutral ring-1 ring-neutral' : 'border-line hover:border-neutral/50'
+                      }`}
+                      onClick={() => setImagenActiva(i)}
+                    >
+                      <ImagenSegura
+                        carpeta="productos"
+                        src={img}
+                        alt=""
+                        loading="lazy"
+                        decoding="async"
+                        className="absolute inset-0 w-full h-full object-cover object-center"
+                      />
+                    </button>
+                  ))
+                }
+                const visibles = producto.imagenes.slice(0, maxVisibles - 1)
+                const restantes = total - (maxVisibles - 1)
+                return (
+                  <>
+                    {visibles.map((img, i) => (
+                      <button
+                        key={i}
+                        type="button"
+                        aria-label={`Ver foto ${i + 1} de ${producto.nombre}`}
+                        aria-current={i === imagenActiva}
+                        className={`relative w-16 h-20 shrink-0 bg-neutral-100 rounded-md overflow-hidden border transition-colors ${
+                          i === imagenActiva ? 'border-neutral ring-1 ring-neutral' : 'border-line hover:border-neutral/50'
+                        }`}
+                        onClick={() => setImagenActiva(i)}
+                      >
+                        <ImagenSegura
+                          carpeta="productos"
+                          src={img}
+                          alt=""
+                          loading="lazy"
+                          decoding="async"
+                          className="absolute inset-0 w-full h-full object-cover object-center"
+                        />
+                      </button>
+                    ))}
+                    <button
+                      type="button"
+                      aria-label={`Ver ${restantes} fotos más`}
+                      className="relative w-16 h-20 shrink-0 bg-neutral-100 rounded-md overflow-hidden border border-line"
+                      onClick={() => setImagenActiva(maxVisibles - 1)}
+                    >
+                      <ImagenSegura
+                        carpeta="productos"
+                        src={producto.imagenes[maxVisibles - 1]}
+                        alt=""
+                        loading="lazy"
+                        decoding="async"
+                        className="absolute inset-0 w-full h-full object-cover object-center"
+                      />
+                      <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                        <span className="text-white text-xs font-semibold">+{restantes}</span>
+                      </div>
+                    </button>
+                  </>
+                )
+              })()}
             </div>
           )}
         </div>
@@ -455,11 +637,11 @@ export function Producto() {
       {producto.descripcion && (
             <p className="mt-4 text-sm opacity-70 leading-relaxed">Descripción: {producto.descripcion}</p>
      )}
-      {/* Preguntas frecuentes */}
-      <FAQSection />
-
       {/* Productos relacionados */}
       <ProductosRelacionados categoria={producto.categoria} productoId={producto.id} />
+
+      {/* Preguntas frecuentes */}
+      <FAQSection />
 
       {/* Reseñas */}
       <section className="mt-16">
@@ -515,7 +697,7 @@ export function Producto() {
             <label className="mt-2 flex items-center justify-center w-full h-24 border-2 border-dashed border-base-300 rounded-xl cursor-pointer hover:border-primary transition-colors overflow-hidden relative">
               {vistaPreviaResena ? (
                 <>
-                  <img
+                  <ImagenSegura
                     src={vistaPreviaResena}
                     alt="Vista previa de la foto que vas a adjuntar a la reseña"
                     decoding="async"
@@ -609,6 +791,7 @@ export function Producto() {
           <div className="space-y-4">
             {resenas.map((r) => {
               const fotos = parseResenaImagenes(r.imagen_url)
+
               return (
                 <div key={r.id} className="card bg-base-100 shadow-sm p-4">
                   <div className="flex items-center justify-between">
@@ -630,21 +813,19 @@ export function Producto() {
                     <div className="flex gap-2 mt-3 flex-wrap">
                       {fotos.map((foto, i) => (
                         <button
-                          key={i}
-                          className="w-20 h-20 rounded-lg overflow-hidden cursor-pointer border border-base-300"
+                          key={`${r.id}-${i}`}
+                          type="button"
+                          className="w-20 h-20 rounded-lg overflow-hidden cursor-pointer border border-base-300 bg-neutral-100 relative group"
                           onClick={() => setLightboxResena({ resenaId: r.id, url: foto })}
                           aria-label="Ver foto de la reseña"
                         >
-                          <img
+                          <ImagenSegura
                             src={foto}
-                            srcSet={srcsetImagen(foto, 80).srcset}
-                            sizes={srcsetImagen(foto, 80).sizes}
-                            alt={`Foto de la reseña de ${r.nombre_usuario}`}
+                            carpeta="reviews"
+                            alt={`Foto ${i + 1} de la reseña de ${r.nombre_usuario}`}
                             loading="lazy"
                             decoding="async"
-                            width={80}
-                            height={80}
-                            className="max-w-full max-h-full object-contain p-1"
+                            className="w-full h-full object-cover transition-transform duration-200 group-hover:scale-105"
                           />
                         </button>
                       ))}
@@ -663,17 +844,142 @@ export function Producto() {
       {/* Lightbox de reseña */}
       {lightboxResena && (
         <div
-          className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 cursor-zoom-out"
+          className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4 cursor-zoom-out"
           onClick={() => setLightboxResena(null)}
         >
-          <img
+          <button
+            type="button"
+            aria-label="Cerrar imagen"
+            className="absolute top-4 right-4 btn btn-circle btn-sm bg-white/90 text-black"
+            onClick={(e) => {
+              e.stopPropagation()
+              setLightboxResena(null)
+            }}
+          >
+            ✕
+          </button>
+          <ImagenSegura
             src={lightboxResena.url}
-            srcSet={srcsetImagen(lightboxResena.url, 800).srcset}
-            sizes="(max-width: 1024px) 100vw, 800px"
+            carpeta="reviews"
             alt="Foto de la reseña ampliada"
             decoding="async"
-            className="max-w-full max-h-[90vh] rounded-lg object-contain"
+            className="max-w-full max-h-[90vh] rounded-lg object-contain select-none"
+            onClick={(e) => e.stopPropagation()}
           />
+        </div>
+      )}
+
+      {zoomAbierto && producto.imagenes.length > 0 && (
+        <div
+          className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4"
+          onClick={() => {
+            setZoomAbierto(false)
+            setZoomScale(1)
+            setZoomPos({ x: 0, y: 0 })
+          }}
+        >
+          <button
+            type="button"
+            aria-label="Cerrar zoom"
+            className="absolute top-4 right-4 btn btn-circle btn-sm bg-white/90 text-black z-20"
+            onClick={(e) => {
+              e.stopPropagation()
+              setZoomAbierto(false)
+              setZoomScale(1)
+              setZoomPos({ x: 0, y: 0 })
+            }}
+          >
+            ✕
+          </button>
+          <button
+            type="button"
+            aria-label="Imagen anterior"
+            className="absolute left-2 md:left-6 btn btn-circle btn-sm bg-white/90 text-black z-20"
+            onClick={(e) => {
+              e.stopPropagation()
+              setZoomScale(1)
+              setZoomPos({ x: 0, y: 0 })
+              setImagenActiva((i) => (i - 1 + producto.imagenes.length) % producto.imagenes.length)
+            }}
+          >
+            ‹
+          </button>
+          <div className="relative w-full h-full flex items-center justify-center overflow-hidden">
+            <ImagenSegura
+              carpeta="productos"
+              src={producto.imagenes[imagenActiva]}
+              alt={`${producto.nombre} ampliada`}
+              decoding="async"
+              className={`max-w-full max-h-[90vh] rounded-lg object-contain select-none transition-transform duration-150 ${
+                zoomScale > 1 ? 'cursor-move' : 'cursor-zoom-in'
+              }`}
+              style={{
+                transform: `scale(${zoomScale}) translate(${zoomPos.x / zoomScale}px, ${zoomPos.y / zoomScale}px)`,
+              }}
+              onClick={(e) => {
+                e.stopPropagation()
+                if (arrastrando) return
+                if (zoomScale === 1) {
+                  setZoomScale(2)
+                  setZoomPos({ x: 0, y: 0 })
+                } else if (zoomScale === 2) {
+                  setZoomScale(2.6)
+                } else {
+                  setZoomScale(1)
+                  setZoomPos({ x: 0, y: 0 })
+                }
+              }}
+              onMouseDown={(e) => {
+                if (zoomScale <= 1) return
+                e.preventDefault()
+                e.stopPropagation()
+                setArrastrando(true)
+                arrastreRef.current = {
+                  startX: e.clientX,
+                  startY: e.clientY,
+                  posX: zoomPos.x,
+                  posY: zoomPos.y,
+                }
+              }}
+              onMouseMove={(e) => {
+                if (!arrastrando || zoomScale <= 1) return
+                e.preventDefault()
+                e.stopPropagation()
+                const dx = e.clientX - arrastreRef.current.startX
+                const dy = e.clientY - arrastreRef.current.startY
+                setZoomPos({
+                  x: arrastreRef.current.posX + dx,
+                  y: arrastreRef.current.posY + dy,
+                })
+              }}
+              onMouseUp={(e) => {
+                if (!arrastrando) return
+                e.stopPropagation()
+                setArrastrando(false)
+              }}
+              onMouseLeave={(e) => {
+                if (!arrastrando) return
+                e.stopPropagation()
+                setArrastrando(false)
+              }}
+            />
+          </div>
+          <button
+            type="button"
+            aria-label="Imagen siguiente"
+            className="absolute right-2 md:right-6 btn btn-circle btn-sm bg-white/90 text-black z-20"
+            onClick={(e) => {
+              e.stopPropagation()
+              setZoomScale(1)
+              setZoomPos({ x: 0, y: 0 })
+              setImagenActiva((i) => (i + 1) % producto.imagenes.length)
+            }}
+          >
+            ›
+          </button>
+          <div className="absolute bottom-4 text-white text-xs z-20">
+            {imagenActiva + 1} / {producto.imagenes.length}
+          </div>
         </div>
       )}
 
