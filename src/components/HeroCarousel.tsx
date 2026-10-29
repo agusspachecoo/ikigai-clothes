@@ -1,9 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { getBannersPublic } from '../lib/adminApi'
-import { IMAGEN_FALLBACK, normalizarUrlImagen, srcsetImagen } from '../lib/imagenes'
+import { IMAGEN_FALLBACK, normalizarUrlImagen } from '../lib/imagenes'
 import type { Banner } from '../types/database'
-import { ImagenSegura } from './ImagenSegura'
 
 const BANNERS_POR_DEFECTO: Banner[] = [
   {
@@ -54,7 +53,7 @@ const BANNERS_POR_DEFECTO: Banner[] = [
 
 const AUTOPLAY_MS = 5000
 const CLASE_HERO =
-  'relative aspect-[4/3] md:aspect-[21/9] md:max-h-[80vh] w-full overflow-hidden bg-base-200 animate-fade-in'
+  'relative h-[50vh] min-h-[280px] max-h-[480px] sm:h-[60vh] sm:min-h-[340px] sm:max-h-[520px] md:h-[70vh] md:min-h-[420px] md:max-h-[80vh] w-full overflow-hidden bg-base-200 animate-fade-in'
 
 function BannerImagen({
   banner,
@@ -67,6 +66,12 @@ function BannerImagen({
 }) {
   const [fallo, setFallo] = useState(false)
 
+  // Normalizamos las URLs de forma segura para mobile y desktop
+  const urlDesktop = normalizarUrlImagen(banner.imagen_url, { carpeta: 'banners' })
+  const urlMobile = banner.imagen_mobile
+    ? normalizarUrlImagen(banner.imagen_mobile, { carpeta: 'banners' })
+    : urlDesktop
+
   if (fallo) {
     return (
       <img
@@ -74,45 +79,28 @@ function BannerImagen({
         alt={banner.titulo ?? 'Ikigai Clothes'}
         loading={prioridad ? 'eager' : 'lazy'}
         decoding={prioridad ? 'sync' : 'async'}
-        width={1920}
-        height={820}
         onLoad={onReady}
         onError={(e) => {
           ;(e.currentTarget as HTMLElement).style.display = 'none'
         }}
-        className="h-full w-full object-cover md:object-contain"
+        className="h-full w-full object-cover object-center"
       />
     )
   }
 
-  const srcsetMovil = banner.imagen_mobile
-    ? (srcsetImagen(banner.imagen_mobile, 640, true, { carpeta: 'banners' }).srcset ??
-      normalizarUrlImagen(banner.imagen_mobile, { carpeta: 'banners' }))
-    : null
-  const srcsetDesktop =
-    srcsetImagen(banner.imagen_url, 1600, true, { carpeta: 'banners' }).srcset ??
-    normalizarUrlImagen(banner.imagen_url, { carpeta: 'banners' })
-
   return (
-    <picture>
-      {srcsetMovil && (
-        <source media="(max-width: 767px)" srcSet={srcsetMovil} sizes="100vw" />
-      )}
-      <source media="(min-width: 768px)" srcSet={srcsetDesktop} sizes="100vw" />
-      <ImagenSegura
-        carpeta="banners"
-        src={banner.imagen_url}
-        srcSet={srcsetDesktop}
-        sizes="100vw"
+    <picture className="block h-full w-full">
+      <source media="(max-width: 767px)" srcSet={urlMobile} />
+      <source media="(min-width: 768px)" srcSet={urlDesktop} />
+      <img
+        src={urlDesktop}
         alt={banner.titulo ?? 'Ikigai Clothes'}
         loading={prioridad ? 'eager' : 'lazy'}
         fetchPriority={prioridad ? 'high' : 'auto'}
         decoding={prioridad ? 'sync' : 'async'}
-        width={1920}
-        height={820}
         onLoad={onReady}
         onError={() => setFallo(true)}
-        className="h-full w-full object-cover md:object-contain"
+        className="h-full w-full object-cover object-center"
       />
     </picture>
   )
@@ -192,7 +180,7 @@ export function HeroCarousel() {
         style={{ transform: `translateX(-${actual * 100}%)` }}
       >
         {banners.map((banner, i) => (
-          <div key={banner.id} className="relative h-full w-full shrink-0">
+          <div key={banner.id} className="relative h-full w-full min-h-[280px] shrink-0">
             <BannerImagen
               banner={banner}
               prioridad={i === 0}
@@ -200,20 +188,20 @@ export function HeroCarousel() {
                 if (i === 0) setPrimeraImagenLista(true)
               }}
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent pointer-events-none" />
 
-            {banner.link_url ? (
+            {banner.link_url && !banner.titulo && (
               <Link
                 to={banner.link_url}
                 className="absolute inset-0"
                 aria-label={banner.titulo ?? 'Ir a la oferta'}
               />
-            ) : null}
+            )}
 
             {(banner.titulo || banner.link_url) && (
               <div className="absolute inset-x-0 bottom-0 p-6 md:p-10 text-white pointer-events-none">
                 {banner.titulo && (
-                  <h2 className="text-2xl md:text-4xl font-bold drop-shadow-md font-display">
+                  <h2 className="text-xl md:text-4xl font-bold drop-shadow-md font-display">
                     {banner.titulo}
                   </h2>
                 )}
@@ -256,7 +244,7 @@ export function HeroCarousel() {
           <button
             aria-label="Slide siguiente"
             onClick={() => irA(actual + 1)}
-            className="absolute right-3 md:right-5 top-1/2 -translate-y-1/2 btn btn-circle btn-sm md:btn-md bg-white/10 text-white border-white/30 backdrop-blur-sm hover:bg-white/25 transition-colors"
+            className="absolute right-3 md:left-auto md:right-5 top-1/2 -translate-y-1/2 btn btn-circle btn-sm md:btn-md bg-white/10 text-white border-white/30 backdrop-blur-sm hover:bg-white/25 transition-colors"
           >
             <svg className="h-4 w-4 md:h-5 md:w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
               <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />

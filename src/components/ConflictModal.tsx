@@ -40,11 +40,11 @@ export function ConflictModal({
             </svg>
           </span>
           <div className="min-w-0">
-            <h3 className="font-bold text-base leading-tight">Esta prenda ya está en tu carrito</h3>
+            <h3 className="font-bold text-base leading-tight">Ese talle ya está en tu carrito</h3>
             <p className="text-sm opacity-70 mt-1">
               {esOutfitNuevo
                 ? 'Algunas prendas del look ya están en tu carrito.'
-                : 'Cada prenda es de edición única, así que no podemos agregar la misma dos veces.'}
+                : 'Ese talle ya forma parte de un look en tu carrito.'}
             </p>
           </div>
         </div>
@@ -61,8 +61,8 @@ export function ConflictModal({
 
         <p className="mt-4 text-sm">
           {hayOutfit
-            ? 'Si reemplazás, quitamos del carrito el look completo en conflicto y agrega la prenda que elegiste.'
-            : 'Si reemplazás, quitamos del carrito la prenda que ya tenías y agrega la que elegiste.'}
+            ? 'Si reemplazás, quitamos del carrito el look completo en conflicto y agregamos la prenda que elegiste.'
+            : 'Si reemplazás, quitamos del carrito la prenda que ya tenías y agregamos la que elegiste.'}
         </p>
 
         <div className="modal-action">

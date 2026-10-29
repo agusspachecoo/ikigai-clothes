@@ -2,6 +2,7 @@ import { createContext, useContext } from 'react'
 import type { CartItem } from '../types/cart'
 import type { CuponAplicado } from '../lib/cupones'
 import type { Colision } from '../lib/conflictos'
+import type { PromocionAplicada } from '../lib/promociones'
 
 /** Item nuevo tal como lo declara la UI, antes de validarlo contra el carrito. */
 export type ItemNuevo = Omit<CartItem, 'cantidad'> & { cantidad?: number }
@@ -15,16 +16,16 @@ export type DetallePrenda = {
 
 export type ResultadoValidacion =
   | { ok: true }
-  | { ok: false; colisiones: Colision[] }
+  | { ok: false; colisiones: Colision[]; motivo?: string }
 
 export interface CartContextValue {
   items: CartItem[]
   count: number
   total: number
   /**
-   * Agrega una prenda validando el stock unitario. Si el product_id ya está en
-   * el carrito (suelto o dentro de un look) NO muta el estado: devuelve las
-   * colisiones para que la UI abra el ConflictModal.
+   * Agrega una prenda. Si la misma variante ya está suelta en el carrito,
+   * incrementa la cantidad hasta el stock del talle. Si choca con otra variante
+   * o con un look, devuelve las colisiones sin mutar el estado.
    */
   intentarAgregar: (nuevo: ItemNuevo) => ResultadoValidacion
   /** Reemplaza lo que colisiona y recién ahí agrega la prenda. */
@@ -45,6 +46,7 @@ export interface CartContextValue {
     colisiones: Colision[],
   ) => void
   eliminarItem: (productoId: string, talle: string) => void
+  actualizarCantidad: (productoId: string, talle: string, cantidad: number) => void
   removerOutfitCompleto: (outfitId: string) => void
   vaciar: () => void
   carritoAbierto: boolean
@@ -53,9 +55,13 @@ export interface CartContextValue {
   cupon: CuponAplicado | null
   /** Descuento del cupón recalculado sobre el subtotal actual */
   descuentoCupon: number
-  /** Descuento por outfit completo (5% de las prendas del combo) */
+  /** Descuento por outfit completo (5% de las prendas no consumidas por promos) */
   descuentoOutfit: number
-  /** Total a cobrar: subtotal - descuento outfit - descuento del cupón */
+  /** Descuento automático por packs/combos */
+  descuentoPromociones: number
+  /** Detalle de packs/combos aplicados */
+  promocionesAplicadas: PromocionAplicada[]
+  /** Total a cobrar: subtotal - promos - outfit - cupón */
   totalConDescuento: number
   aplicarCupon: (cupon: CuponAplicado) => void
   quitarCupon: () => void

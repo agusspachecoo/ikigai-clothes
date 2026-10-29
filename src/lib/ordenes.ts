@@ -1,5 +1,6 @@
 import { supabase } from './supabase'
 import type { OpcionEnvio, ResultadoCotizacion } from './enviopack'
+import type { PromocionAplicada } from './promociones'
 
 export interface DatosOrden {
   cliente_nombre: string
@@ -38,6 +39,8 @@ export interface ResumenOrden {
   subtotal: number
   descuento_transferencia: number
   descuento_cupon: number
+  descuento_promociones: number
+  promociones_aplicadas: PromocionAplicada[]
   descuento_outfit: number
   costo_envio: number
   envio_gratis: boolean
@@ -95,6 +98,8 @@ export async function crearOrden(datos: DatosOrden): Promise<
     subtotal: respuesta.subtotal,
     descuento_transferencia: respuesta.descuento_transferencia,
     descuento_cupon: respuesta.descuento_cupon,
+    descuento_promociones: respuesta.descuento_promociones ?? 0,
+    promociones_aplicadas: respuesta.promociones_aplicadas ?? [],
     descuento_outfit: respuesta.descuento_outfit,
     costo_envio: respuesta.costo_envio,
     envio_gratis: respuesta.envio_gratis,

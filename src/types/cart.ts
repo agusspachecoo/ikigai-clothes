@@ -5,6 +5,7 @@ export interface CartItem {
   talle: string
   precio_unitario: number
   cantidad: number
+  stock_disponible?: number
   origen?: 'individual' | 'outfit'
   outfitId?: string | null
   outfitNombre?: string | null

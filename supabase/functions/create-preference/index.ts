@@ -25,7 +25,13 @@ import { corsHeaders, json } from '../_shared/cors.ts'
 import { getSupabaseAdmin, getUsuario, puedeAccederOrden } from '../_shared/auth.ts'
 import { validarCupon, type Cupon } from '../_shared/cupones.ts'
 import { precioUnitarioReal, round2, type ProductoPrecio } from '../_shared/precios.ts'
-import { calcularDescuentoOutfit, type OutfitComposicion } from '../_shared/outfits.ts'
+import {
+  calcularDescuentoOutfit,
+  DESCUENTO_OUTFIT_PCT,
+  type OutfitComposicion,
+} from '../_shared/outfits.ts'
+import { calcularPromociones } from '../_shared/promociones.ts'
+import { cargarPromocionesActivas } from '../_shared/promocionesDb.ts'
 
 interface ItemInput {
   producto_id: string
@@ -117,7 +123,7 @@ Deno.serve(async (req) => {
 
     const { data: orden } = await supabase
       .from('ordenes')
-      .select('id, cliente_id, cliente_email, guest_token_hash, guest_token_expira_at, monto_total, costo_envio, metodo_pago, estado, estado_pago, cliente_nombre, cliente_telefono, cliente_dni, codigo_postal, envio_detalle, cupon_codigo, descuento_cupon, descuento_outfit')
+      .select('id, cliente_id, cliente_email, guest_token_hash, guest_token_expira_at, monto_total, costo_envio, metodo_pago, estado, estado_pago, cliente_nombre, cliente_telefono, cliente_dni, codigo_postal, envio_detalle, cupon_codigo, descuento_cupon, descuento_promociones, promociones_aplicadas, descuento_outfit')
       .eq('id', ordenId)
       .maybeSingle()
 
@@ -273,9 +279,8 @@ Deno.serve(async (req) => {
     // ---------------------------------------------------------------
     // PASO 3: el subtotal es SIEMPRE el del catálogo, no el del cliente.
     // ---------------------------------------------------------------
-    const subtotalReal = itemsResueltos.reduce(
-      (n, i) => n + i.precio_unitario * i.cantidad,
-      0,
+    const subtotalReal = round2(
+      itemsResueltos.reduce((n, i) => n + i.precio_unitario * i.cantidad, 0),
     )
     // Autoritativo: el que `crear-orden` validó y guardó.
     const costoEnvioNum = costoEnvioOrden
@@ -289,6 +294,30 @@ Deno.serve(async (req) => {
     if (Math.abs(montoCliente - subtotalReal) > 0.01) {
       console.warn(
         `Precio del cliente ignorado (orden ${ordenId}): enviado=${montoCliente} real=${subtotalReal}`,
+      )
+    }
+
+    // ---------------------------------------------------------------
+    // PASO 3.5: promociones automáticas. Se recalculan contra el catálogo y se
+    // comparan con lo guardado por `crear-orden`.
+    // ---------------------------------------------------------------
+    const { promociones, error: errorPromociones } = await cargarPromocionesActivas(supabase)
+    if (errorPromociones) {
+      console.error('Error leyendo promociones:', errorPromociones)
+      return json(
+        { error: 'No pudimos verificar las promociones vigentes. Intentá de nuevo.' },
+        { status: 500 },
+      )
+    }
+
+    const resultadoPromociones = calcularPromociones(itemsResueltos, promociones)
+    const descuentoPromociones = resultadoPromociones.descuento
+    const subtotalPostPromociones = Math.max(0, round2(subtotalReal - descuentoPromociones))
+
+    if (Math.abs(Number(orden.descuento_promociones ?? 0) - descuentoPromociones) > 0.01) {
+      return json(
+        { error: 'Las promociones cambiaron. Volvé al carrito e intentá de nuevo.' },
+        { status: 409 },
       )
     }
 
@@ -324,7 +353,7 @@ Deno.serve(async (req) => {
         // descuento por transferencia).
         const subtotalConDescuento = Math.max(
           0,
-          subtotalReal -
+          subtotalPostPromociones -
             Number(orden.descuento_cupon ?? 0) -
             Number(orden.descuento_outfit ?? 0),
         )
@@ -350,7 +379,7 @@ Deno.serve(async (req) => {
         .eq('codigo', codigoCupon)
         .maybeSingle()
 
-      const resultado = validarCupon((cupon ?? null) as Cupon | null, subtotalReal)
+      const resultado = validarCupon((cupon ?? null) as Cupon | null, subtotalPostPromociones)
       if (!resultado.ok) {
         return json({ error: resultado.motivo ?? 'El cupón no es válido.' }, { status: 409 })
       }
@@ -382,7 +411,12 @@ Deno.serve(async (req) => {
       ),
     }))
 
-    const descuentoOutfit = calcularDescuentoOutfit(itemsResueltos, outfits)
+    const descuentoOutfit = calcularDescuentoOutfit(
+      itemsResueltos,
+      outfits,
+      DESCUENTO_OUTFIT_PCT,
+      resultadoPromociones.unidadesConsumidas,
+    )
 
     if (Math.abs(Number(orden.descuento_outfit ?? 0) - descuentoOutfit) > 0.01) {
       return json(
@@ -392,7 +426,10 @@ Deno.serve(async (req) => {
     }
 
     const totalEsperado = round2(
-      subtotalReal + costoEnvioNum - descuentoCupon - descuentoOutfit,
+      subtotalPostPromociones +
+        costoEnvioNum -
+        descuentoCupon -
+        descuentoOutfit,
     )
     const montoOrden = round2(Number(orden.monto_total) || 0)
     if (Math.abs(montoOrden - totalEsperado) > 0.01) {
@@ -422,6 +459,16 @@ Deno.serve(async (req) => {
         title: carrierEnvioOrden ? `Envío (${carrierEnvioOrden})` : 'Envío',
         quantity: 1,
         unit_price: costoEnvioNum,
+        currency_id: 'ARS',
+      })
+    }
+
+    if (descuentoPromociones > 0) {
+      mpItems.push({
+        id: 'promociones',
+        title: 'Promociones',
+        quantity: 1,
+        unit_price: -descuentoPromociones,
         currency_id: 'ARS',
       })
     }

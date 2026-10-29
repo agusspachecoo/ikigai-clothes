@@ -84,7 +84,16 @@ const OPCION_SHOWROOM: OpcionEnvio = {
 type PedidoConfirmado = ResumenPedido
 
 export function Checkout() {
-  const { items, total, vaciar, cupon, descuentoCupon, descuentoOutfit } = useCart()
+  const {
+    items,
+    total,
+    vaciar,
+    cupon,
+    descuentoCupon,
+    descuentoOutfit,
+    descuentoPromociones,
+    promocionesAplicadas,
+  } = useCart()
   const { descuento_transferencia, umbral_envio_gratis, envio_gratis_activo, cuotas_sin_interes } =
     useTienda()
   const { user } = useAuth()
@@ -128,10 +137,13 @@ export function Checkout() {
   const retiro = opcionEnvio?.id_servicio === OPCION_SHOWROOM.id_servicio
 
   const esTransferencia = metodoPago === 'transferencia'
-  const descuentoTransferencia = esTransferencia ? total * descuento_transferencia : 0
+  const subtotalPostPromociones = Math.max(0, total - descuentoPromociones)
+  const descuentoTransferencia = esTransferencia
+    ? subtotalPostPromociones * descuento_transferencia
+    : 0
   const subtotalConDescuento = Math.max(
     0,
-    total - descuentoTransferencia - descuentoCupon - descuentoOutfit,
+    subtotalPostPromociones - descuentoTransferencia - descuentoCupon - descuentoOutfit,
   )
 
   const aplicarCotizacion = useCallback(
@@ -429,6 +441,8 @@ export function Checkout() {
       subtotal: res.subtotal ?? total,
       descuentoTransferencia: res.descuento_transferencia ?? 0,
       descuentoCupon: res.descuento_cupon ?? 0,
+      descuentoPromociones: res.descuento_promociones ?? descuentoPromociones,
+      promocionesAplicadas: res.promociones_aplicadas ?? promocionesAplicadas,
       descuentoOutfit: res.descuento_outfit ?? descuentoOutfit,
       costoEnvio: res.costo_envio ?? costoEnvioCobrado,
       envioGratis: res.envio_gratis ?? false,
@@ -856,8 +870,25 @@ export function Checkout() {
                   <dd className="font-medium tabular-nums">${formatearPrecio(total)}</dd>
                 </div>
 
-                {(descuentoOutfit > 0 || descuentoTransferencia > 0 || descuentoCupon > 0) && (
+                {(descuentoPromociones > 0 ||
+                  descuentoOutfit > 0 ||
+                  descuentoTransferencia > 0 ||
+                  descuentoCupon > 0) && (
                   <div className="space-y-2 rounded-xl bg-success/5 px-3 py-2.5">
+                    {descuentoPromociones > 0 && (
+                      <div className="flex items-baseline justify-between gap-4 text-success">
+                        <dt className="min-w-0 font-medium">
+                          Promociones
+                          <span className="block truncate text-xs font-normal opacity-70">
+                            {promocionesAplicadas.map((p) => p.nombre).join(', ')}
+                          </span>
+                        </dt>
+                        <dd className="shrink-0 font-semibold tabular-nums">
+                          -${formatearPrecio(descuentoPromociones)}
+                        </dd>
+                      </div>
+                    )}
+
                     {descuentoOutfit > 0 && (
                       <div className="flex items-baseline justify-between gap-4 text-success">
                         <dt className="font-medium">Descuento outfit</dt>
@@ -929,9 +960,18 @@ export function Checkout() {
                     </p>
                   </div>
 
-                  {descuentoTransferencia > 0 && (
+                  {descuentoPromociones +
+                    descuentoOutfit +
+                    descuentoTransferencia +
+                    descuentoCupon >
+                    0 && (
                     <span className="shrink-0 rounded-full bg-success/10 px-2.5 py-1 text-[10px] font-semibold text-success">
-                      Ahorrás ${formatearPrecio(descuentoTransferencia + descuentoCupon)}
+                      Ahorrás ${formatearPrecio(
+                        descuentoPromociones +
+                          descuentoOutfit +
+                          descuentoTransferencia +
+                          descuentoCupon,
+                      )}
                     </span>
                   )}
                 </div>
@@ -1180,6 +1220,17 @@ function ConfirmacionPedido({
 
             <div className="border-t border-line pt-3 space-y-2">
               <Fila etiqueta="Subtotal" valor={`$${formatearPrecio(pedido.subtotal)}`} />
+              {pedido.descuentoPromociones > 0 && (
+                <Fila
+                  etiqueta={`Promociones${
+                    (pedido.promocionesAplicadas ?? []).length > 0
+                      ? `: ${(pedido.promocionesAplicadas ?? []).map((p) => p.nombre).join(', ')}`
+                      : ''
+                  }`}
+                  valor={`-$${formatearPrecio(pedido.descuentoPromociones)}`}
+                  clase="text-success font-medium"
+                />
+              )}
               {pedido.descuentoOutfit > 0 && (
                 <Fila
                   etiqueta="Descuento outfit"

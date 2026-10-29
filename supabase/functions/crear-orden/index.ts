@@ -22,7 +22,13 @@
 import { corsHeaders, json } from '../_shared/cors.ts'
 import { validarCupon, type Cupon } from '../_shared/cupones.ts'
 import { precioUnitarioReal, round2, type ProductoPrecio } from '../_shared/precios.ts'
-import { calcularDescuentoOutfit, type OutfitComposicion } from '../_shared/outfits.ts'
+import {
+  calcularDescuentoOutfit,
+  DESCUENTO_OUTFIT_PCT,
+  type OutfitComposicion,
+} from '../_shared/outfits.ts'
+import { calcularPromociones } from '../_shared/promociones.ts'
+import { cargarPromocionesActivas } from '../_shared/promocionesDb.ts'
 import {
   generarTokenInvitado,
   getSupabaseAdmin,
@@ -333,9 +339,26 @@ Deno.serve(async (req) => {
     )
 
     // ---------------------------------------------------------------
-    // PASO 3.5: descuento por outfit completo. Se leen los outfits activos
+    // PASO 3.5: promociones automáticas (packs/combos). Se recalculan enteras
+    // acá; el cliente solo muestra el resultado.
+    // ---------------------------------------------------------------
+    const { promociones, error: errorPromociones } = await cargarPromocionesActivas(supabase)
+    if (errorPromociones) {
+      console.error('Error leyendo promociones:', errorPromociones)
+      return json(
+        { error: 'No pudimos verificar las promociones vigentes. Intentá de nuevo.' },
+        { status: 500 },
+      )
+    }
+
+    const resultadoPromociones = calcularPromociones(itemsResueltos, promociones)
+    const descuentoPromociones = resultadoPromociones.descuento
+    const subtotalPostPromociones = Math.max(0, round2(subtotalReal - descuentoPromociones))
+
+    // ---------------------------------------------------------------
+    // PASO 3.6: descuento por outfit completo. Se leen los outfits activos
     // desde la base y se verifica que TODAS sus prendas estén en el carrito.
-    // El cliente no manda ningún monto: acá se recalcula entero.
+    // Solo se descuentan las unidades que no consumió una promo.
     // ---------------------------------------------------------------
     const { data: filasOutfits, error: errorOutfits } = await supabase
       .from('outfits')
@@ -356,7 +379,12 @@ Deno.serve(async (req) => {
       ),
     }))
 
-    const descuentoOutfit = calcularDescuentoOutfit(itemsResueltos, outfits)
+    const descuentoOutfit = calcularDescuentoOutfit(
+      itemsResueltos,
+      outfits,
+      DESCUENTO_OUTFIT_PCT,
+      resultadoPromociones.unidadesConsumidas,
+    )
 
     // ---------------------------------------------------------------
     // PASO 4: cupón, revalidado contra el subtotal real.
@@ -371,7 +399,7 @@ Deno.serve(async (req) => {
         .eq('codigo', codigoCupon)
         .maybeSingle()
 
-      const resultado = validarCupon((cupon ?? null) as Cupon | null, subtotalReal)
+      const resultado = validarCupon((cupon ?? null) as Cupon | null, subtotalPostPromociones)
       if (!resultado.ok) {
         return json({ error: resultado.motivo ?? 'El cupón no es válido.' }, { status: 409 })
       }
@@ -383,14 +411,21 @@ Deno.serve(async (req) => {
     // PASO 5: descuento por transferencia, calculado acá.
     // ---------------------------------------------------------------
     const descuentoTransferencia =
-      metodo_pago === 'transferencia' ? round2(subtotalReal * pctTransferencia) : 0
+      metodo_pago === 'transferencia'
+        ? round2(subtotalPostPromociones * pctTransferencia)
+        : 0
 
     // ---------------------------------------------------------------
     // PASO 6: envío. Se recalcula el envío gratis contra la config.
     // ---------------------------------------------------------------
     const subtotalConDescuento = Math.max(
       0,
-      round2(subtotalReal - descuentoTransferencia - descuentoCupon - descuentoOutfit),
+      round2(
+        subtotalPostPromociones -
+          descuentoTransferencia -
+          descuentoCupon -
+          descuentoOutfit,
+      ),
     )
 
     // Override de envío gratis local para Oberá (CP 3360). Es un beneficio del
@@ -500,6 +535,8 @@ Deno.serve(async (req) => {
         costo_envio: costoEnvioFinal,
         cupon_codigo: codigoCupon || null,
         descuento_cupon: descuentoCupon,
+        descuento_promociones: descuentoPromociones,
+        promociones_aplicadas: resultadoPromociones.aplicadas,
         descuento_outfit: descuentoOutfit,
         guest_token_hash: guestTokenHash,
         guest_token_expira_at: guestTokenExpira,
@@ -539,6 +576,8 @@ Deno.serve(async (req) => {
         subtotal: subtotalReal,
         descuento_transferencia: descuentoTransferencia,
         descuento_cupon: descuentoCupon,
+        descuento_promociones: descuentoPromociones,
+        promociones_aplicadas: resultadoPromociones.aplicadas,
         descuento_outfit: descuentoOutfit,
         costo_envio: costoEnvioFinal,
         envio_gratis: correspondeEnvioGratis || esRetiro,

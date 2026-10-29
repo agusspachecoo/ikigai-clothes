@@ -10,6 +10,7 @@
 // completo para que un combo barato no descuente las prendas sueltas.
 
 import { tieneStock } from './talles'
+import { claveLinea } from './promociones'
 import type { OutfitConItems } from '../types/database'
 
 export const DESCUENTO_OUTFIT_PCT = 0.05
@@ -19,6 +20,7 @@ export const MIN_PRODUCTOS_OUTFIT = 2
 
 export interface ItemOutfit {
   producto_id: string
+  talle?: string
   cantidad: number
   precio_unitario: number
 }
@@ -34,7 +36,7 @@ export function productosEnOutfitsCompletos(
   items: ItemOutfit[],
   outfits: OutfitComposicion[],
 ): Set<string> {
-  const enCarrito = new Set(items.map((i) => i.producto_id))
+  const enCarrito = new Set(items.map((item) => item.producto_id))
   const incluidos = new Set<string>()
 
   for (const outfit of outfits) {
@@ -55,6 +57,7 @@ export function calcularDescuentoOutfit(
   items: ItemOutfit[],
   outfits: OutfitComposicion[],
   pct: number = DESCUENTO_OUTFIT_PCT,
+  unidadesConsumidas: Map<string, number> = new Map(),
 ): number {
   const porcentaje = Math.min(1, Math.max(0, Number(pct) || 0))
   if (porcentaje <= 0) return 0
@@ -64,7 +67,13 @@ export function calcularDescuentoOutfit(
 
   const base = items
     .filter((i) => incluidos.has(i.producto_id))
-    .reduce((n, i) => n + i.precio_unitario * i.cantidad, 0)
+    .reduce((n, i) => {
+      const consumidas =
+        unidadesConsumidas.get(
+          claveLinea({ producto_id: i.producto_id, talle: i.talle ?? '' }),
+        ) ?? 0
+      return n + i.precio_unitario * Math.max(0, i.cantidad - consumidas)
+    }, 0)
 
   return Math.round(base * porcentaje * 100) / 100
 }

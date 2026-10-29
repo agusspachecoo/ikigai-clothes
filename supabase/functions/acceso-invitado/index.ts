@@ -10,6 +10,7 @@
 // ============================================================
 
 import { getSupabaseAdmin, getUsuario, puedeAccederOrden } from '../_shared/auth.ts'
+import type { PromocionAplicada } from '../_shared/promociones.ts'
 import { corsHeaders, json } from '../_shared/cors.ts'
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -28,6 +29,8 @@ interface OrdenFila {
   estado_pago: string
   cupon_codigo: string | null
   descuento_cupon: number
+  descuento_promociones: number
+  promociones_aplicadas: PromocionAplicada[]
   descuento_outfit: number
   envio_detalle: Record<string, unknown> | null
   created_at: string
@@ -74,7 +77,7 @@ Deno.serve(async (req) => {
 
     const { data: orden, error: errOrden } = await supabase
       .from('ordenes')
-      .select('id, cliente_id, cliente_email, guest_token_hash, guest_token_expira_at, cliente_nombre, metodo_pago, monto_total, costo_envio, estado, estado_pago, cupon_codigo, descuento_cupon, descuento_outfit, envio_detalle, created_at')
+      .select('id, cliente_id, cliente_email, guest_token_hash, guest_token_expira_at, cliente_nombre, metodo_pago, monto_total, costo_envio, estado, estado_pago, cupon_codigo, descuento_cupon, descuento_promociones, promociones_aplicadas, descuento_outfit, envio_detalle, created_at')
       .eq('id', ordenId)
       .maybeSingle<OrdenFila>()
 
@@ -160,6 +163,7 @@ Deno.serve(async (req) => {
         Number(orden.costo_envio ?? 0) -
         Number(orden.monto_total ?? 0) -
         Number(orden.descuento_cupon ?? 0) -
+        Number(orden.descuento_promociones ?? 0) -
         Number(orden.descuento_outfit ?? 0),
     )
 
@@ -171,6 +175,10 @@ Deno.serve(async (req) => {
         subtotal,
         descuentoTransferencia: Math.round(descuentoTransferencia * 100) / 100,
         descuentoCupon: numero(orden.descuento_cupon),
+        descuentoPromociones: numero(orden.descuento_promociones),
+        promocionesAplicadas: Array.isArray(orden.promociones_aplicadas)
+          ? orden.promociones_aplicadas
+          : [],
         descuentoOutfit: numero(orden.descuento_outfit),
         costoEnvio: numero(orden.costo_envio),
         envioGratis: !retiro && numero(orden.costo_envio) === 0,

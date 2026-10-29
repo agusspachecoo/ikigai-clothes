@@ -27,6 +27,7 @@ export function QuickshopModal({
   const [agregado, setAgregado] = useState(false)
   const [conflictos, setConflictos] = useState<Colision[]>([])
   const [modalAbierto, setModalAbierto] = useState(false)
+  const [errorCarrito, setErrorCarrito] = useState<string | null>(null)
 
   useCierreModal(true, onCerrar)
 
@@ -47,6 +48,7 @@ export function QuickshopModal({
       talle: sinTalles ? 'Único' : talle,
       precio_unitario: precio,
       cantidad: 1,
+      stock_disponible: stockTalleSeleccionado,
       origen: 'individual',
       outfitId: null,
       outfitNombre: null,
@@ -69,10 +71,15 @@ export function QuickshopModal({
     // Con colisión no se muta el estado: solo se abre el aviso.
     const resultado = intentarAgregar(prendaNueva())
     if (!resultado.ok) {
+      if (resultado.motivo) {
+        setErrorCarrito(resultado.motivo)
+        return
+      }
       setConflictos(resultado.colisiones)
       setModalAbierto(true)
       return
     }
+    setErrorCarrito(null)
     confirmarCarrito()
   }
 
@@ -162,7 +169,10 @@ export function QuickshopModal({
                       key={t}
                       type="button"
                       disabled={stock === 0}
-                      onClick={() => setTalle(t)}
+                      onClick={() => {
+                        setTalle(t)
+                        setErrorCarrito(null)
+                      }}
                       className={`min-w-10 h-10 sm:min-w-11 sm:h-9 px-3 border text-sm transition-colors ${
                         talle === t
                           ? 'bg-neutral text-neutral-content border-neutral'
@@ -201,6 +211,11 @@ export function QuickshopModal({
                         ? 'Sin Stock'
                         : 'AGREGAR AL CARRITO'}
               </button>
+              {errorCarrito && (
+                <p role="alert" className="alert alert-warning py-2 px-3 text-xs">
+                  {errorCarrito}
+                </p>
+              )}
               <Link
                 to={`/producto/${producto.id}`}
                 onClick={onCerrar}

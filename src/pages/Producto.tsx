@@ -41,6 +41,7 @@ export function Producto() {
   const [talleSeleccionado, setTalleSeleccionado] = useState<string | null>(null)
   const [conflictos, setConflictos] = useState<Colision[]>([])
   const [modalConflictoAbierto, setModalConflictoAbierto] = useState(false)
+  const [errorCarrito, setErrorCarrito] = useState<string | null>(null)
   const [fotoResena, setFotoResena] = useState<File | null>(null)
   const [vistaPreviaResena, setVistaPreviaResena] = useState<string | null>(null)
   const [subiendoResena, setSubiendoResena] = useState(false)
@@ -194,6 +195,8 @@ export function Producto() {
 
   const talles = producto ? tallesDisponibles(producto.variaciones_stock, ordenTalles) : []
   const sinStock = talles.length === 0 || talles.every((t) => t.stock === 0)
+  const stockTalleSeleccionado =
+    talles.find((t) => t.talle === talleSeleccionado)?.stock ?? 0
   const precioTransferenciaFinal = precioTransferencia(precioOferta, descuento_transferencia)
   const ahorroTransferencia = Math.max(0, precioOferta - precioTransferenciaFinal)
 
@@ -209,6 +212,7 @@ export function Producto() {
       imagen: imagenProducto(producto.imagenes[0], 0),
       talle: talleSeleccionado,
       precio_unitario: precioOferta,
+      stock_disponible: stockTalleSeleccionado,
       origen: 'individual',
       outfitId: null,
       outfitNombre: null,
@@ -222,10 +226,15 @@ export function Producto() {
     // agrega nada hasta que el usuario confirme el reemplazo en el modal.
     const resultado = intentarAgregar(nueva)
     if (!resultado.ok) {
+      if (resultado.motivo) {
+        setErrorCarrito(resultado.motivo)
+        return
+      }
       setConflictos(resultado.colisiones)
       setModalConflictoAbierto(true)
       return
     }
+    setErrorCarrito(null)
     setCarritoAbierto(true)
   }
 
@@ -572,7 +581,10 @@ export function Producto() {
                     type="button"
                     aria-pressed={t === talleSeleccionado}
                     disabled={stock === 0}
-                    onClick={() => setTalleSeleccionado(t)}
+                    onClick={() => {
+                      setTalleSeleccionado(t)
+                      setErrorCarrito(null)
+                    }}
                     className={`min-w-12 h-10 px-4 border text-sm transition-colors ${
                       t === talleSeleccionado
                         ? 'bg-neutral text-neutral-content border-neutral'
@@ -602,6 +614,11 @@ export function Producto() {
                   ? 'Agregar al carrito'
                   : 'Elegí un talle'}
             </button>
+            {errorCarrito && (
+              <p role="alert" className="alert alert-warning mt-3 py-2 px-3 text-sm">
+                {errorCarrito}
+              </p>
+            )}
           </div>
 
           {/* Medios de pago y envío */}

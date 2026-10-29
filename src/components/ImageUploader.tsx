@@ -98,38 +98,52 @@ export function ImageUploader({
 
     setError(null)
     const urls: string[] = []
+    const errores: string[] = []
 
     try {
       setSubiendo(true)
       setProgreso({ actual: 0, total: lista.length })
 
       for (const [indice, archivo] of lista.entries()) {
-        if (!archivo.type.startsWith('image/')) {
-          setError(`El archivo "${archivo.name}" no es una imagen válida.`)
+        try {
+          if (!archivo.type.startsWith('image/')) {
+            errores.push(`"${archivo.name}" no es una imagen válida.`)
+            setProgreso({ actual: indice + 1, total: lista.length })
+            continue
+          }
+
+          setProgreso({ actual: indice + 1, total: lista.length })
+          setInfo(`Comprimiendo imagen ${indice + 1} de ${lista.length}...`)
+
+          const blob = await comprimirImagen(archivo, compresion)
+          const archivoFinal = blobToFile(blob, archivo.name)
+
+          const { url, error: errUpload } = await subirImagen(archivoFinal, carpeta)
+          if (errUpload || !url) {
+            errores.push(`No se pudo subir "${archivo.name}": ${errUpload ?? 'error desconocido'}`)
+            continue
+          }
+
+          urls.push(url)
+        } catch (err) {
+          errores.push(
+            `Error al procesar "${archivo.name}": ${err instanceof Error ? err.message : 'No se pudo decodificar o comprimir la imagen'}`,
+          )
           continue
         }
-
-        setProgreso({ actual: indice + 1, total: lista.length })
-        setInfo(`Comprimiendo imagen ${indice + 1} de ${lista.length}...`)
-
-        const blob = await comprimirImagen(archivo, compresion)
-        const archivoFinal = blobToFile(blob, archivo.name)
-
-        const { url, error: errUpload } = await subirImagen(archivoFinal, carpeta)
-        if (errUpload || !url) {
-          setError(`No se pudo subir "${archivo.name}": ${errUpload ?? 'error desconocido'}`)
-          continue
-        }
-
-        urls.push(url)
       }
 
       if (urls.length) {
         onUrls?.(urls)
       }
 
-      if (urls.length) {
+      if (urls.length && errores.length === 0) {
         setInfo(`Subidas ${urls.length} de ${lista.length} imagen(es).`)
+      } else if (urls.length && errores.length > 0) {
+        setInfo(`Subidas ${urls.length} de ${lista.length} imagen(es).`)
+        setError(errores[0])
+      } else if (urls.length === 0 && errores.length > 0) {
+        setError(errores[0])
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al subir las imágenes')

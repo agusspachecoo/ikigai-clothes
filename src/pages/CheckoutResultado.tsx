@@ -200,6 +200,17 @@ export function CheckoutResultado({ status }: Props) {
 
               <div className="border-t border-line pt-3 space-y-2">
                 <Fila etiqueta="Subtotal" valor={`$${formatearPrecio(resumen.subtotal)}`} />
+                {resumen.descuentoPromociones > 0 && (
+                  <Fila
+                    etiqueta={`Promociones${
+                      (resumen.promocionesAplicadas ?? []).length > 0
+                        ? `: ${(resumen.promocionesAplicadas ?? []).map((p) => p.nombre).join(', ')}`
+                        : ''
+                    }`}
+                    valor={`-$${formatearPrecio(resumen.descuentoPromociones)}`}
+                    clase="text-success font-medium"
+                  />
+                )}
                 {resumen.descuentoOutfit > 0 && (
                   <Fila
                     etiqueta="Descuento outfit"

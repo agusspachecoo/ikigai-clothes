@@ -13,8 +13,11 @@ export function CarritoDrawer() {
     total,
     descuentoCupon,
     descuentoOutfit,
+    descuentoPromociones,
+    promocionesAplicadas,
     totalConDescuento,
     eliminarItem,
+    actualizarCantidad,
     removerOutfitCompleto,
     carritoAbierto,
     setCarritoAbierto,
@@ -80,7 +83,7 @@ export function CarritoDrawer() {
             <ul className="flex-1 overflow-y-auto divide-y divide-line">
               {items.map((it) => (
                 <li
-                  key={`${it.producto_id}|${it.talle}`}
+                  key={`${it.producto_id}|${it.talle}|${it.outfitId ?? 'suelto'}`}
                   className="flex gap-3 p-3 items-start"
                 >
                   <Link
@@ -115,9 +118,39 @@ export function CarritoDrawer() {
                       ${formatearPrecio(it.precio_unitario * it.cantidad)}
                     </p>
                     <div className="flex items-center gap-2 mt-1.5">
-                      <span className="text-xs opacity-60 border border-line px-2 py-1">
-                        Prenda única
-                      </span>
+                      {it.outfitId ? (
+                        <span className="text-xs opacity-60 border border-line px-2 py-1">
+                          Look: {it.outfitNombre ?? 'Outfit'}
+                        </span>
+                      ) : (
+                        <div className="inline-flex items-center border border-line text-xs">
+                          <button
+                            type="button"
+                            className="h-7 w-7 hover:bg-base-200"
+                            aria-label={`Quitar una unidad de ${it.nombre}`}
+                            onClick={() =>
+                              actualizarCantidad(it.producto_id, it.talle, it.cantidad - 1)
+                            }
+                          >
+                            −
+                          </button>
+                          <span className="w-7 text-center tabular-nums">{it.cantidad}</span>
+                          <button
+                            type="button"
+                            className="h-7 w-7 hover:bg-base-200 disabled:opacity-30"
+                            aria-label={`Agregar una unidad de ${it.nombre}`}
+                            disabled={
+                              typeof it.stock_disponible === 'number' &&
+                              it.cantidad >= it.stock_disponible
+                            }
+                            onClick={() =>
+                              actualizarCantidad(it.producto_id, it.talle, it.cantidad + 1)
+                            }
+                          >
+                            +
+                          </button>
+                        </div>
+                      )}
                       <button
                         type="button"
                         className="text-xs underline opacity-60 ml-1 hover:opacity-100"
@@ -144,6 +177,17 @@ export function CarritoDrawer() {
                   <dt className="opacity-60">Subtotal</dt>
                   <dd>${formatearPrecio(total)}</dd>
                 </div>
+                {descuentoPromociones > 0 && (
+                  <div className="flex justify-between gap-3 text-success">
+                    <dt className="min-w-0">
+                      Promociones
+                      <span className="block truncate text-[11px] opacity-70">
+                        {promocionesAplicadas.map((p) => p.nombre).join(', ')}
+                      </span>
+                    </dt>
+                    <dd className="shrink-0">−${formatearPrecio(descuentoPromociones)}</dd>
+                  </div>
+                )}
                 {descuentoOutfit > 0 && (
                   <div className="flex justify-between text-success">
                     <dt>Descuento outfit</dt>

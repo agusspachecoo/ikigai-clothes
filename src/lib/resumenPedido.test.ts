@@ -13,6 +13,8 @@ const base: ResumenPedido = {
   subtotal: 10_000,
   descuentoTransferencia: 1_000,
   descuentoCupon: 0,
+  descuentoPromociones: 0,
+  promocionesAplicadas: [],
   descuentoOutfit: 0,
   costoEnvio: 3_500,
   envioGratis: false,
@@ -40,6 +42,16 @@ describe('resumenPedido', () => {
     sessionStorage.setItem('ikigai:pedido:orden-1', JSON.stringify(viejo))
 
     expect(leerResumen('orden-1')?.ordenToken).toBeNull()
+  })
+
+  it('tolera resúmenes viejos sin datos de promociones', () => {
+    const viejo: Partial<ResumenPedido> = { ...base }
+    delete viejo.descuentoPromociones
+    delete viejo.promocionesAplicadas
+    sessionStorage.setItem('ikigai:pedido:orden-1', JSON.stringify(viejo))
+
+    expect(leerResumen('orden-1')?.descuentoPromociones).toBe(0)
+    expect(leerResumen('orden-1')?.promocionesAplicadas).toEqual([])
   })
 
   it('usa el último resumen cuando la URL no trae external_reference', () => {

@@ -1,3 +1,5 @@
+import type { PromocionAplicada } from '../lib/promociones'
+
 export interface Producto {
   id: string
   nombre: string
@@ -125,6 +127,9 @@ export interface Orden {
   comprobante_url: string | null
   cupon_codigo: string | null
   descuento_cupon: number
+  descuento_promociones: number
+  promociones_aplicadas: PromocionAplicada[]
+  descuento_outfit: number
   cupon_consumido: string | null
   envio_detalle?: EnvioDetalle | null
   created_at: string

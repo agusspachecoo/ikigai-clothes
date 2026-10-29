@@ -1,5 +1,6 @@
 import type { CartItem } from '../types/cart'
 import type { MetodoPago } from './pagos'
+import type { PromocionAplicada } from './promociones'
 
 /**
  * Resumen del pedido tal como lo devolvió el servidor, listo para mostrar.
@@ -16,6 +17,9 @@ export interface ResumenPedido {
   subtotal: number
   descuentoTransferencia: number
   descuentoCupon: number
+  /** Descuento automático por packs/combos, calculado por el servidor */
+  descuentoPromociones: number
+  promocionesAplicadas: PromocionAplicada[]
   /** Descuento por outfit completo, calculado por el servidor */
   descuentoOutfit: number
   costoEnvio: number
@@ -105,6 +109,10 @@ export function leerResumen(id: string): ResumenPedido | null {
       subtotal: Number(datos.subtotal ?? 0),
       descuentoTransferencia: Number(datos.descuentoTransferencia ?? 0),
       descuentoCupon: Number(datos.descuentoCupon ?? 0),
+      descuentoPromociones: Number(datos.descuentoPromociones ?? 0),
+      promocionesAplicadas: Array.isArray(datos.promocionesAplicadas)
+        ? datos.promocionesAplicadas
+        : [],
       descuentoOutfit: Number(datos.descuentoOutfit ?? 0),
       costoEnvio: Number(datos.costoEnvio ?? 0),
       envioGratis: Boolean(datos.envioGratis),
