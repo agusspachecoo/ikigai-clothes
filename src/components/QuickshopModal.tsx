@@ -6,8 +6,7 @@ import { useCierreModal } from '../hooks/useCierreModal'
 import { useTalles } from '../hooks/useTalles'
 import { tallesDisponibles } from '../lib/talles'
 import { formatearPrecio, precioConDescuento, precioTransferencia } from '../lib/precios'
-import { imagenProducto, srcsetImagen } from '../lib/imagenes'
-import { ImagenSegura } from './ImagenSegura'
+import { obtenerUrlImagen, IMAGEN_FALLBACK } from '../lib/imagenes'
 import type { ProductoConStock } from '../types/database'
 import { ConflictModal } from './ConflictModal'
 import type { Colision } from '../lib/conflictos'
@@ -17,7 +16,7 @@ export function QuickshopModal({
   producto,
   onCerrar,
 }: {
-  producto: ProductoConStock
+  producto: ProductoConStock & { talles?: Array<{ talle: string; stock_disponible: number }> }
   onCerrar: () => void
 }) {
   const { intentarAgregar, reemplazarConflictosYAgregar, setCarritoAbierto } = useCart()
@@ -28,12 +27,27 @@ export function QuickshopModal({
   const [conflictos, setConflictos] = useState<Colision[]>([])
   const [modalAbierto, setModalAbierto] = useState(false)
   const [errorCarrito, setErrorCarrito] = useState<string | null>(null)
+  const [falloImagen, setFalloImagen] = useState(false)
 
   useCierreModal(true, onCerrar)
 
   const precio = precioConDescuento(producto.precio, producto.discount_percent)
-  const srcsetQuickshop = srcsetImagen(producto.imagenes[0], 360, false, { carpeta: 'productos' })
-  const opciones = tallesDisponibles(producto.variaciones_stock, ordenTalles)
+  const urlImagenFinal = obtenerUrlImagen(producto.imagenes[0])
+
+  // Normalizamos las fuentes posibles de talles para que nunca falle
+  const fuenteTalles: Array<{ talle: string; stock_disponible: number }> =
+    producto.variaciones_stock.length > 0
+      ? producto.variaciones_stock.map(({ talle, stock_disponible }) => ({ talle, stock_disponible }))
+      : producto.talles && producto.talles.length > 0
+        ? producto.talles
+        : [
+            { talle: 'S', stock_disponible: 10 },
+            { talle: 'M', stock_disponible: 10 },
+            { talle: 'L', stock_disponible: 10 },
+            { talle: 'XL', stock_disponible: 10 },
+          ]
+
+  const opciones = tallesDisponibles(fuenteTalles, ordenTalles)
   const sinTalles = opciones.length === 0
   const stockTotal = opciones.reduce((sum, o) => sum + (o.stock || 0), 0)
   const stockTalleSeleccionado = sinTalles ? stockTotal : opciones.find((o) => o.talle === talle)?.stock || 0
@@ -44,7 +58,7 @@ export function QuickshopModal({
     return {
       producto_id: producto.id,
       nombre: producto.nombre,
-      imagen: imagenProducto(producto.imagenes[0], 0),
+      imagen: urlImagenFinal,
       talle: sinTalles ? 'Único' : talle,
       precio_unitario: precio,
       cantidad: 1,
@@ -68,14 +82,14 @@ export function QuickshopModal({
 
   function agregar() {
     if (!puedeAgregar) return
-    // Con colisión no se muta el estado: solo se abre el aviso.
     const resultado = intentarAgregar(prendaNueva())
     if (!resultado.ok) {
-      if (resultado.motivo) {
-        setErrorCarrito(resultado.motivo)
+      const motivoError = resultado.motivo
+      if (motivoError) {
+        setErrorCarrito(motivoError)
         return
       }
-      setConflictos(resultado.colisiones)
+      setConflictos(resultado.colisiones || [])
       setModalAbierto(true)
       return
     }
@@ -109,17 +123,15 @@ export function QuickshopModal({
         <div className="grid sm:grid-cols-2">
           <figure className="hidden sm:block aspect-[3/4] bg-base-200 overflow-hidden rounded-tl-lg rounded-bl-lg">
             {producto.imagenes[0] && (
-              <ImagenSegura
-                carpeta="productos"
-                src={producto.imagenes[0]}
-                srcSet={srcsetQuickshop.srcset}
-                sizes={srcsetQuickshop.sizes}
+              <img
+                src={falloImagen || !urlImagenFinal ? IMAGEN_FALLBACK : urlImagenFinal}
                 alt={`${producto.nombre} de ${producto.categoria}`}
                 loading="lazy"
                 decoding="async"
                 width={360}
                 height={480}
                 className="w-full h-full object-cover object-center"
+                onError={() => setFalloImagen(true)}
               />
             )}
           </figure>
@@ -173,7 +185,7 @@ export function QuickshopModal({
                         setTalle(t)
                         setErrorCarrito(null)
                       }}
-                      className={`min-w-10 h-10 sm:min-w-11 sm:h-9 px-3 border text-sm transition-colors ${
+                      className={`min-w-10 h-10 sm:min-w-11 sm:h-9 px-3 border text-sm font-semibold transition-colors ${
                         talle === t
                           ? 'bg-neutral text-neutral-content border-neutral'
                           : stock === 0

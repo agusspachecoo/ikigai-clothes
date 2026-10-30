@@ -376,7 +376,12 @@ export function Producto() {
                         type="button"
                         aria-label={`Ver ${restantes} fotos más`}
                         className="relative w-16 h-20 shrink-0 bg-neutral-100 rounded-md overflow-hidden border border-line"
-                        onClick={() => setImagenActiva(maxVisibles - 1)}
+                        onClick={() => {
+                          setImagenActiva(maxVisibles - 1)
+                          setZoomAbierto(true)
+                          setZoomScale(1)
+                          setZoomPos({ x: 0, y: 0 })
+                        }}
                       >
                         <ImagenSegura
                           carpeta="productos"
@@ -482,7 +487,12 @@ export function Producto() {
                       type="button"
                       aria-label={`Ver ${restantes} fotos más`}
                       className="relative w-16 h-20 shrink-0 bg-neutral-100 rounded-md overflow-hidden border border-line"
-                      onClick={() => setImagenActiva(maxVisibles - 1)}
+                      onClick={() => {
+                        setImagenActiva(maxVisibles - 1)
+                        setZoomAbierto(true)
+                        setZoomScale(1)
+                        setZoomPos({ x: 0, y: 0 })
+                      }}
                     >
                       <ImagenSegura
                         carpeta="productos"

@@ -36,7 +36,7 @@ export function tallesConStock(variaciones: VariacionStock[], orden?: string[]):
 
 /** Talles del producto, marcando cuáles tienen stock. */
 export function tallesDisponibles(
-  variaciones: VariacionStock[],
+  variaciones: Array<Pick<VariacionStock, 'talle' | 'stock_disponible'>>,
   orden?: string[],
 ): { talle: string; stock: number }[] {
   const vistos = new Map<string, number>()

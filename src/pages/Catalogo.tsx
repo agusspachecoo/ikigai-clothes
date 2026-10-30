@@ -1,10 +1,11 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useCatalogo } from '../hooks/useCatalogo'
 import { useCategorias } from '../hooks/useCategorias'
 import { useProductos } from '../hooks/useProductos'
 import { useCierreModal } from '../hooks/useCierreModal'
 import { useTalles } from '../hooks/useTalles'
+import { useCart } from '../context/cart'
 import { ProductCard } from '../components/ProductCard'
 import { PanelFiltros } from '../components/PanelFiltros'
 import {
@@ -33,6 +34,10 @@ export function Catalogo() {
   const [ultimoDesc, setUltimoDesc] = useState(descuentosInicial)
   const [descuentos, setDescuentos] = useState(descuentosInicial)
 
+  const promocionId = searchParams.get('promo') ?? ''
+  const [ultimoParamPromo, setUltimoParamPromo] = useState(promocionId)
+  const [promocionEnFiltro, setPromocionEnFiltro] = useState(promocionId)
+
   const [filtros, setFiltros] = useState<EstadoFiltros>(FILTROS_INICIALES)
   const [panelAbierto, setPanelAbierto] = useState(false)
   const [filtroDropdownAbierto, setFiltroDropdownAbierto] = useState(false)
@@ -40,6 +45,7 @@ export function Catalogo() {
 
   const { categorias } = useCategorias()
   const { orden: ordenTalles } = useTalles()
+  const { promociones } = useCart()
   useCierreModal(panelAbierto, () => setPanelAbierto(false))
 
   useEffect(() => {
@@ -83,8 +89,25 @@ export function Catalogo() {
     }
   }
 
+  if (promocionId !== ultimoParamPromo) {
+    setUltimoParamPromo(promocionId)
+    setPromocionEnFiltro(promocionId)
+    if (promocionId) {
+      setFiltros(FILTROS_INICIALES)
+      setCategoriasSeleccionadas([])
+    }
+  }
+
   const categoriaNombre = descuentos ? undefined : categorias.find((c) => categoriasSeleccionadas.includes(c.slug))?.nombre
   const activosFiltro = hayFiltrosActivos(filtros) || categoriasSeleccionadas.length > 0
+
+  const promocion = promocionEnFiltro
+    ? promociones.find((promo) => promo.id === promocionEnFiltro) ?? null
+    : null
+  const productoIds = useMemo(
+    () => (promocion ? [...new Set(promocion.grupos.flatMap((grupo) => grupo.producto_ids))] : undefined),
+    [promocion],
+  )
 
   const { productos, total, hayMas, loading, cargarMas } = useCatalogo({
     categoria: categoriaNombre,
@@ -100,12 +123,14 @@ export function Catalogo() {
     precioMin: filtros.precioMin,
     precioMax: filtros.precioMax,
     soloConStock: filtros.soloConStock,
+    productoIds: promocion ? productoIds : undefined,
   })
 
   const { productos: todos } = useProductos({
     categoria: categoriaNombre,
     buscar: busqueda,
     descuentos,
+    productoIds: promocion ? productoIds : undefined,
   })
 
   function toggleCategoria(slug: string) {
@@ -133,7 +158,7 @@ export function Catalogo() {
       <Breadcrumbs
         items={[
           { label: 'Inicio', to: '/' },
-          { label: descuentos ? 'Ofertas' : 'Productos' },
+          { label: descuentos ? 'Ofertas' : promocion ? 'Promo' : 'Productos' },
         ]}
       />
 
@@ -141,6 +166,13 @@ export function Catalogo() {
         <div className="mb-6">
           <h1 className="font-display text-2xl">Ofertas</h1>
           <p className="text-sm opacity-60">Productos con precio promocional activo.</p>
+        </div>
+      )}
+
+      {!descuentos && promocion && (
+        <div className="mb-6">
+          <h1 className="font-display text-2xl">{promocion.nombre}</h1>
+          <p className="text-sm opacity-60">Productos participantes de la promoción.</p>
         </div>
       )}
 

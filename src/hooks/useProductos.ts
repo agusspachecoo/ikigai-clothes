@@ -19,6 +19,7 @@ interface UseProductosOptions {
   descuentos?: boolean
   limit?: number
   offset?: number
+  productoIds?: string[]
 }
 
 interface UseProductosResult {
@@ -47,23 +48,27 @@ export function useProductos(options: UseProductosOptions = {}): UseProductosRes
         .eq('activo', true)
         .order('created_at', { ascending: false })
 
-      if (options.categoria) {
-        query = query.eq('categoria', options.categoria)
-      }
+      const ids = options.productoIds?.map((id) => String(id).trim()).filter(Boolean) ?? []
+      const tieneIds = ids.length > 0
+      const termino = options.buscar?.trim() ?? ''
 
-      if (options.descuentos) {
-        query = query.gt('discount_percent', 0)
-      }
+      if (tieneIds) {
+        query = query.in('id', ids)
+      } else {
+        if (options.categoria) {
+          query = query.eq('categoria', options.categoria)
+        }
 
-      // Limpiar caracteres que rompen la sintaxis del `.or()` de Supabase
-      // (las comas y paréntesis son separadores de cláusula) además de los
-      // comodines LIKE. Sin esto, buscar "remera, manga" genera una query inválida.
-      const termino = options.buscar
-        ? options.buscar.replace(/["'%\\,()]/g, '').trim()
-        : ''
+        if (options.descuentos) {
+          query = query.gt('discount_percent', 0)
+        }
 
-      if (termino) {
-        query = query.or(`nombre.ilike.%${termino}%,categoria.ilike.%${termino}%`)
+        // Limpiar caracteres que rompen la sintaxis del `.or()` de Supabase
+        // (las comas y paréntesis son separadores de cláusula) además de los
+        // comodines LIKE. Sin esto, buscar "remera, manga" genera una query inválida.
+        if (termino) {
+          query = query.or(`nombre.ilike.%${termino}%,categoria.ilike.%${termino}%`)
+        }
       }
 
       if (options.limit) {
@@ -72,9 +77,11 @@ export function useProductos(options: UseProductosOptions = {}): UseProductosRes
 
       // Drops futuros: se traen enmascarados por RPC (la RLS los sigue ocultando).
       // No corresponden en la vista "Ofertas", porque aún no tienen descuento.
-      const proximos = options.descuentos
+      const proximos = tieneIds
         ? Promise.resolve({ data: [] })
-        : supabase.rpc('productos_proximos', {
+        : options.descuentos
+          ? Promise.resolve({ data: [] })
+          : supabase.rpc('productos_proximos', {
             p_categoria: options.categoria ?? null,
             p_buscar: termino || null,
           })
@@ -99,7 +106,7 @@ export function useProductos(options: UseProductosOptions = {}): UseProductosRes
 
     fetchProductos()
     return () => { cancelled = true }
-  }, [options.categoria, options.buscar, options.descuentos, options.limit, options.offset])
+  }, [options.categoria, options.buscar, options.descuentos, options.limit, options.offset, options.productoIds])
 
   return { productos, loading, error, total }
 }

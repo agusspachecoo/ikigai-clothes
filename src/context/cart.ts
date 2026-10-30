@@ -2,7 +2,7 @@ import { createContext, useContext } from 'react'
 import type { CartItem } from '../types/cart'
 import type { CuponAplicado } from '../lib/cupones'
 import type { Colision } from '../lib/conflictos'
-import type { PromocionAplicada } from '../lib/promociones'
+import type { PromocionAplicada, Promocion } from '../lib/promociones'
 
 /** Item nuevo tal como lo declara la UI, antes de validarlo contra el carrito. */
 export type ItemNuevo = Omit<CartItem, 'cantidad'> & { cantidad?: number }
@@ -61,6 +61,8 @@ export interface CartContextValue {
   descuentoPromociones: number
   /** Detalle de packs/combos aplicados */
   promocionesAplicadas: PromocionAplicada[]
+  /** Promociones activas consultadas para el storefront */
+  promociones: Promocion[]
   /** Total a cobrar: subtotal - promos - outfit - cupón */
   totalConDescuento: number
   aplicarCupon: (cupon: CuponAplicado) => void

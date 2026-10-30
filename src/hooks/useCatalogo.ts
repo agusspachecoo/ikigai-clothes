@@ -15,6 +15,7 @@ export interface FiltrosCatalogo {
   precioMin?: number | null
   precioMax?: number | null
   soloConStock?: boolean
+  productoIds?: string[]
 }
 
 const POR_PAGINA = 12
@@ -50,6 +51,7 @@ export function useCatalogo(filtros: FiltrosCatalogo) {
     categoria: filtros.categoria,
     buscar: filtros.buscar,
     descuentos: filtros.descuentos,
+    productoIds: filtros.productoIds,
   })
 
   const [visibles, setVisibles] = useState(POR_PAGINA)
@@ -68,6 +70,7 @@ export function useCatalogo(filtros: FiltrosCatalogo) {
     filtros.precioMin,
     filtros.precioMax,
     filtros.soloConStock,
+    filtros.productoIds,
   ])
   const [ultimaClave, setUltimaClave] = useState(clave)
   if (clave !== ultimaClave) {
@@ -79,7 +82,10 @@ export function useCatalogo(filtros: FiltrosCatalogo) {
     const bloqueados = productos.filter((p) => p.bloqueado)
     let lista = productos.filter((p) => !p.bloqueado)
 
-    if (categoriasSel.length > 0) {
+    if (filtros.productoIds && filtros.productoIds.length > 0) {
+      const ids = new Set(filtros.productoIds)
+      lista = lista.filter((p) => ids.has(p.id))
+    } else if (categoriasSel.length > 0) {
       lista = lista.filter((p) => categoriasSel.includes(p.categoria))
     } else if (filtros.categoria) {
       lista = lista.filter((p) => p.categoria === filtros.categoria)
@@ -105,7 +111,7 @@ export function useCatalogo(filtros: FiltrosCatalogo) {
     const ordenados = [...ordenar(conStock, orden), ...ordenar(sinStock, orden)]
 
     return [...ordenados, ...bloqueados]
-  }, [productos, filtros.soloConStock, talles, categoriasSel, filtros.categoria, orden, filtros.precioMin, filtros.precioMax])
+  }, [productos, filtros.soloConStock, talles, categoriasSel, filtros.categoria, orden, filtros.precioMin, filtros.precioMax, filtros.productoIds])
 
   const visiblesEnPantalla = filtrados.slice(0, visibles)
   const hayMas = visiblesEnPantalla.length < filtrados.length

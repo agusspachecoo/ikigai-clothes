@@ -643,16 +643,18 @@ const EXPIRACION_COMPROBANTE_SEG = 300
 /** Acepta un path (`comprobantes/x.png`) o una URL pública legacy. */
 function pathDeComprobante(valor: string): string {
   const base = `${BUCKET_COMPROBANTES}/`
-  if (valor.startsWith(base)) return valor
+  const limpio = valor.trim()
+  if (limpio.startsWith(base)) return limpio.slice(base.length)
 
   try {
-    const url = new URL(valor)
-    const idx = url.pathname.indexOf(`/object/public/${base}`)
-    if (idx !== -1) return decodeURIComponent(url.pathname.slice(idx + `/object/public/`.length))
+    const url = new URL(limpio)
+    const marcador = `/object/public/${base}`
+    const idx = url.pathname.indexOf(marcador)
+    if (idx !== -1) return decodeURIComponent(url.pathname.slice(idx + marcador.length))
+    return limpio
   } catch {
-    return valor
+    return limpio
   }
-  return valor
 }
 
 /**

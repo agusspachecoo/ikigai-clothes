@@ -1,9 +1,8 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import type { OutfitConItems } from '../types/database'
-import { srcsetImagen } from '../lib/imagenes'
+import { obtenerUrlImagen, IMAGEN_FALLBACK } from '../lib/imagenes'
 import { BuyOutfitModal } from './BuyOutfitModal'
-import { ImagenSegura } from './ImagenSegura'
 
 interface Props {
   outfits: OutfitConItems[]
@@ -20,6 +19,42 @@ const ICONO_BOLSA = (
     />
   </svg>
 )
+
+function OutfitCardImagen({ outfit }: { outfit: OutfitConItems }) {
+  const [fallo, setFallo] = useState(false)
+
+  // Usamos directamente obtenerUrlImagen con la carpeta 'outfits' tal como hace el resto de la app
+  const urlFinal = obtenerUrlImagen(outfit.imagen_portada)
+
+  if (fallo || !urlFinal) {
+    return (
+      <img
+        src={IMAGEN_FALLBACK}
+        alt={`Look ${outfit.nombre}`}
+        className="w-full h-full object-cover object-[center_20%]"
+        loading="lazy"
+        decoding="async"
+        width={280}
+        height={498}
+      />
+    )
+  }
+
+  return (
+    <img
+      src={urlFinal}
+      alt={`Look ${outfit.nombre} con precio de combo`}
+      className="w-full h-full object-cover object-[center_20%] transition-transform duration-700 ease-out group-hover:scale-105"
+      loading="lazy"
+      decoding="async"
+      width={280}
+      height={498}
+      onError={() => {
+        setFallo(true)
+      }}
+    />
+  )
+}
 
 export function OutfitCarousel({ outfits }: Props) {
   const [outfitSeleccionado, setOutfitSeleccionado] = useState<OutfitConItems | null>(null)
@@ -49,19 +84,8 @@ export function OutfitCarousel({ outfits }: Props) {
                     aria-label={`Ver detalle del look ${o.nombre}`}
                     className="relative block w-full aspect-[9/16] rounded-2xl overflow-hidden bg-neutral-100 cursor-pointer group focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
                   >
-                      <ImagenSegura
-                        carpeta="outfits"
-                        src={o.imagen_portada}
-                        srcSet={srcsetImagen(o.imagen_portada, 280, false, { carpeta: 'outfits' }).srcset}
-                        sizes={srcsetImagen(o.imagen_portada, 280, false, { carpeta: 'outfits' }).sizes}
-                        alt={`Look ${o.nombre} con precio de combo`}
-                        className="w-full h-full object-cover object-[center_20%] transition-transform duration-700 ease-out group-hover:scale-105"
-                        loading="lazy"
-                        decoding="async"
-                        width={280}
-                        height={498}
-                      />
-                    <div className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-black/35 to-transparent" />
+                    <OutfitCardImagen outfit={o} />
+                    <div className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-black/35 to-transparent pointer-events-none" />
 
                     <span className="absolute bottom-4 left-1/2 -translate-x-1/2 btn btn-circle btn-lg bg-sky-500 hover:bg-sky-400 border-0 text-white pointer-events-none">
                       {ICONO_BOLSA}

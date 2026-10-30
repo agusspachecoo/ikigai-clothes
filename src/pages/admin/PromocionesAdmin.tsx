@@ -370,14 +370,6 @@ function PromocionFormModal({
       return setErrorMsg('Un producto no puede repetirse en dos grupos.')
     }
 
-    if (productosEnConflicto.length > 0) {
-      return setErrorMsg(
-        `Estos productos ya participan en otra promoción activa: ${productosEnConflicto
-          .map((id) => productos.find((p) => p.id === id)?.nombre ?? id)
-          .join(', ')}.`,
-      )
-    }
-
     if (form.fecha_inicio && form.fecha_fin && form.fecha_fin < form.fecha_inicio) {
       return setErrorMsg('La fecha de fin no puede ser anterior al inicio.')
     }
@@ -583,9 +575,9 @@ function PromocionFormModal({
           </div>
 
           {productosEnConflicto.length > 0 && (
-            <div className="alert alert-warning text-sm">
-              Hay productos seleccionados que ya participan en otra promoción activa. Quitalos o
-              desactivá la otra promoción antes de guardar.
+            <div className="alert alert-info text-sm">
+              Estos productos también participan en otras promociones activas. Ahora un mismo
+              producto puede estar en varias promociones al mismo tiempo.
             </div>
           )}
 
@@ -640,7 +632,7 @@ function SelectorProductos({
           filtrados.map((producto) => {
             const marcado = seleccionados.includes(producto.id)
             const conflicto = conflictos.get(producto.id)
-            const bloqueado = (!producto.activo || Boolean(conflicto)) && !marcado
+            const bloqueado = !producto.activo && !marcado
 
             return (
               <label

@@ -154,112 +154,148 @@ function sumarPrecios(unidades: Unidad[]): number {
   return unidades.reduce((total, unidad) => total + unidad.precio_unitario, 0)
 }
 
+export interface EvaluacionPromocion {
+  promo: Promocion
+  descuento: number
+  packs?: number
+  conjuntos?: number
+  consumida: Map<string, number>
+}
+
+function evaluarPromocion(promo: Promocion, lineas: Map<string, Linea>): EvaluacionPromocion | null {
+  const grupos = normalizarGrupos(promo)
+  if (grupos.length === 0) return null
+
+  const consumida = new Map<string, number>()
+
+  if (promo.tipo === 'pack') {
+    const grupo = grupos[0]
+    const requeridas = grupo.cantidad_requerida
+    const precioFijo = Number(promo.precio_fijo) || 0
+    if (requeridas < 1 || precioFijo <= 0) return null
+
+    const unidades = unidadesDisponibles(lineas, grupo.producto_ids, consumida)
+    const maxPacks = Math.floor(unidades.length / requeridas)
+    let packs = 0
+    let descuento = 0
+
+    for (let i = 0; i < maxPacks; i++) {
+      const pack = unidades.slice(i * requeridas, (i + 1) * requeridas)
+      const ahorro = round2(sumarPrecios(pack) - precioFijo)
+      if (ahorro <= 0) break
+
+      descuento += ahorro
+      marcarConsumidas(consumida, pack)
+      packs++
+    }
+
+    if (packs <= 0) return null
+
+    return { promo, descuento: round2(descuento), packs, consumida }
+  }
+
+  if (grupos.length < 2) return null
+
+  const porcentaje = Math.min(100, Math.max(0, Number(promo.descuento_porcentaje) || 0)) / 100
+  if (porcentaje <= 0) return null
+
+  const gruposConUnidades = grupos.map((grupo) => ({
+    grupo,
+    unidades: unidadesDisponibles(lineas, grupo.producto_ids, consumida),
+  }))
+
+  const conjuntos = Math.min(
+    ...gruposConUnidades.map(({ grupo, unidades }) =>
+      Math.floor(unidades.length / grupo.cantidad_requerida),
+    ),
+  )
+  if (conjuntos <= 0) return null
+
+  let aplicados = 0
+  let descuento = 0
+
+  for (let i = 0; i < conjuntos; i++) {
+    const seleccion: Unidad[] = []
+
+    for (const { grupo, unidades } of gruposConUnidades) {
+      const desde = i * grupo.cantidad_requerida
+      seleccion.push(...unidades.slice(desde, desde + grupo.cantidad_requerida))
+    }
+
+    const ahorro = round2(sumarPrecios(seleccion) * porcentaje)
+    if (ahorro <= 0) continue
+
+    descuento += ahorro
+    marcarConsumidas(consumida, seleccion)
+    aplicados++
+  }
+
+  if (aplicados <= 0) return null
+
+  return { promo, descuento: round2(descuento), conjuntos: aplicados, consumida }
+}
+
 export function calcularPromociones(
   items: ItemPromocion[],
   promociones: Promocion[],
   ahora: Date = new Date(),
 ): ResultadoPromociones {
   const lineas = lineasDeItems(items)
-  const consumidas = new Map<string, number>()
-  const aplicadas: PromocionAplicada[] = []
-
-  const vigentes = promociones
-    .filter((promo) => esPromocionVigente(promo, ahora))
-    .sort((a, b) => Number(b.prioridad) - Number(a.prioridad) || a.nombre.localeCompare(b.nombre))
-
-  for (const promo of vigentes) {
-    const grupos = normalizarGrupos(promo)
-    if (grupos.length === 0) continue
-
-    if (promo.tipo === 'pack') {
-      const grupo = grupos[0]
-      const requeridas = grupo.cantidad_requerida
-      const precioFijo = Number(promo.precio_fijo) || 0
-      if (requeridas < 1 || precioFijo <= 0) continue
-
-      const unidades = unidadesDisponibles(lineas, grupo.producto_ids, consumidas)
-      const maxPacks = Math.floor(unidades.length / requeridas)
-      let packs = 0
-      let descuento = 0
-
-      for (let i = 0; i < maxPacks; i++) {
-        const pack = unidades.slice(i * requeridas, (i + 1) * requeridas)
-        const ahorro = round2(sumarPrecios(pack) - precioFijo)
-        if (ahorro <= 0) break
-
-        descuento += ahorro
-        marcarConsumidas(consumidas, pack)
-        packs++
-      }
-
-      if (packs > 0) {
-        aplicadas.push({
-          promocion_id: promo.id,
-          nombre: promo.nombre,
-          tipo: promo.tipo,
-          descuento: round2(descuento),
-          packs,
-        })
-      }
-      continue
-    }
-
-    if (grupos.length < 2) continue
-
-    const porcentaje = Math.min(100, Math.max(0, Number(promo.descuento_porcentaje) || 0)) / 100
-    if (porcentaje <= 0) continue
-
-    const gruposConUnidades = grupos.map((grupo) => ({
-      grupo,
-      unidades: unidadesDisponibles(lineas, grupo.producto_ids, consumidas),
-    }))
-
-    const conjuntos = Math.min(
-      ...gruposConUnidades.map(({ grupo, unidades }) =>
-        Math.floor(unidades.length / grupo.cantidad_requerida),
-      ),
-    )
-    if (conjuntos <= 0) continue
-
-    let aplicados = 0
-    let descuento = 0
-
-    for (let i = 0; i < conjuntos; i++) {
-      const seleccion: Unidad[] = []
-
-      for (const { grupo, unidades } of gruposConUnidades) {
-        const desde = i * grupo.cantidad_requerida
-        seleccion.push(...unidades.slice(desde, desde + grupo.cantidad_requerida))
-      }
-
-      const ahorro = round2(sumarPrecios(seleccion) * porcentaje)
-      if (ahorro <= 0) continue
-
-      descuento += ahorro
-      marcarConsumidas(consumidas, seleccion)
-      aplicados++
-    }
-
-    if (aplicados > 0) {
-      aplicadas.push({
-        promocion_id: promo.id,
-        nombre: promo.nombre,
-        tipo: promo.tipo,
-        descuento: round2(descuento),
-        conjuntos: aplicados,
-      })
-    }
-  }
-
   const subtotal = items.reduce(
     (total, item) =>
       total + Math.max(0, Number(item.precio_unitario) || 0) * Math.max(0, Number(item.cantidad) || 0),
     0,
   )
-  const descuento = Math.min(
-    round2(aplicadas.reduce((total, promo) => total + promo.descuento, 0)),
-    round2(subtotal),
+
+  const vigentes = promociones
+    .filter((promo) => esPromocionVigente(promo, ahora))
+    .sort((a, b) => Number(b.prioridad) - Number(a.prioridad) || a.nombre.localeCompare(b.nombre))
+
+  const evaluaciones: EvaluacionPromocion[] = []
+  for (const promo of vigentes) {
+    const evaluacion = evaluarPromocion(promo, lineas)
+    if (evaluacion) evaluaciones.push(evaluacion)
+  }
+
+  const combinacion = [...evaluaciones].sort(
+    (a, b) =>
+      b.descuento - a.descuento ||
+      Number(b.promo.prioridad) - Number(a.promo.prioridad) ||
+      a.promo.nombre.localeCompare(b.promo.nombre),
   )
 
-  return { descuento, aplicadas, unidadesConsumidas: consumidas }
+  const aplicadas: PromocionAplicada[] = []
+  const consumida = new Map<string, number>()
+  let descuento = 0
+
+  for (const evaluacion of combinacion) {
+    const compatible = [...evaluacion.consumida.entries()].every(
+      ([key, cantidad]) => {
+        const yaConsumida = consumida.get(key) ?? 0
+        const linea = lineas.get(key)
+        const disponibles = linea ? Math.max(0, linea.cantidad - yaConsumida) : 0
+        return cantidad <= disponibles
+      },
+    )
+    if (!compatible) continue
+
+    descuento += evaluacion.descuento
+    for (const [key, cantidad] of evaluacion.consumida) {
+      consumida.set(key, (consumida.get(key) ?? 0) + cantidad)
+    }
+
+    aplicadas.push({
+      promocion_id: evaluacion.promo.id,
+      nombre: evaluacion.promo.nombre,
+      descripcion: evaluacion.promo.descripcion ?? undefined,
+      tipo: evaluacion.promo.tipo,
+      descuento: evaluacion.descuento,
+      packs: evaluacion.packs,
+      conjuntos: evaluacion.conjuntos,
+    })
+  }
+
+  const descuentoFinal = Math.min(round2(descuento), round2(subtotal))
+
+  return { descuento: descuentoFinal, aplicadas, unidadesConsumidas: consumida }
 }

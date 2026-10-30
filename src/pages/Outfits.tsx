@@ -2,20 +2,47 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useOutfits } from '../hooks/useOutfits'
 import { BuyOutfitModal } from '../components/BuyOutfitModal'
-import { srcsetImagen } from '../lib/imagenes'
-import { ImagenSegura } from '../components/ImagenSegura'
+import { obtenerUrlImagen, IMAGEN_FALLBACK } from '../lib/imagenes'
 import type { OutfitConItems } from '../types/database'
 import { useSeo } from '../hooks/useSeo'
+
+function OutfitItemCardImagen({ outfit }: { outfit: OutfitConItems }) {
+  const [fallo, setFallo] = useState(false)
+  const urlFinal = obtenerUrlImagen(outfit.imagen_portada)
+
+  if (fallo || !urlFinal) {
+    return (
+      <img
+        src={IMAGEN_FALLBACK}
+        alt={`Look ${outfit.nombre}`}
+        className="w-full h-full object-cover object-[center_20%]"
+        loading="lazy"
+        decoding="async"
+        width={420}
+        height={747}
+      />
+    )
+  }
+
+  return (
+    <img
+      src={urlFinal}
+      alt={`Look ${outfit.nombre}: ${outfit.outfit_items.length} prendas combinadas`}
+      loading="lazy"
+      decoding="async"
+      width={420}
+      height={747}
+      className="w-full h-full object-cover object-[center_20%]"
+      onError={() => setFallo(true)}
+    />
+  )
+}
 
 export function Outfits() {
   useSeo()
 
   const { outfits, loading } = useOutfits()
   const [outfitSeleccionado, setOutfitSeleccionado] = useState<OutfitConItems | null>(null)
-
-  // Todas las cards de outfit se renderizan al mismo ancho.
-  const srcsetOutfit = (url: string | null | undefined) =>
-    srcsetImagen(url, 420, false, { carpeta: 'outfits' })
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
@@ -44,18 +71,7 @@ export function Outfits() {
                   aria-label={`Ver detalle del look ${o.nombre}`}
                   className="w-full h-full block cursor-pointer"
                 >
-                  <ImagenSegura
-                    carpeta="outfits"
-                    src={o.imagen_portada}
-                    srcSet={srcsetOutfit(o.imagen_portada).srcset}
-                    sizes={srcsetOutfit(o.imagen_portada).sizes}
-                    alt={`Look ${o.nombre}: ${o.outfit_items.length} prendas combinadas`}
-                    loading="lazy"
-                    decoding="async"
-                    width={420}
-                    height={747}
-                    className="w-full h-full object-cover object-[center_20%]"
-                  />
+                  <OutfitItemCardImagen outfit={o} />
                 </button>
                 <span className="absolute top-3 left-3 z-10 px-2.5 py-1 text-xs font-bold bg-base-100 text-success rounded-full shadow-sm border border-success/20">
                   -5% OFF

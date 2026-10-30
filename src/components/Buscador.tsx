@@ -5,7 +5,6 @@ import { DROP_EMBED, filtrarDropsFuturos } from '../lib/drops'
 import type { ProductoConStock } from '../types/database'
 import { obtenerUrlImagen } from '../lib/imagenes'
 import { formatearPrecio, precioConDescuento } from '../lib/precios'
-import { QuickshopModal } from './QuickshopModal'
 
 interface Props {
   className?: string
@@ -18,7 +17,6 @@ export function Buscador({ className = '', placeholder = 'Buscar prendas...', on
   const [sugerencias, setSugerencias] = useState<ProductoConStock[]>([])
   const [abierto, setAbierto] = useState(false)
   const [loading, setLoading] = useState(false)
-  const [quickshop, setQuickshop] = useState<ProductoConStock | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const timerRef = useRef<number | null>(null)
   const navigate = useNavigate()
@@ -28,7 +26,6 @@ export function Buscador({ className = '', placeholder = 'Buscar prendas...', on
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
         setAbierto(false)
       }
-      setQuickshop(null)
     }
     document.addEventListener('mousedown', onClickOutside)
     return () => document.removeEventListener('mousedown', onClickOutside)
@@ -79,12 +76,6 @@ export function Buscador({ className = '', placeholder = 'Buscar prendas...', on
     setAbierto(false)
     setTerm('')
     setSugerencias([])
-    setQuickshop(null)
-  }
-
-  function abrirQuickshop(producto: ProductoConStock) {
-    setAbierto(false)
-    setQuickshop(producto)
   }
 
   function irAlCatalogo() {
@@ -182,9 +173,9 @@ export function Buscador({ className = '', placeholder = 'Buscar prendas...', on
                 </button>
                 <button
                   type="button"
-                  onClick={() => abrirQuickshop(p)}
-                  className="btn btn-xs btn-neutral shrink-0"
-                  title={`Compra rápida: ${p.nombre}`}
+                  onClick={() => irAlProducto(p.id)}
+                  className="btn btn-xs btn-neutral shrink-0 cursor-pointer"
+                  title={`Ver detalle: ${p.nombre}`}
                 >
                   Ver
                 </button>
@@ -211,10 +202,6 @@ export function Buscador({ className = '', placeholder = 'Buscar prendas...', on
             Buscar &quot;{term}&quot; en el catálogo
           </button>
         </div>
-      )}
-
-      {quickshop && (
-        <QuickshopModal producto={quickshop} onCerrar={() => setQuickshop(null)} />
       )}
     </div>
   )

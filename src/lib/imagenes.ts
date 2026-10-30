@@ -21,7 +21,12 @@ const SUPABASE_URL = String(import.meta.env.VITE_SUPABASE_URL ?? '').replace(/\/
  * con prefijo (`reviews/foto.jpg`) o una URL completa. Los previews locales
  * (`blob:`/`data:`) se respetan para no romper formularios de carga.
  */
-export function obtenerUrlImagen(imagenUrlRaw: string | null): string {
+export function obtenerUrlImagen(
+  imagenUrlRaw: string | null | undefined,
+  opciones?: OpcionesNormalizacionImagen,
+): string {
+  if (opciones) return normalizarUrlImagen(imagenUrlRaw, opciones)
+
   if (!imagenUrlRaw) return ''
   const limpia =
     typeof imagenUrlRaw === 'string'
@@ -35,7 +40,7 @@ export function obtenerUrlImagen(imagenUrlRaw: string | null): string {
   const pathLimpio = limpia
     .replace(/^(productos|reviews|showroom|comunidad|categorias)\//, '')
     .replace(/^\/+/, '')
-  return `${supabaseUrl}/storage/v1/object/public/product-images/${pathLimpio}`
+  return `${supabaseUrl}/storage/v1/object/public/${BUCKET_IMAGENES}/${pathLimpio}`
 }
 
 export interface OpcionesNormalizacionImagen {

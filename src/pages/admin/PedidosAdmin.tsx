@@ -9,7 +9,7 @@ import {
   type OrdenConItems,
 } from '../../lib/adminApi'
 import { useCierreModal } from '../../hooks/useCierreModal'
-import { ImagenSegura } from '../../components/ImagenSegura'
+import { IMAGEN_FALLBACK, obtenerUrlImagen } from '../../lib/imagenes'
 
 const BADGE: Record<EstadoOrden, string> = {
   pendiente: 'badge-error',
@@ -219,6 +219,7 @@ function PedidoDetalle({
     url: null,
     error: null,
   })
+  const [falloComprobante, setFalloComprobante] = useState(false)
 
   useEffect(() => {
     if (!mostrarComprobante) return
@@ -235,8 +236,14 @@ function PedidoDetalle({
     }
   }, [mostrarComprobante, orden.comprobante_url])
 
+  const urlComprobante = comprobante.url
+    ? obtenerUrlImagen(comprobante.url, { carpeta: 'comprobantes' })
+    : IMAGEN_FALLBACK
+  const srcComprobante = falloComprobante ? IMAGEN_FALLBACK : urlComprobante
+
   function abrirComprobante() {
     setComprobante({ url: null, error: null })
+    setFalloComprobante(false)
     setMostrarComprobante(true)
   }
 
@@ -443,10 +450,11 @@ function PedidoDetalle({
                   title="Comprobante"
                 />
               ) : (
-                <ImagenSegura
-                  src={comprobante.url}
+                <img
+                  src={srcComprobante}
                   alt="Comprobante de pago"
                   className="max-w-full max-h-[70vh] mx-auto rounded-lg object-contain"
+                  onError={() => setFalloComprobante(true)}
                 />
               )}
             </div>

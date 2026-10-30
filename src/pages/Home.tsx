@@ -10,6 +10,7 @@ import { CategoryGrid } from '../components/CategoryGrid'
 import { BeneficiosSection } from '../components/BeneficiosSection'
 import { ShowroomSection } from '../components/ShowroomSection'
 import { HeroCarousel } from '../components/HeroCarousel'
+import { PromocionBanner } from '../components/PromocionBanner'
 import { useSeo } from '../hooks/useSeo'
 
 export function Home() {
@@ -22,11 +23,12 @@ export function Home() {
 
   return (
     <div>
-      {/* Único h1 de la home: el resto de secciones usan h2. */}
       <h1 className="sr-only">Ikigai Clothes · Indumentaria urbana en Oberá, Misiones</h1>
 
       {/* Hero */}
       <HeroCarousel />
+
+      <PromocionBanner />
 
       {/* Drops / Lanzamientos exclusivos (sección destacada principal) */}
       {drops.map((vista) => (
