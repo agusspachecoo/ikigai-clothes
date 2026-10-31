@@ -17,6 +17,7 @@ import { AccesoCheckout } from '../components/AccesoCheckout'
 import { formatearPrecio } from '../lib/precios'
 import { subirComprobante, actualizarComprobanteOrden } from '../lib/adminApi'
 import { comprimirImagen, blobToFile, tamañoEnKB } from '../lib/imageCompression'
+import { esImagenSoportada } from '../lib/heic'
 import { CONTACTO } from '../lib/contacto'
 import {
   validarFormulario,
@@ -1378,8 +1379,8 @@ function UploadComprobante({
 
   async function handleFile(file: File) {
     const validTypes = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf']
-    if (!validTypes.includes(file.type)) {
-      setUploadError('Formato no válido. Subí JPG, PNG o PDF.')
+    if (!validTypes.includes(file.type) && !esImagenSoportada(file)) {
+      setUploadError('Formato no válido. Subí JPG, PNG, WEBP, HEIC o PDF.')
       return
     }
     if (file.size > 10 * 1024 * 1024) {
@@ -1389,7 +1390,7 @@ function UploadComprobante({
 
     let archivoFinal: File = file
 
-    if (file.type.startsWith('image/')) {
+    if (esImagenSoportada(file)) {
       try {
         const blob = await comprimirImagen(file)
         archivoFinal = blobToFile(blob, file.name)
@@ -1482,7 +1483,7 @@ function UploadComprobante({
         <input
           ref={fileInputRef}
           type="file"
-          accept="image/jpeg,image/png,image/webp,application/pdf"
+          accept="image/jpeg,image/png,image/webp,image/heic,image/heif,application/pdf,.heic,.heif,.HEIC,.HEIF"
           className="hidden"
           onChange={(e) => {
             const file = e.target.files?.[0]
@@ -1521,7 +1522,7 @@ function UploadComprobante({
               <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
             </svg>
             <p className="text-sm opacity-60">Arrastrá el comprobante o hacé click</p>
-            <p className="text-xs opacity-40 mt-1">JPG, PNG o PDF — máximo 10 MB</p>
+            <p className="text-xs opacity-40 mt-1">JPG, PNG, WEBP, HEIC o PDF — máximo 10 MB</p>
           </>
         )}
       </div>

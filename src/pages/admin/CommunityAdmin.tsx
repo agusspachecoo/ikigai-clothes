@@ -154,7 +154,7 @@ export function CommunityAdmin() {
               )}
               <input
                 type="file"
-                accept="image/*"
+                accept="image/*,.heic,.heif,.HEIC,.HEIF,image/heic,image/heif"
                 className="hidden"
                 onChange={handleArchivo}
               />

@@ -21,3 +21,11 @@ export function precioTransferencia(precio: number, descuentoTransferencia: numb
 export function montoCuota(total: number, cuotas: number): number {
   return Math.round(total / Math.max(1, cuotas))
 }
+
+/**
+ * Porcentaje exacto (0-100) que representa el descuento por transferencia de
+ * la tienda, tal como se guarda en `config_tienda` (ej: 0.2 → 20).
+ */
+export function porcentajeDesdeDescuentoTransferencia(descuento: number): number {
+  return Math.round((Number(descuento) || 0) * 10000) / 100
+}

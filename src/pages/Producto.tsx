@@ -750,7 +750,7 @@ export function Producto() {
               )}
               <input
                 type="file"
-                accept="image/*"
+                accept="image/*,.heic,.heif,.HEIC,.HEIF,image/heic,image/heif"
                 className="hidden"
                 onChange={handleFotoResena}
               />

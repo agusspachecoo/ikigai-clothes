@@ -1,5 +1,6 @@
 import { supabase } from './supabase'
 import { slugify } from './categorias'
+import { convertirHEICaJPEG, esHEIC } from './heic'
 import type { ProductoConStock, OutfitConItems, Orden, OrdenItem, Resena } from '../types/database'
 import type { Promocion } from './promociones'
 import type { ComunidadFoto, Categoria, Banner, Talle, Drop } from '../types/database'
@@ -168,13 +169,17 @@ export async function eliminarImagen(url: string | null | undefined) {
  * "Remeras", porque todas comparten carpeta. No volver a un borrado por carpeta.
  */
 export async function subirImagen(file: File, carpeta: CarpetaImagen = 'productos') {
-  const ext = file.type === 'image/jpeg' ? 'jpg' : 'webp'
+  // Red de seguridad: nunca subir un HEIC/HEIF tal cual (no se ve en la web).
+  // Los flujos normales ya llegan comprimidos a WebP, pero si algún llamador
+  // sube el archivo original lo convertimos acá antes de tocar Storage.
+  const archivo = esHEIC(file) ? await convertirHEICaJPEG(file) : file
+  const ext = archivo.type === 'image/jpeg' ? 'jpg' : 'webp'
   const nombre = `${carpeta}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`
 
-  const { error } = await supabase.storage.from(BUCKET_IMAGENES).upload(nombre, file, {
+  const { error } = await supabase.storage.from(BUCKET_IMAGENES).upload(nombre, archivo, {
     cacheControl: '3600',
     upsert: false,
-    contentType: file.type,
+    contentType: archivo.type,
   })
 
   if (error) return { url: null, error: error.message }

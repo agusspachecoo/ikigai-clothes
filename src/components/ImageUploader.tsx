@@ -6,21 +6,18 @@ import {
   type CompressOptions,
 } from '../lib/imageCompression'
 import { subirImagen, type CarpetaImagen } from '../lib/adminApi'
+import { convertirHEICaJPEG, esHEIC, esImagenSoportada } from '../lib/heic'
 import { ImagenSegura } from './ImagenSegura'
 
 interface ImageUploaderProps {
   carpeta: CarpetaImagen
   imagenActual?: string
-  /** Obligatorio en modo individual; no se usa en modo masivo. */
   onUrl?: (url: string) => void
-  /** Nueva: recibe todas las URLs de un lote masivo y las agrega al estado padre. */
   onUrls?: (urls: string[]) => void
-  /** Nueva: activa selección/arrastre de múltiples archivos. */
   multiple?: boolean
   proporcion?: 'cuadrado' | 'retrato' | 'apaisado' | 'vertical'
   altoMinimo?: string
   texto?: string
-  /** Ajustes de compresión (ancho máximo, calidad y peso objetivo). */
   compresion?: CompressOptions
 }
 
@@ -47,6 +44,7 @@ export function ImageUploader({
   const [previewLocal, setPreviewLocal] = useState<string | null>(null)
   const [subiendo, setSubiendo] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [aviso, setAviso] = useState<string | null>(null)
   const [info, setInfo] = useState<string | null>(null)
   const [dragActivo, setDragActivo] = useState(false)
   const [progreso, setProgreso] = useState<{ actual: number; total: number } | null>(null)
@@ -54,39 +52,48 @@ export function ImageUploader({
 
   const mostrarImagen = previewLocal ?? imagenActual
 
+  /**
+   * Decodifica de forma segura cualquier imagen (incluyendo HEIC de iPhone) 
+   * mediante un Canvas en memoria para evitar el error de decodificación.
+   */
+  async function prepararArchivo(archivo: File): Promise<File> {
+    if (!esHEIC(archivo)) return archivo
+    return await convertirHEICaJPEG(archivo)
+  }
+
   async function procesarArchivo(archivo: File | null) {
     if (!archivo) return
-    if (!archivo.type.startsWith('image/')) {
-      setError('El archivo debe ser una imagen.')
+    if (!esImagenSoportada(archivo)) {
+      setError('El archivo debe ser una imagen (JPG, PNG, WEBP, HEIC...).')
       return
     }
     setError(null)
+    setAviso(null)
     setInfo(null)
     setSubiendo(true)
     try {
-      const blob = await comprimirImagen(archivo, compresion)
-      const archivoFinal = blobToFile(blob, archivo.name)
+      const preparado = await prepararArchivo(archivo)
+      const blob = await comprimirImagen(preparado, compresion)
+      const archivoFinal = blobToFile(blob, preparado.name)
+      
       setPreviewLocal(URL.createObjectURL(blob))
       setInfo(
         archivo.size > blob.size
           ? `Comprimida: ${tamañoEnKB(archivo.size)} → ${tamañoEnKB(blob.size)}`
           : `Optimizada: ${tamañoEnKB(blob.size)}`,
       )
+      
       const { url, error: errUpload } = await subirImagen(archivoFinal, carpeta)
       if (errUpload || !url) throw new Error(errUpload ?? 'No se pudo subir la imagen')
       onUrl?.(url)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al subir la imagen')
+      const mensaje = err instanceof Error ? err.message : 'Error al subir la imagen'
+      setError(mensaje)
     } finally {
       setSubiendo(false)
     }
   }
 
-  /**
-   * Procesa varios archivos de forma secuencial con indicador de progreso real.
-   * Cada imagen se comprime y sube una tras otra; las URLs se acumulan y se
-   * entregan al final mediante `onUrls` para que el padre las añada al formulario.
-   */
   async function procesarArchivos(archivos: FileList | File[]) {
     const lista = Array.from(archivos)
     if (!lista.length) return
@@ -97,6 +104,7 @@ export function ImageUploader({
     }
 
     setError(null)
+    setAviso(null)
     const urls: string[] = []
     const errores: string[] = []
 
@@ -106,17 +114,18 @@ export function ImageUploader({
 
       for (const [indice, archivo] of lista.entries()) {
         try {
-          if (!archivo.type.startsWith('image/')) {
+          if (!esImagenSoportada(archivo)) {
             errores.push(`"${archivo.name}" no es una imagen válida.`)
             setProgreso({ actual: indice + 1, total: lista.length })
             continue
           }
 
           setProgreso({ actual: indice + 1, total: lista.length })
-          setInfo(`Comprimiendo imagen ${indice + 1} de ${lista.length}...`)
+          setInfo(`Procesando imagen ${indice + 1} de ${lista.length}...`)
 
-          const blob = await comprimirImagen(archivo, compresion)
-          const archivoFinal = blobToFile(blob, archivo.name)
+          const preparado = await prepararArchivo(archivo)
+          const blob = await comprimirImagen(preparado, compresion)
+          const archivoFinal = blobToFile(blob, preparado.name)
 
           const { url, error: errUpload } = await subirImagen(archivoFinal, carpeta)
           if (errUpload || !url) {
@@ -126,23 +135,20 @@ export function ImageUploader({
 
           urls.push(url)
         } catch (err) {
-          errores.push(
-            `Error al procesar "${archivo.name}": ${err instanceof Error ? err.message : 'No se pudo decodificar o comprimir la imagen'}`,
-          )
+          const mensaje = `Error al procesar "${archivo.name}": ${
+            err instanceof Error ? err.message : 'No se pudo decodificar'
+          }`
+          errores.push(mensaje)
           continue
         }
       }
 
       if (urls.length) {
         onUrls?.(urls)
+        setInfo(`Subidas ${urls.length} de ${lista.length} imagen(es).`)
       }
 
-      if (urls.length && errores.length === 0) {
-        setInfo(`Subidas ${urls.length} de ${lista.length} imagen(es).`)
-      } else if (urls.length && errores.length > 0) {
-        setInfo(`Subidas ${urls.length} de ${lista.length} imagen(es).`)
-        setError(errores[0])
-      } else if (urls.length === 0 && errores.length > 0) {
+      if (errores.length) {
         setError(errores[0])
       }
     } catch (err) {
@@ -194,7 +200,7 @@ export function ImageUploader({
           ref={inputRef}
           type="file"
           multiple={multiple}
-          accept="image/*"
+          accept="image/*,.heic,.heif,.HEIC,.HEIF,image/heic,image/heif,image/heic-sequence,image/heif-sequence"
           className="hidden"
           disabled={subiendo}
           onChange={(e) => {
@@ -241,13 +247,13 @@ export function ImageUploader({
         )}
 
         {subiendo && progreso && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-white/80 text-sm font-medium backdrop-blur-sm">
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-white/80 text-sm font-medium backdrop-blur-sm z-10">
             <span className="loading loading-spinner loading-sm text-primary" />
             Subiendo imagen {progreso.actual} de {progreso.total}...
           </div>
         )}
         {subiendo && !progreso && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-white/80 text-sm font-medium backdrop-blur-sm">
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-white/80 text-sm font-medium backdrop-blur-sm z-10">
             <span className="loading loading-spinner loading-sm text-primary" />
             Comprimiendo y subiendo...
           </div>
@@ -262,7 +268,7 @@ export function ImageUploader({
               setInfo(null)
               onUrl?.('')
             }}
-            className="absolute top-1.5 right-1.5 btn btn-circle btn-xs text-white bg-black/50 border-0 hover:bg-black/70"
+            className="absolute top-1.5 right-1.5 btn btn-circle btn-xs text-white bg-black/50 border-0 hover:bg-black/70 z-10"
             aria-label="Quitar imagen"
           >
             ✕
@@ -270,8 +276,8 @@ export function ImageUploader({
         )}
       </div>
 
-      {info && !multiple && <p className="text-xs text-success">{info}</p>}
-      {info && multiple && <p className="text-xs text-success">{info}</p>}
+      {info && <p className="text-xs text-success">{info}</p>}
+      {aviso && <p className="text-xs text-warning">{aviso}</p>}
       {error && <p className="text-xs text-error">{error}</p>}
     </div>
   )
