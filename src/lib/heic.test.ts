@@ -53,7 +53,7 @@ describe('convertirHEICaJPEG', () => {
     expect(heic2anyMock).toHaveBeenCalledWith({
       blob: expect.any(File),
       toType: 'image/jpeg',
-      quality: 0.9,
+      quality: 0.85,
     })
     expect(salida.name).toBe('IMG_1234.jpg')
     expect(salida.type).toBe('image/jpeg')
@@ -74,7 +74,7 @@ describe('convertirHEICaJPEG', () => {
     heic2anyMock.mockRejectedValue(new Error('boom'))
 
     await expect(convertirHEICaJPEG(archivo('rota.heic'))).rejects.toThrow(
-      /No se pudo convertir "rota.heic"/,
+      /rota\.heic.*formato HEIC/,
     )
   })
 })

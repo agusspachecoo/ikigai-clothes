@@ -5,7 +5,7 @@ import { useTienda } from '../context/tienda'
 import { useCierreModal } from '../hooks/useCierreModal'
 import { useTalles } from '../hooks/useTalles'
 import { tallesDisponibles } from '../lib/talles'
-import { formatearPrecio, precioConDescuento, precioTransferencia } from '../lib/precios'
+import { formatearPrecio, precioConDescuento, precioTransferenciaProducto } from '../lib/precios'
 import { obtenerUrlImagen, IMAGEN_FALLBACK } from '../lib/imagenes'
 import type { ProductoConStock } from '../types/database'
 import { ConflictModal } from './ConflictModal'
@@ -32,6 +32,17 @@ export function QuickshopModal({
   useCierreModal(true, onCerrar)
 
   const precio = precioConDescuento(producto.precio, producto.discount_percent)
+  const precioTransferenciaFinal = precioTransferenciaProducto(
+    producto.precio_transferencia,
+    precio,
+    descuento_transferencia,
+  )
+  const ahorroTransferencia = Math.max(0, precio - precioTransferenciaFinal)
+  const descuentoTransferenciaMostrado =
+    precio > 0 ? Math.round((ahorroTransferencia / precio) * 100) : 0
+  const mostrarPrecioTransferencia =
+    precioTransferenciaFinal > 0 &&
+    ((Number(producto.precio_transferencia) || 0) > 0 || descuento_transferencia > 0)
   const urlImagenFinal = obtenerUrlImagen(producto.imagenes[0])
 
   // Normalizamos las fuentes posibles de talles para que nunca falle
@@ -149,20 +160,22 @@ export function QuickshopModal({
             </Link>
 
             <div className="mt-2 sm:mt-3 space-y-0.5 sm:space-y-1">
-              {descuento_transferencia > 0 && (
+              {mostrarPrecioTransferencia && (
                 <div className="leading-tight">
                   <p className="text-lg sm:text-xl font-bold text-success">
-                    ${formatearPrecio(precioTransferencia(precio, descuento_transferencia))}
+                    ${formatearPrecio(precioTransferenciaFinal)}
                   </p>
-                  <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-success/80">
-                    {Math.round(descuento_transferencia * 100)}% OFF por transferencia
-                  </p>
+                  {descuentoTransferenciaMostrado > 0 && (
+                    <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-success/80">
+                      {descuentoTransferenciaMostrado}% OFF por transferencia
+                    </p>
+                  )}
                 </div>
               )}
               <div className="flex items-baseline gap-2">
                 <p
                   className={
-                    descuento_transferencia > 0
+                    mostrarPrecioTransferencia
                       ? 'text-sm opacity-60'
                       : 'text-base sm:text-xl font-semibold'
                   }

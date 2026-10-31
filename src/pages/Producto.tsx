@@ -28,7 +28,7 @@ import {
   formatearPrecio,
   montoCuota,
   precioConDescuento,
-  precioTransferencia,
+  precioTransferenciaProducto,
 } from '../lib/precios'
 
 export function Producto() {
@@ -197,8 +197,19 @@ export function Producto() {
   const sinStock = talles.length === 0 || talles.every((t) => t.stock === 0)
   const stockTalleSeleccionado =
     talles.find((t) => t.talle === talleSeleccionado)?.stock ?? 0
-  const precioTransferenciaFinal = precioTransferencia(precioOferta, descuento_transferencia)
+  // Prioriza el precio de transferencia cargado en el producto; el cálculo
+  // automático con el % global queda solo como respaldo.
+  const precioTransferenciaFinal = precioTransferenciaProducto(
+    producto.precio_transferencia,
+    precioOferta,
+    descuento_transferencia,
+  )
   const ahorroTransferencia = Math.max(0, precioOferta - precioTransferenciaFinal)
+  const descuentoTransferenciaMostrado =
+    precioOferta > 0 ? Math.round((ahorroTransferencia / precioOferta) * 100) : 0
+  const mostrarPrecioTransferencia =
+    precioTransferenciaFinal > 0 &&
+    ((Number(producto.precio_transferencia) || 0) > 0 || descuento_transferencia > 0)
 
   const promedioResenas = resenas.length
     ? Math.round((resenas.reduce((s, r) => s + r.puntuacion, 0) / resenas.length) * 10) / 10
@@ -549,7 +560,7 @@ export function Producto() {
               </p>
             )}
 
-            {descuento_transferencia > 0 && (
+            {mostrarPrecioTransferencia && (
               <div className="border-2 border-emerald-600 bg-emerald-50 px-4 py-3 mt-4 rounded-lg shadow-sm">
                 <p className="text-xl font-semibold text-emerald-700 mb-1">
                   Precio por transferencia ${formatearPrecio(precioTransferenciaFinal)}
@@ -557,7 +568,7 @@ export function Producto() {
                 {ahorroTransferencia > 0 && (
                   <p className="text-sm text-emerald-700 mt-1">
                     Ahorrás ${formatearPrecio(ahorroTransferencia)} (
-                    {Math.round(descuento_transferencia * 100)}% off)
+                    {descuentoTransferenciaMostrado}% off)
                   </p>
                 )}
               </div>

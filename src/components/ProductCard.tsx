@@ -6,7 +6,7 @@ import { ImagenSegura } from './ImagenSegura'
 import {
   formatearPrecio,
   precioConDescuento,
-  precioTransferencia,
+  precioTransferenciaProducto,
 } from '../lib/precios'
 
 export function ProductCard({
@@ -59,6 +59,17 @@ export function ProductCard({
   const descuento = Number(producto.discount_percent) || 0
   const precio = Number(producto.precio) || 0
   const precioOferta = precioConDescuento(precio, descuento)
+
+  // Igual que en la ficha: prioriza el precio de transferencia guardado en la
+  // base y usa el % global solo como respaldo.
+  const precioTransferenciaFinal = precioTransferenciaProducto(
+    producto.precio_transferencia,
+    precioOferta,
+    descuento_transferencia,
+  )
+  const mostrarPrecioTransferencia =
+    precioTransferenciaFinal > 0 &&
+    ((Number(producto.precio_transferencia) || 0) > 0 || descuento_transferencia > 0)
 
   const stockTotal = (producto.variaciones_stock ?? []).reduce(
     (suma, v) => suma + (v.stock_disponible ?? 0),
@@ -133,7 +144,7 @@ export function ProductCard({
 
             <span
               className={
-                descuento_transferencia > 0
+                mostrarPrecioTransferencia
                   ? 'text-sm font-semibold text-base-content/70'
                   : 'text-lg font-bold text-base-content'
               }
@@ -141,10 +152,10 @@ export function ProductCard({
               ${formatearPrecio(precioOferta)}
             </span>
 
-            {descuento_transferencia > 0 && (
+            {mostrarPrecioTransferencia && (
               <p className="leading-none">
                 <span className="text-xl font-extrabold text-emerald-600">
-                  ${formatearPrecio(precioTransferencia(precioOferta, descuento_transferencia))}
+                  ${formatearPrecio(precioTransferenciaFinal)}
                 </span>
                 <span className="ml-1 text-[11px] font-semibold uppercase tracking-wide text-emerald-700/80">
                   con transferencia

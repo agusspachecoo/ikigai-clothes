@@ -29,3 +29,18 @@ export function montoCuota(total: number, cuotas: number): number {
 export function porcentajeDesdeDescuentoTransferencia(descuento: number): number {
   return Math.round((Number(descuento) || 0) * 10000) / 100
 }
+
+/**
+ * Precio final por transferencia de un producto. Prioriza el valor guardado en
+ * la base (`precio_transferencia`) y solo calcula el descuento global como
+ * respaldo cuando ese campo está vacío, en 0 o nulo.
+ */
+export function precioTransferenciaProducto(
+  precioTransferenciaGuardado: number | null | undefined,
+  precioLista: number,
+  descuentoTransferencia: number,
+): number {
+  const guardado = Number(precioTransferenciaGuardado) || 0
+  if (guardado > 0) return guardado
+  return precioTransferencia(precioLista, descuentoTransferencia)
+}

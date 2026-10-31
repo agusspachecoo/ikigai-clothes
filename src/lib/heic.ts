@@ -22,8 +22,14 @@ export function esImagenSoportada(archivo: File): boolean {
 
 export async function convertirHEICaJPEG(archivo: File): Promise<File> {
   try {
+    type ConvertirHEIC = (opciones: {
+      blob: Blob
+      toType?: string
+      quality?: number
+    }) => Promise<Blob | Blob[]>
+
     const heic2anyModule = await import('heic2any')
-    const heic2any = (heic2anyModule.default ?? heic2anyModule) as any
+    const heic2any = (heic2anyModule.default ?? heic2anyModule) as unknown as ConvertirHEIC
 
     const salida = await heic2any({
       blob: archivo,

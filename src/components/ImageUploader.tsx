@@ -58,7 +58,13 @@ export function ImageUploader({
    */
   async function prepararArchivo(archivo: File): Promise<File> {
     if (!esHEIC(archivo)) return archivo
-    return await convertirHEICaJPEG(archivo)
+    try {
+      return await convertirHEICaJPEG(archivo)
+    } catch {
+      // Si heic2any falla, `comprimirImagen` todavía puede decodificarlo por
+      // la vía nativa (<img> + canvas) sin cortar la subida.
+      return archivo
+    }
   }
 
   async function procesarArchivo(archivo: File | null) {
