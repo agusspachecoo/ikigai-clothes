@@ -30,11 +30,6 @@ export function Home() {
 
       <PromocionBanner />
 
-      {/* Drops / Lanzamientos exclusivos (sección destacada principal) */}
-      {drops.map((vista) => (
-        <DropSection key={vista.drop.id} vista={vista} onRevelar={recargar} />
-      ))}
-
       {/* Descuentos de la semana */}
       {(loadingOfertas || ofertas.length > 0) && (
         <ProductShelf
@@ -54,6 +49,11 @@ export function Home() {
         loading={loadingVendidos}
         linkVerTodos="/catalogo"
       />
+
+      {/* Nuevo Drop */}
+      {drops.map((vista) => (
+        <DropSection key={vista.drop.id} vista={vista} onRevelar={recargar} />
+      ))}
 
       {/* Compra el conjunto */}
       <OutfitCarousel outfits={outfits} />

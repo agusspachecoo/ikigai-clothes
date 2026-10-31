@@ -40,6 +40,13 @@
   }
 }
 
+@utility scrollbar-none {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
 @utility scrollbar-thin-ikigai {
   scrollbar-width: thin;
   scrollbar-color: var(--color-base-300) transparent;

@@ -409,7 +409,7 @@ function PromocionFormModal({
             <label className="floating-label md:col-span-2">
               <span>Nombre</span>
               <input
-                className="input input-bordered w-full"
+                className="input input-bordered w-full border border-neutral-400 focus:border-black"
                 value={form.nombre}
                 onChange={(e) => setForm({ ...form, nombre: e.target.value })}
                 placeholder="Ej: 2 remeras por $35.000"
@@ -419,7 +419,7 @@ function PromocionFormModal({
             <label className="floating-label md:col-span-2">
               <span>Descripción (opcional)</span>
               <textarea
-                className="textarea textarea-bordered w-full"
+                className="textarea textarea-bordered w-full border border-neutral-400 focus:border-black"
                 rows={2}
                 value={form.descripcion ?? ''}
                 onChange={(e) => setForm({ ...form, descripcion: e.target.value })}
@@ -429,7 +429,7 @@ function PromocionFormModal({
             <label className="floating-label">
               <span>Tipo</span>
               <select
-                className="select select-bordered w-full"
+                className="select select-bordered w-full border border-neutral-400 focus:border-black"
                 value={form.tipo}
                 onChange={(e) => cambiarTipo(e.target.value as 'pack' | 'combo')}
               >
@@ -442,7 +442,7 @@ function PromocionFormModal({
               <span>Prioridad</span>
               <input
                 type="number"
-                className="input input-bordered w-full"
+                className="input input-bordered w-full border border-neutral-400 focus:border-black"
                 value={form.prioridad}
                 onChange={(e) => setForm({ ...form, prioridad: Number(e.target.value) || 0 })}
               />
@@ -454,7 +454,7 @@ function PromocionFormModal({
                 <input
                   type="number"
                   min="1"
-                  className="input input-bordered w-full"
+                  className="input input-bordered w-full border border-neutral-400 focus:border-black"
                   value={form.precio_fijo ?? ''}
                   onChange={(e) =>
                     setForm({ ...form, precio_fijo: Number(e.target.value) || null })
@@ -468,7 +468,7 @@ function PromocionFormModal({
                   type="number"
                   min="1"
                   max="100"
-                  className="input input-bordered w-full"
+                  className="input input-bordered w-full border border-neutral-400 focus:border-black"
                   value={form.descuento_porcentaje ?? ''}
                   onChange={(e) =>
                     setForm({
@@ -484,7 +484,7 @@ function PromocionFormModal({
               <span>Inicio</span>
               <input
                 type="date"
-                className="input input-bordered w-full"
+                className="input input-bordered w-full border border-neutral-400 focus:border-black"
                 value={fechaInput(form.fecha_inicio)}
                 onChange={(e) =>
                   setForm({ ...form, fecha_inicio: fechaInicioISO(e.target.value) })
@@ -496,7 +496,7 @@ function PromocionFormModal({
               <span>Fin</span>
               <input
                 type="date"
-                className="input input-bordered w-full"
+                className="input input-bordered w-full border border-neutral-400 focus:border-black"
                 value={fechaInput(form.fecha_fin)}
                 onChange={(e) => setForm({ ...form, fecha_fin: fechaFinISO(e.target.value) })}
               />
@@ -529,7 +529,7 @@ function PromocionFormModal({
                   <label className="floating-label flex-1 min-w-40">
                     <span>Nombre del grupo</span>
                     <input
-                      className="input input-bordered input-sm w-full"
+                      className="input input-bordered input-sm w-full border border-neutral-400 focus:border-black"
                       value={grupo.nombre}
                       onChange={(e) => actualizarGrupo(indice, { nombre: e.target.value })}
                     />
@@ -539,7 +539,7 @@ function PromocionFormModal({
                     <input
                       type="number"
                       min="1"
-                      className="input input-bordered input-sm w-full"
+                      className="input input-bordered input-sm w-full border border-neutral-400 focus:border-black"
                       value={grupo.cantidad_requerida}
                       onChange={(e) =>
                         actualizarGrupo(indice, {
@@ -620,7 +620,7 @@ function SelectorProductos({
     <div>
       <input
         type="search"
-        className="input input-bordered input-sm w-full mb-2"
+        className="input input-bordered input-sm w-full border border-neutral-400 focus:border-black" mb-2
         placeholder="Buscar producto por nombre o categoría..."
         value={busqueda}
         onChange={(e) => setBusqueda(e.target.value)}

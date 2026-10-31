@@ -34,8 +34,8 @@ interface FormState {
   nombre: string
   sku: string
   categoria: string
-  precio: string
-  precio_transferencia: string
+  precio: string // Precio de lista (calculado o base superior)
+  precio_transferencia: string // Precio base ingresado por transferencia
   discount_percent: string
   descripcion: string
   imagenes: string[]
@@ -56,7 +56,7 @@ function crearForm(
       categoria: '',
       precio: '',
       precio_transferencia: '',
-      discount_percent: '',
+      discount_percent: '20', // Por defecto sugerimos un 20%
       descripcion: '',
       imagenes: [''],
       activo: true,
@@ -90,7 +90,6 @@ interface ProductoFormModalProps {
   producto: ProductoConStock | null
   categorias: string[]
   tallesSugeridos: string[]
-  /** Si viene, el producto nuevo queda asignado a ese drop. */
   dropId?: string | null
   onCerrar: () => void
   onGuardado: (mensaje: string) => void
@@ -110,7 +109,22 @@ export function ProductoFormModal({
   useCierreModal(true, onCerrar)
 
   function setField<K extends keyof FormState>(key: K, value: FormState[K]) {
-    setForm((f) => ({ ...f, [key]: value }))
+    setForm((f) => {
+      const nuevoForm = { ...f, [key]: value }
+
+      // Si modifica el precio de transferencia o el porcentaje de descuento, recalculamos el precio de lista automáticamente
+      if (key === 'precio_transferencia' || key === 'discount_percent') {
+        const baseTransf = Number(key === 'precio_transferencia' ? value : nuevoForm.precio_transferencia) || 0
+        const desc = Number(key === 'discount_percent' ? value : nuevoForm.discount_percent) || 0
+
+        if (baseTransf > 0 && desc > 0 && desc < 100) {
+          // Inversa: Si transferencia es el precio con descuento, el precio de lista (base) = transferencia / (1 - descuento)
+          const precioListaCalculado = Math.round(baseTransf / (1 - desc / 100))
+          nuevoForm.precio = String(precioListaCalculado)
+        }
+      }
+      return nuevoForm
+    })
   }
 
   function addImagen() {
@@ -127,10 +141,6 @@ export function ProductoFormModal({
     setField('imagenes', form.imagenes.filter((_, idx) => idx !== i))
   }
 
-  /**
-   * Agrega las URLs de un lote masivo al final del array de imágenes del
-   * producto, conservando las que ya existían (sin pisarlas).
-   */
   function agregarImagenes(urls: string[]) {
     setField('imagenes', [...form.imagenes, ...urls])
   }
@@ -154,9 +164,11 @@ export function ProductoFormModal({
     e.preventDefault()
     setErrorMsg(null)
 
-    const precio = Number(form.precio)
-    if (!form.nombre.trim() || !form.precio || precio <= 0) {
-      setErrorMsg('El nombre y un precio válido son obligatorios.')
+    const precioLista = Number(form.precio)
+    const precioTransf = Number(form.precio_transferencia)
+
+    if (!form.nombre.trim() || (!precioLista && !precioTransf)) {
+      setErrorMsg('El nombre y al menos un precio válido son obligatorios.')
       return
     }
 
@@ -169,8 +181,8 @@ export function ProductoFormModal({
       sku: form.sku.trim() || null,
       descripcion: form.descripcion || null,
       categoria: form.categoria.trim() || 'Otros',
-      precio,
-      precio_transferencia: form.precio_transferencia ? Number(form.precio_transferencia) : null,
+      precio: precioLista || precioTransf,
+      precio_transferencia: precioTransf || null,
       discount_percent,
       imagenes: form.imagenes,
       activo: form.activo,
@@ -274,59 +286,57 @@ export function ProductoFormModal({
             </div>
           </SeccionForm>
 
-          {/* Bloque 2: Precios y descuentos */}
+          {/* Bloque 2: Precios y descuentos (A la inversa: Ingresa Transferencia y calcula Lista) */}
           <SeccionForm titulo="Precios y descuentos">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <label className={LABEL_CLS}>
-                Precio de Lista ($)
+                Precio Transferencia ($)
                 <input
                   type="number"
                   min="0"
                   step="0.01"
                   className={INPUT_CLS}
-                  placeholder="Ej: 59500"
-                  value={form.precio}
-                  onChange={(e) => setField('precio', e.target.value)}
+                  placeholder="Ej: 40000"
+                  value={form.precio_transferencia}
+                  onChange={(e) => setField('precio_transferencia', e.target.value)}
                   required
                 />
               </label>
 
               <label className={LABEL_CLS}>
-                Precio Transferencia ($, opcional)
-                <input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  className={INPUT_CLS}
-                  placeholder="Ej: 47600"
-                  value={form.precio_transferencia}
-                  onChange={(e) => setField('precio_transferencia', e.target.value)}
-                />
-              </label>
-
-              <label className={LABEL_CLS}>
-                Descuento (%)
+                Descuento / OFF (%)
                 <input
                   type="number"
                   min="0"
                   max="100"
                   className={INPUT_CLS}
-                  placeholder="0 = sin descuento"
+                  placeholder="Ej: 20"
                   value={form.discount_percent}
                   onChange={(e) => setField('discount_percent', e.target.value)}
                 />
               </label>
 
+              <label className={LABEL_CLS}>
+                Precio de Lista Automático ($)
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  className={`${INPUT_CLS} bg-neutral-50 font-semibold`}
+                  placeholder="Calculado..."
+                  value={form.precio}
+                  onChange={(e) => setField('precio', e.target.value)}
+                />
+              </label>
+
               {(() => {
-                const base = Number(form.precio) || 0
-                const desc = Math.max(0, Math.min(100, Number(form.discount_percent) || 0))
-                if (base <= 0 || desc <= 0) return null
-                const promo = Math.round(base * (100 - desc)) / 100
+                const transf = Number(form.precio_transferencia) || 0
+                const lista = Number(form.precio) || 0
+                const desc = Number(form.discount_percent) || 0
+                if (transf <= 0) return null
                 return (
-                  <p className="text-xs text-success font-semibold self-end pb-2">
-                    Precio original ${base.toLocaleString('es-AR')} → Precio promocional{' '}
-                    ${promo.toLocaleString('es-AR')} (ahorro $
-                    {(base - promo).toLocaleString('es-AR')})
+                  <p className="text-xs text-success font-semibold sm:col-span-3 pb-2">
+                    Precio base de transferencia: ${transf.toLocaleString('es-AR')} → Precio de lista calculado ({desc}% más): ${lista.toLocaleString('es-AR')}
                   </p>
                 )
               })()}
