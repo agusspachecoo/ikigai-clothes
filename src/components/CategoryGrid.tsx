@@ -45,6 +45,12 @@ function CategoriaCard({ categoria }: { categoria: Categoria }) {
 
 export function CategoryGrid() {
   const { categorias } = useCategorias()
+  // `!== false` mantiene el Home funcionando si la migración 031 todavía no
+  // está aplicada (la columna llega como undefined). Una vez aplicada, solo
+  // se muestran las categorías marcadas desde el panel.
+  const destacadas = categorias.filter((categoria) => categoria.destacada !== false)
+
+  if (destacadas.length === 0) return null
 
   return (
     <section className="py-12 md:py-16 bg-white border-t border-base-300">
@@ -53,11 +59,11 @@ export function CategoryGrid() {
           <p className="text-xs font-semibold tracking-[0.25em] uppercase opacity-60 mb-1">
             Explorá la tienda
           </p>
-          <h2 className="text-2xl md:text-4xl font-bold">Categorías</h2>
+          <h2 className="text-2xl md:text-4xl font-bold">Categorías destacadas</h2>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-5">
-          {categorias.map((categoria) => (
+          {destacadas.map((categoria) => (
             <CategoriaCard key={categoria.id} categoria={categoria} />
           ))}
         </div>

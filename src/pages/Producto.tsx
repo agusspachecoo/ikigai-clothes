@@ -29,6 +29,7 @@ import {
   montoCuota,
   precioConDescuento,
   precioTransferenciaProducto,
+  porcentajeDesdeDescuentoTransferencia,
 } from '../lib/precios'
 
 export function Producto() {
@@ -197,19 +198,19 @@ export function Producto() {
   const sinStock = talles.length === 0 || talles.every((t) => t.stock === 0)
   const stockTalleSeleccionado =
     talles.find((t) => t.talle === talleSeleccionado)?.stock ?? 0
-  // Prioriza el precio de transferencia cargado en el producto; el cálculo
-  // automático con el % global queda solo como respaldo.
+  // El precio por transferencia se calcula SIEMPRE con el porcentaje global
+  // de la tienda. Ignoramos `producto.precio_transferencia` para no mostrar
+  // porcentajes viejos o inconsistentes (por ejemplo 17% en vez de 20%).
   const precioTransferenciaFinal = precioTransferenciaProducto(
-    producto.precio_transferencia,
     precioOferta,
     descuento_transferencia,
   )
   const ahorroTransferencia = Math.max(0, precioOferta - precioTransferenciaFinal)
-  const descuentoTransferenciaMostrado =
-    precioOferta > 0 ? Math.round((ahorroTransferencia / precioOferta) * 100) : 0
+  const descuentoTransferenciaMostrado = porcentajeDesdeDescuentoTransferencia(
+    descuento_transferencia,
+  )
   const mostrarPrecioTransferencia =
-    precioTransferenciaFinal > 0 &&
-    ((Number(producto.precio_transferencia) || 0) > 0 || descuento_transferencia > 0)
+    precioTransferenciaFinal > 0 && descuento_transferencia > 0
 
   const promedioResenas = resenas.length
     ? Math.round((resenas.reduce((s, r) => s + r.puntuacion, 0) / resenas.length) * 10) / 10

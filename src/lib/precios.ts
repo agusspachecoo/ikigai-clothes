@@ -31,16 +31,16 @@ export function porcentajeDesdeDescuentoTransferencia(descuento: number): number
 }
 
 /**
- * Precio final por transferencia de un producto. Prioriza el valor guardado en
- * la base (`precio_transferencia`) y solo calcula el descuento global como
- * respaldo cuando ese campo está vacío, en 0 o nulo.
+ * Precio final por transferencia de un producto. Se calcula siempre con el
+ * porcentaje global de la tienda (`config_tienda.descuento_transferencia`).
+ *
+ * El valor `productos.precio_transferencia` queda solo como dato histórico:
+ * no se usa para mostrar precios porque podía quedar desactualizado y mostrar
+ * un porcentaje distinto al configurado (por ejemplo 17% en vez de 20%).
  */
 export function precioTransferenciaProducto(
-  precioTransferenciaGuardado: number | null | undefined,
   precioLista: number,
   descuentoTransferencia: number,
 ): number {
-  const guardado = Number(precioTransferenciaGuardado) || 0
-  if (guardado > 0) return guardado
   return precioTransferencia(precioLista, descuentoTransferencia)
 }

@@ -5,7 +5,12 @@ import { useTienda } from '../context/tienda'
 import { useCierreModal } from '../hooks/useCierreModal'
 import { useTalles } from '../hooks/useTalles'
 import { tallesDisponibles } from '../lib/talles'
-import { formatearPrecio, precioConDescuento, precioTransferenciaProducto } from '../lib/precios'
+import {
+  formatearPrecio,
+  porcentajeDesdeDescuentoTransferencia,
+  precioConDescuento,
+  precioTransferenciaProducto,
+} from '../lib/precios'
 import { obtenerUrlImagen, IMAGEN_FALLBACK } from '../lib/imagenes'
 import type { ProductoConStock } from '../types/database'
 import { ConflictModal } from './ConflictModal'
@@ -33,16 +38,14 @@ export function QuickshopModal({
 
   const precio = precioConDescuento(producto.precio, producto.discount_percent)
   const precioTransferenciaFinal = precioTransferenciaProducto(
-    producto.precio_transferencia,
     precio,
     descuento_transferencia,
   )
-  const ahorroTransferencia = Math.max(0, precio - precioTransferenciaFinal)
-  const descuentoTransferenciaMostrado =
-    precio > 0 ? Math.round((ahorroTransferencia / precio) * 100) : 0
+  const descuentoTransferenciaMostrado = porcentajeDesdeDescuentoTransferencia(
+    descuento_transferencia,
+  )
   const mostrarPrecioTransferencia =
-    precioTransferenciaFinal > 0 &&
-    ((Number(producto.precio_transferencia) || 0) > 0 || descuento_transferencia > 0)
+    precioTransferenciaFinal > 0 && descuento_transferencia > 0
   const urlImagenFinal = obtenerUrlImagen(producto.imagenes[0])
 
   // Normalizamos las fuentes posibles de talles para que nunca falle

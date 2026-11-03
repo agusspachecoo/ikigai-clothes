@@ -22,6 +22,11 @@
 
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { corsHeaders, json } from '../_shared/cors.ts'
+import {
+  cargarOrdenParaEmail,
+  enviarConfirmacionPedido,
+  resendConfigurado,
+} from '../_shared/resend.ts'
 
 // Mismos estados que ESTADOS_ORDEN en src/lib/adminApi.ts y el CHECK
 // ordenes_estado_check de la migración 011.
@@ -190,6 +195,15 @@ Deno.serve(async (req) => {
         })
         if (errCupon) {
           console.error('admin-estado-orden: error usando cupón:', errCupon.message)
+        }
+      }
+
+      if (orden.estado_pago !== 'pagado' && resendConfigurado()) {
+        try {
+          const ordenEmail = await cargarOrdenParaEmail(supabase, orden_id)
+          if (ordenEmail) await enviarConfirmacionPedido(ordenEmail)
+        } catch (err) {
+          console.error('admin-estado-orden: no se pudo enviar la confirmación:', err)
         }
       }
     }

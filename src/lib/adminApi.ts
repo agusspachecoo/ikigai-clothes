@@ -17,7 +17,11 @@ export async function getCategoriasAdmin() {
   return { data: (data ?? []) as Categoria[], error: error?.message ?? null }
 }
 
-export async function crearCategoria(nombre: string, imagenUrl: string | null = null) {
+export async function crearCategoria(
+  nombre: string,
+  imagenUrl: string | null = null,
+  destacada = false,
+) {
   const base = slugify(nombre) || 'categoria'
 
   const { data } = await supabase.from('categorias').select('slug')
@@ -29,18 +33,19 @@ export async function crearCategoria(nombre: string, imagenUrl: string | null = 
 
   const { error } = await supabase
     .from('categorias')
-    .insert([{ nombre, slug, imagen_url: imagenUrl || null }])
+    .insert([{ nombre, slug, imagen_url: imagenUrl || null, destacada }])
   return { error: error?.message ?? null }
 }
 
 /** Actualiza nombre e imagen representativa de una categoría. */
 export async function actualizarCategoria(
   id: string,
-  datos: { nombre?: string; imagen_url?: string | null },
+  datos: { nombre?: string; imagen_url?: string | null; destacada?: boolean },
 ) {
   const payload: Record<string, unknown> = {}
   if (datos.nombre !== undefined) payload.nombre = datos.nombre
   if (datos.imagen_url !== undefined) payload.imagen_url = datos.imagen_url || null
+  if (datos.destacada !== undefined) payload.destacada = datos.destacada
 
   if (Object.keys(payload).length === 0) return { error: null }
 

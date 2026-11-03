@@ -28,20 +28,11 @@ describe('porcentajeDesdeDescuentoTransferencia', () => {
 })
 
 describe('precioTransferenciaProducto', () => {
-  it('prioriza el precio de transferencia guardado en la base', () => {
-    expect(precioTransferenciaProducto(42000, 50000, 0.2)).toBe(42000)
+  it('aplica siempre el porcentaje global de la tienda', () => {
+    expect(precioTransferenciaProducto(50000, 0.2)).toBe(40000)
   })
 
-  it('ignora el descuento global si el producto tiene precio propio', () => {
-    expect(precioTransferenciaProducto(45000, 50000, 0.5)).toBe(45000)
-  })
-
-  it('calcula con el descuento global si el campo es nulo', () => {
-    expect(precioTransferenciaProducto(null, 50000, 0.2)).toBe(40000)
-  })
-
-  it('calcula con el descuento global si el campo esta vacio o en 0', () => {
-    expect(precioTransferenciaProducto(0, 50000, 0.2)).toBe(40000)
-    expect(precioTransferenciaProducto(undefined, 50000, 0.2)).toBe(40000)
+  it('no depende de precios de transferencia guardados por producto', () => {
+    expect(precioTransferenciaProducto(50000, 0.5)).toBe(25000)
   })
 })

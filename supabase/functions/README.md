@@ -112,6 +112,32 @@ El magic link redirige a `/checkout/pending?external_reference=<ordenId>`; el to
    supabase functions serve create-preference --env-file supabase/functions/.env
    ```
 
+## Emails transaccionales con Resend
+
+La utilidad `_shared/resend.ts` envía emails con el SDK oficial de Resend. Se usa desde:
+
+- `crear-orden`: alerta de **nuevo pedido** a `ADMIN_EMAIL`.
+- `mercadopago-webhook`: confirmación al cliente cuando el pago queda **aprobado**.
+- `admin-estado-orden`: confirmación al cliente cuando el admin marca el pedido como **pagado** (por ejemplo, una transferencia).
+
+Los envíos son best-effort: si falta `RESEND_API_KEY` o Resend falla, el pedido se crea/actualiza igual y solo se registra un warning en los logs.
+
+### Secrets requeridos en Supabase
+```bash
+supabase secrets set RESEND_API_KEY=re_xxxxxxxxxxxxxxxxxxxxxxxx
+# Remitente con dominio verificado en Resend (en pruebas: onboarding@resend.dev)
+supabase secrets set RESEND_FROM_EMAIL="Ikigai Clothes <no-reply@tudominio.com>"
+# Casilla que recibe las alertas de nuevos pedidos
+supabase secrets set ADMIN_EMAIL=ikigaiclothes.contacto@gmail.com
+```
+
+### Deploy
+```bash
+supabase functions deploy crear-orden
+supabase functions deploy mercadopago-webhook --no-verify-jwt
+supabase functions deploy admin-estado-orden
+```
+
 ## Cotización de envíos con Zipnova (ex Zippin)
 
 La función `zippin-envio` consume la API de Zipnova (`POST https://api.zipnova.com.ar/v2/shipments/quote`)

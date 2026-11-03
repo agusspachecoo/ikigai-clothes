@@ -27,10 +27,12 @@ export function Catalogo() {
   const [busqueda, setBusqueda] = useState(inicialBuscar)
 
   const slugInicial = searchParams.get('categoria') ?? ''
-  const [ultimoSlug, setUltimoSlug] = useState(slugInicial)
-  const [categoriasSeleccionadas, setCategoriasSeleccionadas] = useState<string[]>([])
-
   const descuentosInicial = searchParams.get('descuentos') === '1'
+  const [ultimoSlug, setUltimoSlug] = useState(slugInicial)
+  const [categoriasSeleccionadas, setCategoriasSeleccionadas] = useState<string[]>(() =>
+    descuentosInicial || !slugInicial ? [] : [slugInicial],
+  )
+
   const [ultimoDesc, setUltimoDesc] = useState(descuentosInicial)
   const [descuentos, setDescuentos] = useState(descuentosInicial)
 

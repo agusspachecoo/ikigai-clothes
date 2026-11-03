@@ -11,6 +11,11 @@
 
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { corsHeaders, json } from '../_shared/cors.ts'
+import {
+  cargarOrdenParaEmail,
+  enviarConfirmacionPedido,
+  resendConfigurado,
+} from '../_shared/resend.ts'
 
 function getSupabaseAdmin() {
   const url = Deno.env.get('SUPABASE_URL')
@@ -76,6 +81,7 @@ Deno.serve(async (req) => {
     }
 
     const estadoPago = payment?.status
+    const yaEstabaPagada = orden.estado_pago === 'pagado'
     const updateData: Record<string, unknown> = {
       mp_payment_id: String(paymentId),
       mp_pago_detalle: payment,
@@ -116,6 +122,15 @@ Deno.serve(async (req) => {
             p_orden_id: ordenId,
           })
           if (errorCupon) console.error('usar_cupon error:', errorCupon)
+        }
+
+        if (!yaEstabaPagada && resendConfigurado()) {
+          try {
+            const ordenEmail = await cargarOrdenParaEmail(supabase, ordenId)
+            if (ordenEmail) await enviarConfirmacionPedido(ordenEmail)
+          } catch (err) {
+            console.error('No se pudo enviar la confirmación de pago:', err)
+          }
         }
       }
     }

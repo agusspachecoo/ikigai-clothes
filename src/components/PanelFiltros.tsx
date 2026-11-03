@@ -1,5 +1,7 @@
 import { formatearPrecio } from '../lib/precios'
 import { FILTROS_INICIALES, hayFiltrosActivos, type EstadoFiltros } from '../lib/filtros'
+import { ordenarTalles } from '../lib/talles'
+import { useTalles } from '../hooks/useTalles'
 import type { ProductoConStock } from '../types/database'
 import type { Categoria } from '../types/database'
 
@@ -31,6 +33,7 @@ export function PanelFiltros({
   mostrarCategorias = false,
 }: Props) {
   const activos = hayFiltrosActivos(estado)
+  const { orden: ordenTalles } = useTalles()
 
   function alternarTalle(talle: string) {
     onChange({
@@ -49,6 +52,8 @@ export function PanelFiltros({
       }
     }
   }
+
+  const tallesOrdenados = ordenarTalles([...talles], ordenTalles)
 
   return (
     <div className="space-y-6">
@@ -110,11 +115,11 @@ export function PanelFiltros({
         </div>
       )}
 
-      {talles.size > 0 && (
+      {tallesOrdenados.length > 0 && (
         <div>
           <p className="text-xs uppercase tracking-widest opacity-50 mb-2">Talle</p>
           <div className="flex flex-wrap gap-2">
-            {[...talles].map((t) => (
+            {tallesOrdenados.map((t) => (
               <button
                 key={t}
                 type="button"

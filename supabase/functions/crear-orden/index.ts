@@ -42,6 +42,11 @@ import {
   verificarCotizacion,
   type QuotePayload,
 } from '../_shared/envio.ts'
+import {
+  cargarOrdenParaEmail,
+  enviarAlertaNuevoPedido,
+  resendConfigurado,
+} from '../_shared/resend.ts'
 
 interface ItemInput {
   producto_id: string
@@ -564,6 +569,15 @@ Deno.serve(async (req) => {
       await supabase.from('ordenes').delete().eq('id', ordenId)
       console.error('Error creando items de la orden:', errItems)
       return json({ error: 'No pudimos registrar los productos del pedido.' }, { status: 500 })
+    }
+
+    if (resendConfigurado()) {
+      try {
+        const ordenEmail = await cargarOrdenParaEmail(supabase, ordenId)
+        if (ordenEmail) await enviarAlertaNuevoPedido(ordenEmail)
+      } catch (err) {
+        console.error('No se pudo enviar la alerta de nuevo pedido:', err)
+      }
     }
 
     // ---------------------------------------------------------------

@@ -29,11 +29,15 @@ export function Header() {
   const { categorias } = useCategorias()
 
   const [menuOpen, setMenuOpen] = useState(false)
+  const [categoriasMenuAbiertas, setCategoriasMenuAbiertas] = useState(false)
   const [busquedaOpen, setBusquedaOpen] = useState(false)
   const [perfilMenuAbierto, setPerfilMenuAbierto] = useState(false)
 
   const toggleMenu = useCallback(() => setMenuOpen((v) => !v), [])
-  const closeMenu = useCallback(() => setMenuOpen(false), [])
+  const closeMenu = useCallback(() => {
+    setMenuOpen(false)
+    setCategoriasMenuAbiertas(false)
+  }, [])
   const closeBusqueda = useCallback(() => setBusquedaOpen(false), [])
 
   useCierreModal(menuOpen, closeMenu)
@@ -259,17 +263,62 @@ export function Header() {
 
         {/* Navegación desktop */}
         <nav className="hidden lg:flex items-center justify-center border-t border-white/10">
-          {NAV_ITEMS.map((item) => (
-            <Link
-              key={item.to}
-              to={item.to}
-              className={`px-4 py-3 text-[11px] uppercase tracking-[0.15em] border-l border-white/10 ${
-                esActivo(item.to) ? 'text-white' : 'text-white/60 hover:text-white'
-              }`}
-            >
-              {item.label}
-            </Link>
-          ))}
+          {NAV_ITEMS.map((item) => {
+            if (item.to === '/catalogo') {
+              return (
+                <div key={item.to} className="group relative border-l border-white/10">
+                  <Link
+                    to={item.to}
+                    className={`flex items-center gap-1.5 px-4 py-3 text-[11px] uppercase tracking-[0.15em] ${
+                      esActivo(item.to) ? 'text-white' : 'text-white/60 hover:text-white'
+                    }`}
+                  >
+                    {item.label}
+                    <svg
+                      aria-hidden="true"
+                      className="h-3 w-3 transition-transform duration-200 group-hover:rotate-180"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                    </svg>
+                  </Link>
+
+                  <div className="invisible absolute left-0 top-full z-50 max-h-[70vh] min-w-56 translate-y-1 overflow-y-auto border border-white/10 bg-neutral py-2 opacity-0 shadow-2xl transition-all duration-200 group-hover:visible group-hover:translate-y-0 group-hover:opacity-100 group-focus-within:visible group-focus-within:translate-y-0 group-focus-within:opacity-100">
+                    <Link
+                      to="/catalogo"
+                      className="block px-4 py-2 text-[11px] uppercase tracking-[0.15em] text-white/50 hover:bg-white/10 hover:text-white"
+                    >
+                      Ver todos
+                    </Link>
+                    {categorias.map((cat) => (
+                      <Link
+                        key={cat.id}
+                        to={`/catalogo?categoria=${encodeURIComponent(cat.slug)}`}
+                        className="block px-4 py-2 text-sm text-white/70 hover:bg-white/10 hover:text-white"
+                      >
+                        {cat.nombre}
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              )
+            }
+
+            return (
+              <Link
+                key={item.to}
+                to={item.to}
+                className={`px-4 py-3 text-[11px] uppercase tracking-[0.15em] border-l border-white/10 ${
+                  esActivo(item.to) ? 'text-white' : 'text-white/60 hover:text-white'
+                }`}
+              >
+                {item.label}
+              </Link>
+            )
+          })}
         </nav>
       </header>
 
@@ -288,38 +337,97 @@ export function Header() {
 
             <nav className="px-4 pb-4">
               <ul className="divide-y divide-line">
-                {NAV_ITEMS.map((item) => (
-                  <li key={item.to}>
-                    <Link
-                      to={item.to}
-                      onClick={closeMenu}
-                      className={`block py-3 text-sm uppercase tracking-[0.12em] ${
-                        esActivo(item.to) ? 'text-primary' : ''
-                      }`}
-                    >
-                      {item.label}
-                    </Link>
-                  </li>
-                ))}
+                {NAV_ITEMS.map((item) => {
+                  if (item.to === '/catalogo') {
+                    return (
+                      <li key={item.to}>
+                        <div className="flex items-center justify-between">
+                          <Link
+                            to={item.to}
+                            onClick={closeMenu}
+                            className={`block flex-1 py-3 text-sm uppercase tracking-[0.12em] ${
+                              esActivo(item.to) ? 'text-primary' : ''
+                            }`}
+                          >
+                            {item.label}
+                          </Link>
+                          <button
+                            type="button"
+                            onClick={() => setCategoriasMenuAbiertas((v) => !v)}
+                            aria-expanded={categoriasMenuAbiertas}
+                            aria-controls="menu-categorias-mobile"
+                            aria-label={
+                              categoriasMenuAbiertas
+                                ? 'Ocultar categorías'
+                                : 'Mostrar categorías'
+                            }
+                            className="p-2 text-sm opacity-60 hover:opacity-100"
+                          >
+                            <svg
+                              className={`h-4 w-4 transition-transform duration-300 ${
+                                categoriasMenuAbiertas ? 'rotate-90' : ''
+                              }`}
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                            >
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                            </svg>
+                          </button>
+                        </div>
+
+                        <div
+                          id="menu-categorias-mobile"
+                          className={`overflow-hidden transition-all duration-300 ${
+                            categoriasMenuAbiertas
+                              ? 'max-h-[60vh] overflow-y-auto opacity-100'
+                              : 'max-h-0 opacity-0'
+                          }`}
+                        >
+                          <ul className="ml-1 space-y-1 border-l border-line pb-3 pl-3">
+                            <li>
+                              <Link
+                                to="/catalogo"
+                                onClick={closeMenu}
+                                className="block py-1.5 text-sm opacity-70 hover:opacity-100"
+                              >
+                                Ver todos
+                              </Link>
+                            </li>
+                            {categorias.map((cat) => (
+                              <li key={cat.id}>
+                                <Link
+                                  to={`/catalogo?categoria=${encodeURIComponent(cat.slug)}`}
+                                  onClick={closeMenu}
+                                  className="block py-1.5 text-sm opacity-70 hover:opacity-100"
+                                >
+                                  {cat.nombre}
+                                </Link>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      </li>
+                    )
+                  }
+
+                  return (
+                    <li key={item.to}>
+                      <Link
+                        to={item.to}
+                        onClick={closeMenu}
+                        className={`block py-3 text-sm uppercase tracking-[0.12em] ${
+                          esActivo(item.to) ? 'text-primary' : ''
+                        }`}
+                      >
+                        {item.label}
+                      </Link>
+                    </li>
+                  )
+                })}
               </ul>
             </nav>
-
-            <div className="px-4 pb-4">
-              <p className="text-[11px] uppercase tracking-widest opacity-50 mb-2">Categorías</p>
-              <ul className="space-y-1">
-                {categorias.map((cat) => (
-                  <li key={cat.id}>
-                    <Link
-                      to={`/catalogo?categoria=${cat.slug}`}
-                      onClick={closeMenu}
-                      className="block py-1.5 text-sm opacity-70 hover:opacity-100"
-                    >
-                      {cat.nombre}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
 
             <div className="px-4 pb-4 mt-auto">
               {user ? (

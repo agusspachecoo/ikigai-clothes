@@ -24,6 +24,7 @@ export function CategoriasAdmin() {
   const [notificacion, setNotificacion] = useState<string | null>(null)
   const [nombre, setNombre] = useState('')
   const [imagen, setImagen] = useState('')
+  const [destacada, setDestacada] = useState(false)
   const [creando, setCreando] = useState(false)
   const [errorCrear, setErrorCrear] = useState<string | null>(null)
   const [editando, setEditando] = useState<Categoria | null>(null)
@@ -71,7 +72,7 @@ export function CategoriasAdmin() {
     }
 
     setCreando(true)
-    const { error: err } = await crearCategoria(valor, imagen || null)
+    const { error: err } = await crearCategoria(valor, imagen || null, destacada)
     setCreando(false)
 
     if (err) {
@@ -81,6 +82,7 @@ export function CategoriasAdmin() {
 
     setNombre('')
     setImagen('')
+    setDestacada(false)
     setNotificacion('Categoría creada')
     setRecarga((n) => n + 1)
   }
@@ -135,6 +137,7 @@ export function CategoriasAdmin() {
                   <tr>
                     <th>Imagen</th>
                     <th>Categoría</th>
+                    <th>Home</th>
                     <th>Slug</th>
                     <th>Productos</th>
                     <th className="text-right">Acciones</th>
@@ -160,6 +163,13 @@ export function CategoriasAdmin() {
                         )}
                       </td>
                       <td className="font-medium">{c.nombre}</td>
+                      <td>
+                        {c.destacada !== false ? (
+                          <span className="badge badge-success badge-sm">Destacada</span>
+                        ) : (
+                          <span className="badge badge-ghost badge-sm">Oculta</span>
+                        )}
+                      </td>
                       <td>
                         <span className="font-mono text-xs opacity-60">{c.slug}</span>
                       </td>
@@ -211,6 +221,21 @@ export function CategoriasAdmin() {
               compresion={COMPRESION_CATEGORIA}
             />
 
+            <label className="flex items-start gap-3 cursor-pointer rounded-lg border border-base-300 p-3">
+              <input
+                type="checkbox"
+                className="checkbox checkbox-primary mt-0.5"
+                checked={destacada}
+                onChange={(e) => setDestacada(e.target.checked)}
+              />
+              <span>
+                <span className="block text-sm font-medium">Destacar en el Home</span>
+                <span className="block text-xs opacity-60">
+                  La categoría se muestra en la grilla de categorías destacadas.
+                </span>
+              </span>
+            </label>
+
             <div className="text-xs opacity-60">
               {nombre.trim() && (
                 <p>
@@ -259,6 +284,7 @@ function ModalEditarCategoria({
 }) {
   const [nombre, setNombre] = useState(categoria.nombre)
   const [imagen, setImagen] = useState(categoria.imagen_url ?? '')
+  const [destacada, setDestacada] = useState(categoria.destacada !== false)
   const [guardando, setGuardando] = useState(false)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
 
@@ -274,6 +300,7 @@ function ModalEditarCategoria({
     const { error: err } = await actualizarCategoria(categoria.id, {
       nombre: nombre.trim(),
       imagen_url: imagen || null,
+      destacada,
     })
 
     if (err) {
@@ -322,6 +349,21 @@ function ModalEditarCategoria({
             texto="Imagen representativa"
             compresion={COMPRESION_CATEGORIA}
           />
+
+          <label className="flex items-start gap-3 cursor-pointer rounded-lg border border-base-300 p-3">
+            <input
+              type="checkbox"
+              className="checkbox checkbox-primary mt-0.5"
+              checked={destacada}
+              onChange={(e) => setDestacada(e.target.checked)}
+            />
+            <span>
+              <span className="block text-sm font-medium">Destacar en el Home</span>
+              <span className="block text-xs opacity-60">
+                La categoría se muestra en la grilla de categorías destacadas.
+              </span>
+            </span>
+          </label>
 
           {errorMsg && <div className="alert alert-error text-sm">{errorMsg}</div>}
         </div>

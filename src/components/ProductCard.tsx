@@ -60,16 +60,13 @@ export function ProductCard({
   const precio = Number(producto.precio) || 0
   const precioOferta = precioConDescuento(precio, descuento)
 
-  // Igual que en la ficha: prioriza el precio de transferencia guardado en la
-  // base y usa el % global solo como respaldo.
+  // Igual que en la ficha: siempre aplicamos el porcentaje global de la tienda.
   const precioTransferenciaFinal = precioTransferenciaProducto(
-    producto.precio_transferencia,
     precioOferta,
     descuento_transferencia,
   )
   const mostrarPrecioTransferencia =
-    precioTransferenciaFinal > 0 &&
-    ((Number(producto.precio_transferencia) || 0) > 0 || descuento_transferencia > 0)
+    precioTransferenciaFinal > 0 && descuento_transferencia > 0
 
   const stockTotal = (producto.variaciones_stock ?? []).reduce(
     (suma, v) => suma + (v.stock_disponible ?? 0),

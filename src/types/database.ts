@@ -21,6 +21,7 @@ export interface Categoria {
   slug: string
   created_at: string
   imagen_url?: string | null
+  destacada?: boolean
 }
 
 export interface VariacionStock {
