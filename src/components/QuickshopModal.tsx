@@ -7,9 +7,10 @@ import { useTalles } from '../hooks/useTalles'
 import { tallesDisponibles } from '../lib/talles'
 import {
   formatearPrecio,
-  porcentajeDesdeDescuentoTransferencia,
+  porcentajeAhorroTransferencia,
   precioConDescuento,
   precioTransferenciaProducto,
+  tienePrecioTransferenciaPropio,
 } from '../lib/precios'
 import { obtenerUrlImagen, IMAGEN_FALLBACK } from '../lib/imagenes'
 import type { ProductoConStock } from '../types/database'
@@ -40,12 +41,16 @@ export function QuickshopModal({
   const precioTransferenciaFinal = precioTransferenciaProducto(
     precio,
     descuento_transferencia,
+    producto.precio_transferencia,
   )
-  const descuentoTransferenciaMostrado = porcentajeDesdeDescuentoTransferencia(
-    descuento_transferencia,
+  const descuentoTransferenciaMostrado = porcentajeAhorroTransferencia(
+    precio,
+    precioTransferenciaFinal,
   )
   const mostrarPrecioTransferencia =
-    precioTransferenciaFinal > 0 && descuento_transferencia > 0
+    precioTransferenciaFinal > 0 &&
+    (tienePrecioTransferenciaPropio(producto.precio_transferencia) ||
+      descuento_transferencia > 0)
   const urlImagenFinal = obtenerUrlImagen(producto.imagenes[0])
 
   // Normalizamos las fuentes posibles de talles para que nunca falle

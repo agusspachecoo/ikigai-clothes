@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase'
 import type { ComunidadFoto } from '../types/database'
 import { srcsetImagen } from '../lib/imagenes'
 import { ImagenSegura } from './ImagenSegura'
+import { useSwipe } from '../hooks/useSwipe'
 
 const NOMBRE_USUARIOS = [
   '@lucas.fit',
@@ -111,6 +112,12 @@ export function CommunitySection() {
     setLightboxIndex((i) => ((i ?? 0) - 1 + fotos.length) % fotos.length)
   }, [fotos.length])
 
+  const swipeLightbox = useSwipe({
+    enabled: lightboxIndex !== null && fotos.length > 1,
+    onSwipeLeft: irASiguiente,
+    onSwipeRight: irAAnterior,
+  })
+
   if (!cargado) {
     return (
       <section className="max-w-[1600px] mx-auto px-3 sm:px-5 py-6">
@@ -135,7 +142,7 @@ export function CommunitySection() {
 
         <div
           ref={carouselRef}
-          className="flex gap-3 overflow-x-auto snap-x snap-mandatory pb-3 scrollbar-thin-ikigai"
+          className="flex gap-3 overflow-x-auto snap-x snap-mandatory pb-3 scrollbar-thin-ikigai touch-pan-x overscroll-x-contain"
         >
           {fotos.map((foto, i) => (
             <div
@@ -176,8 +183,15 @@ export function CommunitySection() {
 
       {lightboxIndex !== null && fotos.length > 0 && (
         <div
-          className="fixed inset-0 z-50 bg-black/90 flex flex-col items-center justify-center p-4 cursor-zoom-out"
-          onClick={() => setLightboxIndex(null)}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Visor de fotos de la comunidad"
+          className="fixed inset-0 z-50 bg-black/90 flex flex-col items-center justify-center p-4 cursor-zoom-out touch-pan-y"
+          {...swipeLightbox.handlers}
+          onClick={() => {
+            if (swipeLightbox.consumirSwipe()) return
+            setLightboxIndex(null)
+          }}
         >
           <button
             type="button"

@@ -122,7 +122,7 @@ export function OutfitCarousel({ outfits }: Props) {
             <div
               ref={trackRef}
               onScroll={manejarScroll}
-              className="flex gap-4 md:gap-6 overflow-x-auto flex snap-x snap-mandatory scrollbar-none pb-2 -mx-3 px-3 sm:-mx-5 sm:px-5"
+              className="flex gap-4 md:gap-6 overflow-x-auto flex snap-x snap-mandatory scrollbar-none pb-2 -mx-3 px-3 sm:-mx-5 sm:px-5 touch-pan-x overscroll-x-contain"
             >
               {outfits.map((o) => (
                 <div key={o.id} className="snap-start shrink-0 w-full md:w-[calc(25%_-_1rem)]">

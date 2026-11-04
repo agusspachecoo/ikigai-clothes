@@ -126,7 +126,7 @@ export function ProductShelf({
 
           <div
             ref={pistaRef}
-            className="no-scrollbar flex gap-3 md:gap-4 overflow-x-auto snap-x snap-mandatory scroll-smooth pb-2 px-3 sm:px-5"
+            className="no-scrollbar flex gap-3 md:gap-4 overflow-x-auto snap-x snap-mandatory scroll-smooth pb-2 px-3 sm:px-5 touch-pan-x overscroll-x-contain"
           >
             {productos.map((p) => (
               <div key={p.id} data-carousel-item className={ITEM_CLS}>

@@ -73,6 +73,22 @@ describe('HeroCarousel', () => {
     expect(screen.getByLabelText('Slide siguiente')).toBeInTheDocument()
   })
 
+  it('cambia de banner al deslizar horizontalmente y sincroniza los puntos', async () => {
+    vi.mocked(getBannersPublic).mockResolvedValue({ data: BANNERS, error: null })
+
+    renderHero()
+
+    const imagen = await screen.findByRole('img', { name: 'Banner real' })
+    fireEvent.load(imagen)
+
+    const hero = screen.getByLabelText('Banner principal')
+    fireEvent.touchStart(hero, { touches: [{ clientX: 220, clientY: 120 }] })
+    fireEvent.touchMove(hero, { touches: [{ clientX: 160, clientY: 124 }] })
+    fireEvent.touchEnd(hero, { changedTouches: [{ clientX: 130, clientY: 124 }] })
+
+    expect(screen.getByLabelText('Ir al slide 2').className).toContain('w-6')
+  })
+
   it('usa el placeholder local cuando la primera imagen falla', async () => {
     vi.mocked(getBannersPublic).mockResolvedValue({ data: BANNERS, error: null })
 

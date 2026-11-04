@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { useSwipe } from '../hooks/useSwipe'
 import { Link } from 'react-router-dom'
 import { getBannersPublic } from '../lib/adminApi'
 import { IMAGEN_FALLBACK, normalizarUrlImagen } from '../lib/imagenes'
@@ -53,7 +54,7 @@ const BANNERS_POR_DEFECTO: Banner[] = [
 
 const AUTOPLAY_MS = 5000
 const CLASE_HERO =
-  'relative h-[50vh] min-h-[280px] max-h-[480px] sm:h-[60vh] sm:min-h-[340px] sm:max-h-[520px] md:h-[70vh] md:min-h-[420px] md:max-h-[80vh] w-full overflow-hidden bg-base-200 animate-fade-in'
+  'relative h-[50vh] min-h-[280px] max-h-[480px] sm:h-[60vh] sm:min-h-[340px] sm:max-h-[520px] md:h-[70vh] md:min-h-[420px] md:max-h-[80vh] w-full overflow-hidden bg-base-200 animate-fade-in touch-pan-y'
 
 function BannerImagen({
   banner,
@@ -150,6 +151,12 @@ export function HeroCarousel() {
     return () => window.clearInterval(timer)
   }, [listo, total])
 
+  const swipeHero = useSwipe({
+    enabled: listo && total > 1,
+    onSwipeLeft: () => setActual((i) => (i + 1) % total),
+    onSwipeRight: () => setActual((i) => (i - 1 + total) % total),
+  })
+
   if (cargando || total === 0) {
     return (
       <section className={CLASE_HERO} aria-busy="true" aria-label="Cargando banner">
@@ -174,6 +181,12 @@ export function HeroCarousel() {
       aria-busy={!listo}
       onMouseEnter={() => { pausado.current = true }}
       onMouseLeave={() => { pausado.current = false }}
+      {...swipeHero.handlers}
+      onClickCapture={(e) => {
+        if (!swipeHero.consumirSwipe()) return
+        e.preventDefault()
+        e.stopPropagation()
+      }}
     >
       <div
         className="flex h-full w-full transition-transform duration-700 ease-out"

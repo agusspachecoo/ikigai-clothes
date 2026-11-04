@@ -17,6 +17,7 @@ import { comprimirImagen, blobToFile } from '../lib/imageCompression'
 import { subirImagen } from '../lib/adminApi'
 import { parseResenaImagenes } from '../types/database'
 import { useCierreModal } from '../hooks/useCierreModal'
+import { useSwipe } from '../hooks/useSwipe'
 import { useTienda } from '../context/tienda'
 import { Breadcrumbs } from '../components/Breadcrumbs'
 import { BotonCompartir } from '../components/BotonCompartir'
@@ -29,7 +30,8 @@ import {
   montoCuota,
   precioConDescuento,
   precioTransferenciaProducto,
-  porcentajeDesdeDescuentoTransferencia,
+  porcentajeAhorroTransferencia,
+  tienePrecioTransferenciaPropio,
 } from '../lib/precios'
 
 export function Producto() {
@@ -48,7 +50,11 @@ export function Producto() {
   const [subiendoResena, setSubiendoResena] = useState(false)
   const [errorResena, setErrorResena] = useState<string | null>(null)
   const [exitoResena, setExitoResena] = useState(false)
-  const [lightboxResena, setLightboxResena] = useState<{ resenaId: string, url: string } | null>(null)
+  const [lightboxResena, setLightboxResena] = useState<{
+    resenaId: string
+    urls: string[]
+    index: number
+  } | null>(null)
   const [zoomAbierto, setZoomAbierto] = useState(false)
   const [zoomScale, setZoomScale] = useState(1)
   const [zoomPos, setZoomPos] = useState({ x: 0, y: 0 })
@@ -61,6 +67,51 @@ export function Producto() {
     setZoomAbierto(false)
     setZoomScale(1)
     setZoomPos({ x: 0, y: 0 })
+  })
+
+  const totalImagenes = producto?.imagenes.length ?? 0
+
+  function cambiarImagen(delta: number) {
+    if (totalImagenes <= 1) return
+    setImagenActiva((i) => (i + delta + totalImagenes) % totalImagenes)
+  }
+
+  const swipeGaleria = useSwipe({
+    enabled: totalImagenes > 1,
+    onSwipeLeft: () => cambiarImagen(1),
+    onSwipeRight: () => cambiarImagen(-1),
+  })
+
+  const swipeZoom = useSwipe({
+    enabled: zoomAbierto && zoomScale === 1 && totalImagenes > 1,
+    onSwipeLeft: () => {
+      setZoomScale(1)
+      setZoomPos({ x: 0, y: 0 })
+      cambiarImagen(1)
+    },
+    onSwipeRight: () => {
+      setZoomScale(1)
+      setZoomPos({ x: 0, y: 0 })
+      cambiarImagen(-1)
+    },
+  })
+
+  const totalFotosResena = lightboxResena?.urls.length ?? 0
+
+  function cambiarFotoResena(delta: number) {
+    setLightboxResena((actual) => {
+      if (!actual || actual.urls.length <= 1) return actual
+      return {
+        ...actual,
+        index: (actual.index + delta + actual.urls.length) % actual.urls.length,
+      }
+    })
+  }
+
+  const swipeResena = useSwipe({
+    enabled: totalFotosResena > 1,
+    onSwipeLeft: () => cambiarFotoResena(1),
+    onSwipeRight: () => cambiarFotoResena(-1),
   })
 
   // Al navegar entre productos (mismo componente, sin remount) hay que resetear
@@ -198,19 +249,22 @@ export function Producto() {
   const sinStock = talles.length === 0 || talles.every((t) => t.stock === 0)
   const stockTalleSeleccionado =
     talles.find((t) => t.talle === talleSeleccionado)?.stock ?? 0
-  // El precio por transferencia se calcula SIEMPRE con el porcentaje global
-  // de la tienda. Ignoramos `producto.precio_transferencia` para no mostrar
-  // porcentajes viejos o inconsistentes (por ejemplo 17% en vez de 20%).
+  // Si el producto tiene un precio de transferencia propio (> 0), ese valor
+  // manda. El porcentaje global solo se usa como fallback cuando no existe.
   const precioTransferenciaFinal = precioTransferenciaProducto(
     precioOferta,
     descuento_transferencia,
+    producto.precio_transferencia,
   )
   const ahorroTransferencia = Math.max(0, precioOferta - precioTransferenciaFinal)
-  const descuentoTransferenciaMostrado = porcentajeDesdeDescuentoTransferencia(
-    descuento_transferencia,
+  const descuentoTransferenciaMostrado = porcentajeAhorroTransferencia(
+    precioOferta,
+    precioTransferenciaFinal,
   )
   const mostrarPrecioTransferencia =
-    precioTransferenciaFinal > 0 && descuento_transferencia > 0
+    precioTransferenciaFinal > 0 &&
+    (tienePrecioTransferenciaPropio(producto.precio_transferencia) ||
+      descuento_transferencia > 0)
 
   const promedioResenas = resenas.length
     ? Math.round((resenas.reduce((s, r) => s + r.puntuacion, 0) / resenas.length) * 10) / 10
@@ -412,11 +466,15 @@ export function Producto() {
                 })()}
               </div>
             )}
-            <figure className="relative w-full max-w-[560px] mx-auto aspect-[3/4] bg-neutral-100 rounded-lg overflow-hidden flex items-center justify-center">
+            <figure
+              className="relative w-full max-w-[560px] mx-auto aspect-[3/4] bg-neutral-100 rounded-lg overflow-hidden flex items-center justify-center touch-pan-y"
+              {...swipeGaleria.handlers}
+            >
               {producto.imagenes[imagenActiva] && (
             <button
               type="button"
               onClick={() => {
+                if (swipeGaleria.consumirSwipe()) return
                 setZoomAbierto(true)
                 setZoomScale(1)
                 setZoomPos({ x: 0, y: 0 })
@@ -425,6 +483,7 @@ export function Producto() {
               aria-label="Ampliar imagen"
                 >
                   <ImagenSegura
+                    key={imagenActiva}
                     carpeta="productos"
                     src={producto.imagenes[imagenActiva]}
                     alt={
@@ -435,7 +494,7 @@ export function Producto() {
                     loading={imagenActiva === 0 ? 'eager' : 'lazy'}
                     fetchPriority={imagenActiva === 0 ? 'high' : 'auto'}
                     decoding={imagenActiva === 0 ? 'sync' : 'async'}
-                    className="absolute inset-0 w-full h-full object-cover object-center select-none"
+                    className="absolute inset-0 w-full h-full object-cover object-center select-none animate-image-in"
                   />
                 </button>
               )}
@@ -443,7 +502,7 @@ export function Producto() {
           </div>
 
           {producto.imagenes.length > 1 && (
-            <div className="flex md:hidden gap-2 mt-3 overflow-x-auto pb-1" id="miniaturas-horizontal">
+            <div className="flex md:hidden gap-2 mt-3 overflow-x-auto pb-1 touch-pan-x overscroll-x-contain" id="miniaturas-horizontal">
               {(() => {
                 const total = producto.imagenes.length
                 const maxVisibles = 5
@@ -674,7 +733,7 @@ export function Producto() {
       </div>
       {/* Descripción */}
       {producto.descripcion && (
-            <p className="mt-4 text-sm opacity-70 leading-relaxed">Descripción: {producto.descripcion}</p>
+            <p className="mt-4 text-sm opacity-70 leading-relaxed">{producto.descripcion}</p>
      )}
       {/* Productos relacionados */}
       <ProductosRelacionados categoria={producto.categoria} productoId={producto.id} />
@@ -855,7 +914,7 @@ export function Producto() {
                           key={`${r.id}-${i}`}
                           type="button"
                           className="w-20 h-20 rounded-lg overflow-hidden cursor-pointer border border-base-300 bg-neutral-100 relative group"
-                          onClick={() => setLightboxResena({ resenaId: r.id, url: foto })}
+                          onClick={() => setLightboxResena({ resenaId: r.id, urls: fotos, index: i })}
                           aria-label="Ver foto de la reseña"
                         >
                           <ImagenSegura
@@ -883,13 +942,17 @@ export function Producto() {
       {/* Lightbox de reseña */}
       {lightboxResena && (
         <div
-          className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4 cursor-zoom-out"
-          onClick={() => setLightboxResena(null)}
+          className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4 cursor-zoom-out touch-pan-y"
+          {...swipeResena.handlers}
+          onClick={() => {
+            if (swipeResena.consumirSwipe()) return
+            setLightboxResena(null)
+          }}
         >
           <button
             type="button"
             aria-label="Cerrar imagen"
-            className="absolute top-4 right-4 btn btn-circle btn-sm bg-white/90 text-black"
+            className="absolute top-4 right-4 btn btn-circle btn-sm bg-white/90 text-black z-20"
             onClick={(e) => {
               e.stopPropagation()
               setLightboxResena(null)
@@ -897,14 +960,52 @@ export function Producto() {
           >
             ✕
           </button>
+
+          {totalFotosResena > 1 && (
+            <button
+              type="button"
+              aria-label="Foto anterior"
+              className="absolute left-2 md:left-6 btn btn-circle btn-sm bg-white/90 text-black z-20"
+              onClick={(e) => {
+                e.stopPropagation()
+                cambiarFotoResena(-1)
+              }}
+            >
+              ‹
+            </button>
+          )}
+
           <ImagenSegura
-            src={lightboxResena.url}
+            key={`${lightboxResena.resenaId}-${lightboxResena.index}`}
+            src={lightboxResena.urls[lightboxResena.index]}
             carpeta="reviews"
             alt="Foto de la reseña ampliada"
             decoding="async"
-            className="max-w-full max-h-[90vh] rounded-lg object-contain select-none"
-            onClick={(e) => e.stopPropagation()}
+            className="max-w-full max-h-[90vh] rounded-lg object-contain select-none animate-image-in"
+            onClick={(e) => {
+              e.stopPropagation()
+              swipeResena.consumirSwipe()
+            }}
           />
+
+          {totalFotosResena > 1 && (
+            <>
+              <button
+                type="button"
+                aria-label="Foto siguiente"
+                className="absolute right-2 md:right-6 btn btn-circle btn-sm bg-white/90 text-black z-20"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  cambiarFotoResena(1)
+                }}
+              >
+                ›
+              </button>
+              <p className="absolute bottom-4 text-sm text-white z-20">
+                {lightboxResena.index + 1} de {totalFotosResena}
+              </p>
+            </>
+          )}
         </div>
       )}
 
@@ -945,19 +1046,23 @@ export function Producto() {
           </button>
           <div className="relative w-full h-full flex items-center justify-center overflow-hidden">
             <ImagenSegura
+              key={imagenActiva}
               carpeta="productos"
               src={producto.imagenes[imagenActiva]}
               alt={`${producto.nombre} ampliada`}
               decoding="async"
-              className={`max-w-full max-h-[90vh] rounded-lg object-contain select-none transition-transform duration-150 ${
-                zoomScale > 1 ? 'cursor-move' : 'cursor-zoom-in'
+              className={`max-w-full max-h-[90vh] rounded-lg object-contain select-none touch-pan-y ${
+                zoomScale > 1
+                  ? 'cursor-move'
+                  : 'cursor-zoom-in animate-image-in'
               }`}
               style={{
                 transform: `scale(${zoomScale}) translate(${zoomPos.x / zoomScale}px, ${zoomPos.y / zoomScale}px)`,
               }}
+              {...swipeZoom.handlers}
               onClick={(e) => {
                 e.stopPropagation()
-                if (arrastrando) return
+                if (swipeZoom.consumirSwipe() || arrastrando) return
                 if (zoomScale === 1) {
                   setZoomScale(2)
                   setZoomPos({ x: 0, y: 0 })

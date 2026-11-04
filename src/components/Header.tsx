@@ -29,14 +29,14 @@ export function Header() {
   const { categorias } = useCategorias()
 
   const [menuOpen, setMenuOpen] = useState(false)
-  const [categoriasMenuAbiertas, setCategoriasMenuAbiertas] = useState(false)
+  const [vistaCategorias, setVistaCategorias] = useState(false)
   const [busquedaOpen, setBusquedaOpen] = useState(false)
   const [perfilMenuAbierto, setPerfilMenuAbierto] = useState(false)
 
   const toggleMenu = useCallback(() => setMenuOpen((v) => !v), [])
   const closeMenu = useCallback(() => {
     setMenuOpen(false)
-    setCategoriasMenuAbiertas(false)
+    setVistaCategorias(false)
   }, [])
   const closeBusqueda = useCallback(() => setBusquedaOpen(false), [])
 
@@ -327,141 +327,165 @@ export function Header() {
         <div className="fixed inset-0 z-50 lg:hidden">
           <div className="absolute inset-0 bg-black/50" onClick={closeMenu} />
           <aside className="absolute inset-y-0 left-0 w-80 max-w-[85vw] bg-base-100 border-r border-line flex flex-col overflow-y-auto">
-            <div className="h-14 flex items-center px-4 border-b border-line shrink-0">
-              <span className="text-sm uppercase tracking-widest">Menú</span>
+            <div className="h-14 flex items-center gap-2 px-4 border-b border-line shrink-0">
+              {vistaCategorias ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setVistaCategorias(false)}
+                    aria-label="Volver al menú principal"
+                    className="inline-flex items-center gap-1.5 -ml-2 px-2 py-1.5 text-sm uppercase tracking-[0.12em] hover:opacity-70"
+                  >
+                    <svg
+                      className="h-4 w-4"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+                    </svg>
+                    Volver
+                  </button>
+                  <span className="text-xs uppercase tracking-widest opacity-50">
+                    Categorías
+                  </span>
+                </>
+              ) : (
+                <span className="text-sm uppercase tracking-widest">Menú</span>
+              )}
             </div>
 
-            <div className="p-4">
-              <Buscador className="w-full h-9 px-3 bg-base-200" onNavegar={closeMenu} />
-            </div>
+            {vistaCategorias ? (
+              <nav className="px-4 pb-4" aria-label="Categorías">
+                <ul className="divide-y divide-line">
+                  <li>
+                    <Link
+                      to="/catalogo"
+                      onClick={closeMenu}
+                      className="block py-3 text-sm uppercase tracking-[0.12em]"
+                    >
+                      Ver todos
+                    </Link>
+                  </li>
+                  {categorias.map((cat) => (
+                    <li key={cat.id}>
+                      <Link
+                        to={`/catalogo?categoria=${encodeURIComponent(cat.slug)}`}
+                        onClick={closeMenu}
+                        className="flex items-center justify-between gap-3 py-3 text-sm uppercase tracking-[0.12em] hover:opacity-70"
+                      >
+                        <span>{cat.nombre}</span>
+                        <svg
+                          aria-hidden="true"
+                          className="h-3.5 w-3.5 opacity-40"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                        </svg>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </nav>
+            ) : (
+              <>
+                <div className="p-4">
+                  <Buscador className="w-full h-9 px-3 bg-base-200" onNavegar={closeMenu} />
+                </div>
 
-            <nav className="px-4 pb-4">
-              <ul className="divide-y divide-line">
-                {NAV_ITEMS.map((item) => {
-                  if (item.to === '/catalogo') {
-                    return (
-                      <li key={item.to}>
-                        <div className="flex items-center justify-between">
+                <nav className="px-4 pb-4">
+                  <ul className="divide-y divide-line">
+                    {NAV_ITEMS.map((item) => {
+                      if (item.to === '/catalogo') {
+                        return (
+                          <li key={item.to}>
+                            <div className="flex items-center justify-between">
+                              <Link
+                                to={item.to}
+                                onClick={closeMenu}
+                                className={`block flex-1 py-3 text-sm uppercase tracking-[0.12em] ${
+                                  esActivo(item.to) ? 'text-primary' : ''
+                                }`}
+                              >
+                                {item.label}
+                              </Link>
+                              <button
+                                type="button"
+                                onClick={() => setVistaCategorias(true)}
+                                aria-label="Ver categorías"
+                                className="p-2 text-sm opacity-60 hover:opacity-100"
+                              >
+                                <svg
+                                  className="h-4 w-4"
+                                  fill="none"
+                                  viewBox="0 0 24 24"
+                                  stroke="currentColor"
+                                  strokeWidth="2"
+                                >
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                                </svg>
+                              </button>
+                            </div>
+                          </li>
+                        )
+                      }
+
+                      return (
+                        <li key={item.to}>
                           <Link
                             to={item.to}
                             onClick={closeMenu}
-                            className={`block flex-1 py-3 text-sm uppercase tracking-[0.12em] ${
+                            className={`block py-3 text-sm uppercase tracking-[0.12em] ${
                               esActivo(item.to) ? 'text-primary' : ''
                             }`}
                           >
                             {item.label}
                           </Link>
-                          <button
-                            type="button"
-                            onClick={() => setCategoriasMenuAbiertas((v) => !v)}
-                            aria-expanded={categoriasMenuAbiertas}
-                            aria-controls="menu-categorias-mobile"
-                            aria-label={
-                              categoriasMenuAbiertas
-                                ? 'Ocultar categorías'
-                                : 'Mostrar categorías'
-                            }
-                            className="p-2 text-sm opacity-60 hover:opacity-100"
-                          >
-                            <svg
-                              className={`h-4 w-4 transition-transform duration-300 ${
-                                categoriasMenuAbiertas ? 'rotate-90' : ''
-                              }`}
-                              fill="none"
-                              viewBox="0 0 24 24"
-                              stroke="currentColor"
-                              strokeWidth="2"
-                            >
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-                            </svg>
-                          </button>
-                        </div>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                </nav>
 
-                        <div
-                          id="menu-categorias-mobile"
-                          className={`overflow-hidden transition-all duration-300 ${
-                            categoriasMenuAbiertas
-                              ? 'max-h-[60vh] overflow-y-auto opacity-100'
-                              : 'max-h-0 opacity-0'
-                          }`}
-                        >
-                          <ul className="ml-1 space-y-1 border-l border-line pb-3 pl-3">
-                            <li>
-                              <Link
-                                to="/catalogo"
-                                onClick={closeMenu}
-                                className="block py-1.5 text-sm opacity-70 hover:opacity-100"
-                              >
-                                Ver todos
-                              </Link>
-                            </li>
-                            {categorias.map((cat) => (
-                              <li key={cat.id}>
-                                <Link
-                                  to={`/catalogo?categoria=${encodeURIComponent(cat.slug)}`}
-                                  onClick={closeMenu}
-                                  className="block py-1.5 text-sm opacity-70 hover:opacity-100"
-                                >
-                                  {cat.nombre}
-                                </Link>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      </li>
-                    )
-                  }
-
-                  return (
-                    <li key={item.to}>
-                      <Link
-                        to={item.to}
-                        onClick={closeMenu}
-                        className={`block py-3 text-sm uppercase tracking-[0.12em] ${
-                          esActivo(item.to) ? 'text-primary' : ''
-                        }`}
+                <div className="px-4 pb-4 mt-auto">
+                  {user ? (
+                    <Link to="/perfil" onClick={closeMenu} className="btn btn-outline btn-sm btn-block">
+                      Mi cuenta
+                    </Link>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          closeMenu()
+                          abrirAuthModal('login')
+                        }}
+                        className="btn btn-outline btn-sm"
                       >
-                        {item.label}
-                      </Link>
-                    </li>
-                  )
-                })}
-              </ul>
-            </nav>
-
-            <div className="px-4 pb-4 mt-auto">
-              {user ? (
-                <Link to="/perfil" onClick={closeMenu} className="btn btn-outline btn-sm btn-block">
-                  Mi cuenta
-                </Link>
-              ) : (
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      closeMenu()
-                      abrirAuthModal('login')
-                    }}
-                    className="btn btn-outline btn-sm"
-                  >
-                    Iniciar sesión
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      closeMenu()
-                      abrirAuthModal('registro')
-                    }}
-                    className="btn btn-outline btn-sm"
-                  >
-                    Crear cuenta
-                  </button>
+                        Iniciar sesión
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          closeMenu()
+                          abrirAuthModal('registro')
+                        }}
+                        className="btn btn-outline btn-sm"
+                      >
+                        Crear cuenta
+                      </button>
+                    </div>
+                  )}
+                  <div className="mt-3">
+                    <SocialLinks />
+                  </div>
                 </div>
-              )}
-              <div className="mt-3">
-                <SocialLinks />
-              </div>
-            </div>
+              </>
+            )}
           </aside>
         </div>
       )}

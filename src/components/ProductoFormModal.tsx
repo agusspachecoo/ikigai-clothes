@@ -5,7 +5,13 @@ import { ImageUploader } from './ImageUploader'
 import { ordenarTalles } from '../lib/talles'
 import { useCierreModal } from '../hooks/useCierreModal'
 import { useTienda } from '../context/tienda'
-import { porcentajeDesdeDescuentoTransferencia } from '../lib/precios'
+import {
+  formatearPrecio,
+  porcentajeDesdeDescuentoTransferencia,
+  precioListaDesdeTransferencia,
+  precioTransferencia,
+  tienePrecioTransferenciaPropio,
+} from '../lib/precios'
 import type { ProductoConStock } from '../types/database'
 
 const LABEL_CLS =
@@ -36,10 +42,8 @@ interface FormState {
   nombre: string
   sku: string
   categoria: string
-  precio: string
   precio_transferencia: string
   discount_percent: string
-  porcentaje_recargo: string
   descripcion: string
   imagenes: string[]
   activo: boolean
@@ -51,17 +55,15 @@ function crearForm(
   producto: ProductoConStock | null,
   ordenTalles: string[],
   dropId: string | null | undefined,
-  porcentajeGlobal: number,
+  descuentoTransferencia: number,
 ): FormState {
   if (!producto) {
     return {
       nombre: '',
       sku: '',
       categoria: '',
-      precio: '',
       precio_transferencia: '',
       discount_percent: '0',
-      porcentaje_recargo: String(porcentajeGlobal),
       descripcion: '',
       imagenes: [''],
       activo: true,
@@ -70,15 +72,18 @@ function crearForm(
     }
   }
 
+  const precioGuardado = Number(producto.precio) || 0
+  const transferenciaPropia = tienePrecioTransferenciaPropio(producto.precio_transferencia)
+    ? Number(producto.precio_transferencia)
+    : precioTransferencia(precioGuardado, descuentoTransferencia)
+
   return {
     id: producto.id,
     nombre: producto.nombre,
     sku: producto.sku ?? '',
     categoria: producto.categoria,
-    precio: String(producto.precio),
-    precio_transferencia: producto.precio_transferencia ? String(producto.precio_transferencia) : String(producto.precio),
+    precio_transferencia: transferenciaPropia > 0 ? String(transferenciaPropia) : '',
     discount_percent: producto.discount_percent ? String(producto.discount_percent) : '0',
-    porcentaje_recargo: String(porcentajeGlobal),
     descripcion: producto.descripcion ?? '',
     imagenes: producto.imagenes.length > 0 ? [...producto.imagenes] : [''],
     activo: producto.activo,
@@ -112,27 +117,21 @@ export function ProductoFormModal({
   const { descuento_transferencia } = useTienda()
   const porcentajeGlobal = porcentajeDesdeDescuentoTransferencia(descuento_transferencia)
   const [form, setForm] = useState<FormState>(() =>
-    crearForm(producto, tallesSugeridos, dropId, porcentajeGlobal),
+    crearForm(producto, tallesSugeridos, dropId, descuento_transferencia),
   )
   const [guardando, setGuardando] = useState(false)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
   useCierreModal(true, onCerrar)
 
+  const precioTransferenciaNum = Number(form.precio_transferencia) || 0
+  const precioListaCalculado = precioListaDesdeTransferencia(
+    precioTransferenciaNum,
+    descuento_transferencia,
+  )
+  const precioListaMostrado = precioListaCalculado > 0 ? String(precioListaCalculado) : ''
+
   function setField<K extends keyof FormState>(key: K, value: FormState[K]) {
-    setForm((f) => {
-      const nuevoForm = { ...f, [key]: value }
-
-      if (key === 'precio_transferencia' || key === 'porcentaje_recargo') {
-        const baseTransf = Number(key === 'precio_transferencia' ? value : nuevoForm.precio_transferencia) || 0
-        const recargo = Number(key === 'porcentaje_recargo' ? value : nuevoForm.porcentaje_recargo) || 0
-
-        if (baseTransf > 0) {
-          const precioListaCalculado = Math.round(baseTransf * (1 + recargo / 100))
-          nuevoForm.precio = String(precioListaCalculado)
-        }
-      }
-      return nuevoForm
-    })
+    setForm((f) => ({ ...f, [key]: value }))
   }
 
   function addImagen() {
@@ -172,14 +171,14 @@ export function ProductoFormModal({
     e.preventDefault()
     setErrorMsg(null)
 
-    const precioLista = Number(form.precio)
     const precioTransf = Number(form.precio_transferencia)
 
-    if (!form.nombre.trim() || (!precioLista && !precioTransf)) {
-      setErrorMsg('El nombre y al menos un precio válido son obligatorios.')
+    if (!form.nombre.trim() || !(precioTransf > 0)) {
+      setErrorMsg('El nombre y el precio de transferencia son obligatorios.')
       return
     }
 
+    const precioLista = precioListaDesdeTransferencia(precioTransf, descuento_transferencia)
     const discount_percent = Math.max(0, Math.min(100, Number(form.discount_percent) || 0))
 
     setGuardando(true)
@@ -189,8 +188,8 @@ export function ProductoFormModal({
       sku: form.sku.trim() || null,
       descripcion: form.descripcion || null,
       categoria: form.categoria.trim() || 'Otros',
-      precio: precioLista || precioTransf,
-      precio_transferencia: precioTransf || null,
+      precio: precioLista,
+      precio_transferencia: precioTransf,
       discount_percent,
       imagenes: form.imagenes,
       activo: form.activo,
@@ -296,10 +295,10 @@ export function ProductoFormModal({
             </div>
           </SeccionForm>
 
-          {/* Bloque 2: Precios, Recargo y Descuento independientes */}
+          {/* Bloque 2: Precios. El precio de lista se deriva del de
+              transferencia invirtiendo el descuento global de la tienda. */}
           <SeccionForm titulo="Precios y Descuentos">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-neutral-100 p-4 rounded-xl border-2 border-neutral-300">
-              
               <label className={LABEL_CLS}>
                 Precio de Transferencia ($)
                 <input
@@ -316,18 +315,16 @@ export function ProductoFormModal({
               </label>
 
               <label className={LABEL_CLS}>
-                Recargo para Precio de Lista (%)
+                Descuento por Transferencia (%)
                 <input
                   type="number"
-                  min="0"
-                  max="100"
-                  className={INPUT_CLS}
-                  placeholder={`Ej: ${porcentajeGlobal}`}
-                  value={form.porcentaje_recargo}
-                  onChange={(e) => setField('porcentaje_recargo', e.target.value)}
+                  className={`${INPUT_CLS} bg-neutral-200 text-neutral-600 cursor-not-allowed`}
+                  value={porcentajeGlobal}
+                  readOnly
+                  disabled
                 />
                 <span className="text-[11px] font-normal text-neutral-600 mt-1 block">
-                  % extra sumado al de transferencia. Por defecto {porcentajeGlobal}% (config de la tienda).
+                  Se toma de la configuración general de la tienda.
                 </span>
               </label>
 
@@ -335,15 +332,14 @@ export function ProductoFormModal({
                 Precio de Lista / Web ($)
                 <input
                   type="number"
-                  min="0"
-                  step="0.01"
                   className={`${INPUT_CLS} bg-emerald-50 border-emerald-600 font-bold text-emerald-900`}
                   placeholder="Calculado..."
-                  value={form.precio}
-                  onChange={(e) => setField('precio', e.target.value)}
+                  value={precioListaMostrado}
+                  readOnly
+                  disabled
                 />
                 <span className="text-[11px] font-medium text-emerald-700 mt-1 block">
-                  Calculado automáticamente (+{Number(form.porcentaje_recargo) || 0}%).
+                  Calculado automáticamente: transferencia / (1 - {porcentajeGlobal}%).
                 </span>
               </label>
 
@@ -361,21 +357,21 @@ export function ProductoFormModal({
                 <span className="text-[11px] font-medium text-amber-800 mt-1 block">Descuento extra opcional para ofertas.</span>
               </label>
 
-              {(() => {
-                const transf = Number(form.precio_transferencia) || 0
-                const lista = Number(form.precio) || 0
-                const desc = Number(form.discount_percent) || 0
-                if (transf <= 0) return null
-                return (
-                  <div className="sm:col-span-2 bg-white p-3 rounded-lg border border-neutral-300 text-xs font-bold text-neutral-800 flex flex-col gap-1">
-                    <span>Transferencia (Base): ${transf.toLocaleString('es-AR')}</span>
-                    <span>Precio de Lista (Web): ${lista.toLocaleString('es-AR')}</span>
-                    {desc > 0 && (
-                      <span className="text-amber-700">Con Descuento ({desc}% OFF): Final rebajado.</span>
-                    )}
-                  </div>
-                )
-              })()}
+              {precioTransferenciaNum > 0 && (
+                <div className="sm:col-span-2 bg-white p-3 rounded-lg border border-neutral-300 text-xs font-bold text-neutral-800 flex flex-col gap-1">
+                  <span>
+                    Transferencia (Base): ${formatearPrecio(precioTransferenciaNum)}
+                  </span>
+                  <span>
+                    Precio de Lista (Web): ${formatearPrecio(precioListaCalculado)}
+                  </span>
+                  {Number(form.discount_percent) > 0 && (
+                    <span className="text-amber-700">
+                      Con Descuento ({Number(form.discount_percent)}% OFF): Final rebajado.
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
           </SeccionForm>
 

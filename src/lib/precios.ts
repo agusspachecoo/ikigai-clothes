@@ -17,6 +17,29 @@ export function precioTransferencia(precio: number, descuentoTransferencia: numb
   return Math.round(precio * (1 - descuentoTransferencia) * 100) / 100
 }
 
+/**
+ * Precio de lista que corresponde a un precio de transferencia, invirtiendo el
+ * descuento global de la tienda:
+ *
+ *   precioLista = precioTransferencia / (1 - descuentoTransferencia)
+ *
+ * Ej: 40000 / (1 - 0.2) = 50000.
+ */
+export function precioListaDesdeTransferencia(
+  precioTransferenciaValor: number,
+  descuentoTransferencia: number,
+): number {
+  const transferencia = Number(precioTransferenciaValor) || 0
+  if (transferencia <= 0) return 0
+
+  const descuento = Number(descuentoTransferencia)
+  if (!Number.isFinite(descuento) || descuento <= 0 || descuento >= 1) {
+    return transferencia
+  }
+
+  return Math.round((transferencia / (1 - descuento)) * 100) / 100
+}
+
 /** Monto de cada cuota sin interés. */
 export function montoCuota(total: number, cuotas: number): number {
   return Math.round(total / Math.max(1, cuotas))
@@ -30,17 +53,43 @@ export function porcentajeDesdeDescuentoTransferencia(descuento: number): number
   return Math.round((Number(descuento) || 0) * 10000) / 100
 }
 
+/** Indica si el producto tiene un precio de transferencia propio válido. */
+export function tienePrecioTransferenciaPropio(
+  precioTransferenciaPropio: number | null | undefined,
+): boolean {
+  const valor = Number(precioTransferenciaPropio)
+  return Number.isFinite(valor) && valor > 0
+}
+
 /**
- * Precio final por transferencia de un producto. Se calcula siempre con el
- * porcentaje global de la tienda (`config_tienda.descuento_transferencia`).
+ * Precio final por transferencia de un producto.
  *
- * El valor `productos.precio_transferencia` queda solo como dato histórico:
- * no se usa para mostrar precios porque podía quedar desactualizado y mostrar
- * un porcentaje distinto al configurado (por ejemplo 17% en vez de 20%).
+ * Prioriza el valor exacto guardado en `productos.precio_transferencia` cuando
+ * existe y es mayor a 0. Solo si el producto no define uno propio se aplica el
+ * porcentaje global de la tienda (`config_tienda.descuento_transferencia`).
  */
 export function precioTransferenciaProducto(
   precioLista: number,
   descuentoTransferencia: number,
+  precioTransferenciaPropio?: number | null,
 ): number {
+  if (tienePrecioTransferenciaPropio(precioTransferenciaPropio)) {
+    return Number(precioTransferenciaPropio)
+  }
   return precioTransferencia(precioLista, descuentoTransferencia)
+}
+
+/**
+ * Porcentaje de ahorro real que representa el precio de transferencia sobre el
+ * precio de lista/oferta mostrado. Se calcula sobre los valores finales para no
+ * anunciar el porcentaje global cuando el producto tiene un precio propio.
+ */
+export function porcentajeAhorroTransferencia(
+  precioLista: number,
+  precioTransferenciaFinal: number,
+): number {
+  const base = Number(precioLista) || 0
+  const final = Number(precioTransferenciaFinal) || 0
+  if (base <= 0 || final <= 0 || final >= base) return 0
+  return Math.round(((base - final) / base) * 10000) / 100
 }

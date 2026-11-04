@@ -7,6 +7,7 @@ import {
   formatearPrecio,
   precioConDescuento,
   precioTransferenciaProducto,
+  tienePrecioTransferenciaPropio,
 } from '../lib/precios'
 
 export function ProductCard({
@@ -60,13 +61,16 @@ export function ProductCard({
   const precio = Number(producto.precio) || 0
   const precioOferta = precioConDescuento(precio, descuento)
 
-  // Igual que en la ficha: siempre aplicamos el porcentaje global de la tienda.
+  // Igual que en la ficha: el precio propio del producto tiene prioridad.
   const precioTransferenciaFinal = precioTransferenciaProducto(
     precioOferta,
     descuento_transferencia,
+    producto.precio_transferencia,
   )
   const mostrarPrecioTransferencia =
-    precioTransferenciaFinal > 0 && descuento_transferencia > 0
+    precioTransferenciaFinal > 0 &&
+    (tienePrecioTransferenciaPropio(producto.precio_transferencia) ||
+      descuento_transferencia > 0)
 
   const stockTotal = (producto.variaciones_stock ?? []).reduce(
     (suma, v) => suma + (v.stock_disponible ?? 0),
