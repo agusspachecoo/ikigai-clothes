@@ -58,6 +58,15 @@ CREATE INDEX IF NOT EXISTS idx_categorias_destacadas
 
 
 -- ============================================================
+-- 3. Refrescar la caché de PostgREST (Supabase API)
+-- ============================================================
+-- Sin esto, la API puede seguir respondiendo "column categorias.destacada
+-- does not exist" hasta que se reinicie el servicio o se recargue el
+-- esquema. Es idempotente y seguro de ejecutar en cada migración.
+NOTIFY pgrst, 'reload schema';
+
+
+-- ============================================================
 -- VERIFICACIÓN
 -- ============================================================
 --   select nombre, slug, destacada, imagen_url

@@ -123,8 +123,9 @@ export function CategoriasAdmin() {
           {error}
           <p className="mt-1 text-xs">
             Ejecutá las migraciones{' '}
-            <span className="font-mono">003_dynamic_categories.sql</span> y{' '}
-            <span className="font-mono">022_comprobantes_privados_y_campos.sql</span> en Supabase.
+            <span className="font-mono">003_dynamic_categories.sql</span>,{' '}
+            <span className="font-mono">022_comprobantes_privados_y_campos.sql</span> y{' '}
+            <span className="font-mono">031_categorias_destacadas.sql</span> en Supabase.
           </p>
         </div>
       ) : (
