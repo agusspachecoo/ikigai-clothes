@@ -387,6 +387,15 @@ export function CartProvider({ children }: { children: ReactNode }) {
     [commit],
   )
 
+  const eliminarProductos = useCallback(
+    (productoIds: string[]) => {
+      if (productoIds.length === 0) return
+      const ids = new Set(productoIds.map(String))
+      commit((prev) => prev.filter((i) => !ids.has(String(i.producto_id))))
+    },
+    [commit],
+  )
+
   const actualizarCantidad = useCallback(
     (productoId: string, talle: string, cantidad: number) => {
       commit((prev) =>
@@ -467,6 +476,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
       intentarAgregarOutfit,
       reemplazarConflictosYAgregarOutfit,
       eliminarItem,
+      eliminarProductos,
       actualizarCantidad,
       removerOutfitCompleto,
       vaciar,
@@ -491,6 +501,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
       intentarAgregarOutfit,
       reemplazarConflictosYAgregarOutfit,
       eliminarItem,
+      eliminarProductos,
       actualizarCantidad,
       removerOutfitCompleto,
       vaciar,

@@ -48,6 +48,18 @@ export interface ResumenOrden {
   guestTokenExpira?: string | null
 }
 
+export interface ProductoInvalido {
+  producto_id: string
+  motivo?: 'inexistente' | 'inactivo'
+  nombre?: string | null
+}
+
+export interface ErrorCrearOrden {
+  error?: string
+  code?: string
+  productos_invalidos?: ProductoInvalido[]
+}
+
 /**
  * Crea la orden vía la Edge Function `crear-orden`, que recalcula precios,
  * descuento por transferencia y envío desde la base de datos.
@@ -56,7 +68,7 @@ export interface ResumenOrden {
  * los importes reales son los que devuelve `resumen`.
  */
 export async function crearOrden(datos: DatosOrden): Promise<
-  ({ ordenId: string } & Partial<ResumenOrden>) & { error?: string }
+  ({ ordenId: string } & Partial<ResumenOrden>) & ErrorCrearOrden
 > {
   const { data: sesion } = await supabase.auth.getSession()
   const token = sesion.session?.access_token
@@ -84,12 +96,12 @@ export async function crearOrden(datos: DatosOrden): Promise<
   })
 
   if (error) {
-    return { ordenId: '', error: await leerError(error) }
+    return { ordenId: '', ...(await leerError(error)) }
   }
 
-  const respuesta = data as Partial<ResumenOrden> & { error?: string }
+  const respuesta = data as (Partial<ResumenOrden> & ErrorCrearOrden & { ordenId?: string }) | null
   if (!respuesta?.ordenId) {
-    return { ordenId: '', error: 'No pudimos crear el pedido.' }
+    return { ordenId: '', error: respuesta?.error ?? 'No pudimos crear el pedido.' }
   }
 
   return {
@@ -111,17 +123,25 @@ export async function crearOrden(datos: DatosOrden): Promise<
 /**
  * `supabase.functions.invoke` envuelve los errores de la función en un
  * `FunctionsHttpError` genérico. Intentamos leer el cuerpo para conservar el
- * mensaje real (por ejemplo "Stock insuficiente para ...").
+ * mensaje real y datos estructurados (ej. productos inválidos).
  */
-async function leerError(error: { message: string; context?: Response }): Promise<string> {
+async function leerError(
+  error: { message: string; context?: Response },
+): Promise<ErrorCrearOrden> {
   try {
     const ctx = (error as { context?: Response }).context
     if (ctx && typeof ctx.json === 'function') {
-      const cuerpo = (await ctx.json()) as { error?: string }
-      if (cuerpo?.error) return cuerpo.error
+      const cuerpo = (await ctx.json()) as ErrorCrearOrden & { error?: string }
+      if (cuerpo && typeof cuerpo === 'object') {
+        return {
+          error: cuerpo.error ?? error.message ?? 'No pudimos crear el pedido.',
+          code: cuerpo.code,
+          productos_invalidos: cuerpo.productos_invalidos,
+        }
+      }
     }
   } catch {
     // si no se puede leer, caemos al mensaje genérico
   }
-  return error.message || 'No pudimos crear el pedido.'
+  return { error: error.message || 'No pudimos crear el pedido.' }
 }

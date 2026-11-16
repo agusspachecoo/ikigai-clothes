@@ -89,6 +89,7 @@ export function Checkout() {
     items,
     total,
     vaciar,
+    eliminarProductos,
     cupon,
     descuentoCupon,
     descuentoOutfit,
@@ -122,6 +123,7 @@ export function Checkout() {
   const [metodoPago, setMetodoPago] = useState<MetodoPago>('mercadopago')
   const [enviando, setEnviando] = useState(false)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
+  const [avisoMsg, setAvisoMsg] = useState<string | null>(null)
 
   const [tocados, setTocados] = useState<Partial<Record<Campo, boolean>>>({})
   const [enviado, setEnviado] = useState(false)
@@ -382,6 +384,7 @@ export function Checkout() {
       return
     }
 
+    setAvisoMsg(null)
     setEnviando(true)
 
     const nombreCompleto = form.nombre.trim()
@@ -431,6 +434,21 @@ export function Checkout() {
 
     if (res.error) {
       setEnviando(false)
+
+      if (res.code === 'PRODUCTOS_NO_DISPONIBLES' && Array.isArray(res.productos_invalidos)) {
+        const ids = res.productos_invalidos.map((p) => p.producto_id).filter(Boolean)
+        if (ids.length > 0) eliminarProductos(ids)
+        const nombres = res.productos_invalidos
+          .map((p) => p.nombre)
+          .filter((n): n is string => Boolean(n))
+        const detalle = nombres.length > 0 ? ` (${nombres.join(', ')})` : ''
+        setAvisoMsg(
+          `Quitamos del carrito los productos que ya no están disponibles${detalle}. Revisá tu pedido y volvé a intentar.`,
+        )
+        setErrorMsg(null)
+        return
+      }
+
       setErrorMsg(res.error)
       return
     }
@@ -804,6 +822,7 @@ export function Checkout() {
             )}
           </div>
 
+          {avisoMsg && <div className="alert alert-warning text-sm">{avisoMsg}</div>}
           {errorMsg && <div className="alert alert-error text-sm">{errorMsg}</div>}
         </div>
 

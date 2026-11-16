@@ -46,7 +46,7 @@ const PESO_MIN_G = 1
 const PESO_MAX_G = 25_000
 const MEDIDA_MAX_CM = 150
 
-type Accion = 'rates' | 'import' | 'tracking'
+type Accion = 'rates' | 'import' | 'tracking' | 'label'
 
 class MicorreoError extends Error {
   status: number
@@ -236,6 +236,7 @@ function normalizarAccion(valor: unknown): Accion | null {
   if (['tracking', 'shipping/tracking', 'shipping-tracking', 'seguimiento', 'seguir'].includes(v)) {
     return 'tracking'
   }
+  if (['label', 'labels', 'etiqueta', 'rotulo', 'rótulo'].includes(v)) return 'label'
   return null
 }
 
@@ -716,6 +717,194 @@ async function seguirEnvio(body: Record<string, any>, params: URLSearchParams) {
 }
 
 // ------------------------------------------------------------------
+// Acción: label (importa envío en MiCorreo y obtiene etiqueta si es posible)
+// ------------------------------------------------------------------
+
+async function obtenerEtiquetaPaqar(trackingNumber: string) {
+  const agreement = texto(Deno.env.get('CORREO_ARGENTINO_AGREEMENT'))
+  const apiKey = texto(Deno.env.get('CORREO_ARGENTINO_API_KEY'))
+  if (!agreement || !apiKey || !trackingNumber) return null
+
+  const sellerId =
+    texto(Deno.env.get('CORREO_ARGENTINO_SELLER_ID')) ||
+    texto(Deno.env.get('CORREO_ARGENTINO_CUSTOMER_ID'))
+
+  const base =
+    texto(Deno.env.get('CORREO_ARGENTINO_PAQAR_BASE_URL')) ||
+    'https://api.correoargentino.com.ar/paqar/v1'
+  const labelFormat = texto(Deno.env.get('CORREO_ARGENTINO_LABEL_FORMAT')) || '10x15'
+
+  try {
+    const res = await fetch(`${base.replace(/\/$/, '')}/labels`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Apikey ${apiKey}`,
+        agreement,
+      },
+      body: JSON.stringify({
+        labelFormat,
+        items: [{ sellerId, trackingNumber }],
+      }),
+      signal: AbortSignal.timeout(30_000),
+    })
+
+    const data = await res.json().catch(() => ([]))
+    if (!res.ok) {
+      console.error('micorreo-envio: PAQ.AR /labels error:', res.status, JSON.stringify(data))
+      return null
+    }
+
+    const lista = Array.isArray(data) ? data : [data]
+    const item = objeto(lista[0])
+    const fileBase64 = texto(item.fileBase64 ?? item.file_base64 ?? item.base64)
+    const result = texto(item.result ?? item.status).toUpperCase()
+    if (!fileBase64 || (result && result !== 'OK')) return null
+
+    return {
+      base64: fileBase64,
+      mime: 'application/pdf',
+      filename: texto(item.fileName ?? item.filename) || `etiqueta-${trackingNumber}.pdf`,
+      trackingNumber,
+      origen: 'paqar',
+    }
+  } catch (err) {
+    console.error('micorreo-envio: no se pudo obtener etiqueta PAQ.AR:', err)
+    return null
+  }
+}
+
+function extraerTracking(data: any): string | null {
+  const d = objeto(data)
+  const candidatos = [
+    d.shippingId,
+    d.shipping_id,
+    d.trackingNumber,
+    d.tracking_number,
+    d.tracking,
+    d.tn,
+    objeto(d.shipping).shippingId,
+    objeto(d.shipping).trackingNumber,
+  ]
+  for (const c of candidatos) {
+    const v = texto(c)
+    if (v) return v
+  }
+  return null
+}
+
+async function generarEtiquetaOrden(body: Record<string, any>) {
+  const supabase = getSupabaseAdmin()
+  const ordenId = texto(body.orden_id ?? body.ordenId ?? body.id)
+  if (!ordenId) throw new MicorreoError('Falta orden_id para generar la etiqueta.', 400)
+
+  const { data: orden, error } = await supabase
+    .from('ordenes')
+    .select('id, cliente_nombre, cliente_email, cliente_telefono, cliente_dni, direccion, codigo_postal, monto_total, costo_envio, envio_detalle, orden_items(cantidad, talle, producto:productos(nombre))')
+    .eq('id', ordenId)
+    .maybeSingle()
+
+  if (error || !orden) {
+    throw new MicorreoError('No se encontró la orden solicitada.', 404)
+  }
+
+  const envioDetalleActual = objeto(orden.envio_detalle)
+  const esRetiro =
+    texto(envioDetalleActual.metodo).toLowerCase() === 'retiro' ||
+    texto((orden as any).direccion) === 'Retiro en showroom'
+
+  if (esRetiro) {
+    throw new MicorreoError('Esta orden es de retiro en showroom y no requiere etiqueta de envío.', 400)
+  }
+
+  const cantidadTotal = Array.isArray((orden as any).orden_items)
+    ? (orden as any).orden_items.reduce((acc: number, it: any) => acc + (Number(it?.cantidad) || 0), 0)
+    : 1
+  const peso = Math.min(PESO_MAX_G, Math.max(DEF_PESO_G, (cantidadTotal || 1) * DEF_PESO_G))
+
+  const detalle = objeto(envioDetalleActual.seleccion ?? envioDetalleActual)
+  const modalidad =
+    texto(detalle.modalidad ?? detalle.logistic_type ?? envioDetalleActual.logistic_type ?? envioDetalleActual.servicio).toUpperCase()
+  const deliveryType = modalidad.includes('SUCURSAL') || modalidad.includes('RECOGER') ? 'S' : 'D'
+
+  let envioMicorreo = objeto(envioDetalleActual.micorreo)
+  let trackingNumber = texto(
+    envioMicorreo.trackingNumber ?? envioMicorreo.tracking_number ?? envioDetalleActual.tracking_number ?? envioDetalleActual.shipping_id,
+  )
+
+  if (!trackingNumber && !texto(envioMicorreo.createdAt)) {
+    try {
+      const importRes = await importarEnvio({
+        extOrderId: ordenId,
+        orderNumber: String(ordenId).slice(0, 8).toUpperCase(),
+        recipient: {
+          name: (orden as any).cliente_nombre,
+          email: (orden as any).cliente_email,
+          phone: (orden as any).cliente_telefono,
+        },
+        shipping: {
+          deliveryType,
+          address: {
+            streetName: (orden as any).direccion,
+            streetNumber: '',
+            city: '',
+            provinceCode: '',
+            postalCode: (orden as any).codigo_postal,
+          },
+          weight: peso,
+          declaredValue: Number((orden as any).monto_total) || 1,
+          height: DEF_ALTO_CM,
+          length: DEF_LARGO_CM,
+          width: DEF_ANCHO_CM,
+        },
+      })
+      envioMicorreo = { ...envioMicorreo, ...objeto(importRes) }
+      trackingNumber = extraerTracking(importRes) || trackingNumber
+    } catch (err) {
+      const msg = err instanceof MicorreoError ? err.message : 'No se pudo importar el envío en MiCorreo.'
+      envioMicorreo = { ...envioMicorreo, error_import: msg }
+      console.error('micorreo-envio: error importando para etiqueta:', err)
+    }
+  }
+
+  let etiqueta: any = null
+  let mensaje = ''
+  if (trackingNumber) {
+    etiqueta = await obtenerEtiquetaPaqar(trackingNumber)
+    if (!etiqueta) {
+      mensaje =
+        'El envío fue registrado, pero la API de MiCorreo no entrega el PDF de etiqueta. Configurá credenciales PAQ.AR (CORREO_ARGENTINO_AGREEMENT/CORREO_ARGENTINO_API_KEY) o imprimí la etiqueta desde el panel de MiCorreo/Correo Argentino.'
+    }
+  } else {
+    mensaje = texto(envioMicorreo.error_import)
+      ? `No se pudo generar la etiqueta: ${texto(envioMicorreo.error_import)}`
+      : 'No se pudo obtener un tracking/identificador de envío desde la API. Verificá la configuración de MiCorreo y los datos de la orden.'
+  }
+
+  const nuevoDetalle = {
+    ...envioDetalleActual,
+    micorreo: envioMicorreo,
+    ...(trackingNumber ? { tracking_number: trackingNumber, shipping_id: trackingNumber } : {}),
+    ...(etiqueta ? { etiqueta_generada_at: new Date().toISOString(), etiqueta_filename: etiqueta.filename } : {}),
+  }
+
+  await supabase.from('ordenes').update({ envio_detalle: nuevoDetalle }).eq('id', ordenId)
+
+  return {
+    ok: true,
+    actualizado: true,
+    tracking_number: trackingNumber || null,
+    shipping_id: trackingNumber || null,
+    etiqueta: etiqueta
+      ? { base64: etiqueta.base64, mime: etiqueta.mime, filename: etiqueta.filename }
+      : null,
+    envio_detalle: nuevoDetalle,
+    mensaje: mensaje || undefined,
+  }
+}
+
+
+// ------------------------------------------------------------------
 // Handler
 // ------------------------------------------------------------------
 Deno.serve(async (req) => {
@@ -736,7 +925,10 @@ Deno.serve(async (req) => {
 
     if (!accion) {
       return json(
-        { error: 'Acción inválida. Usá action: "rates" | "shipping/import" | "shipping/tracking".' },
+        {
+          error:
+            'Acción inválida. Usá action: "rates" | "shipping/import" | "shipping/tracking" | "label".',
+        },
         { status: 400 },
       )
     }
@@ -746,13 +938,14 @@ Deno.serve(async (req) => {
 
     if (accion === 'rates') return json(await cotizarRates(cuerpo))
 
-    // Importar y consultar envíos expone datos del destinatario: solo admin.
+    // Importar, consultar envíos y generar etiquetas exponen datos del destinatario: solo admin.
     const admin = await getUsuarioAdmin(req, getSupabaseAdmin())
     if (!admin) {
       return json({ error: 'No autorizado.' }, { status: 403 })
     }
 
     if (accion === 'import') return json(await importarEnvio(cuerpo))
+    if (accion === 'label') return json(await generarEtiquetaOrden(cuerpo))
     return json(await seguirEnvio(cuerpo, url.searchParams))
   } catch (err) {
     if (err instanceof MicorreoError) {

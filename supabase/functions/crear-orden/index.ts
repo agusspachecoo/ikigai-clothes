@@ -276,14 +276,35 @@ Deno.serve(async (req) => {
     )
 
     const faltantes = idsUnicos.filter((id) => !catalogo.has(id))
-    if (faltantes.length > 0) {
-      return json({ error: `Producto inexistente: ${faltantes.join(', ')}.` }, { status: 409 })
-    }
-
     const inactivos = idsUnicos.filter((id) => catalogo.get(id)?.activo === false)
-    if (inactivos.length > 0) {
+
+    if (faltantes.length > 0 || inactivos.length > 0) {
+      const detalles = [
+        ...faltantes.map((id) => ({ producto_id: id, motivo: 'inexistente' as const })),
+        ...inactivos.map((id) => ({
+          producto_id: id,
+          motivo: 'inactivo' as const,
+          nombre: catalogo.get(id)?.nombre ?? null,
+        })),
+      ]
+      const nombres = inactivos
+        .map((id) => catalogo.get(id)?.nombre)
+        .filter((n): n is string => Boolean(n))
+      const error =
+        faltantes.length > 0 && inactivos.length === 0
+          ? 'Algunos productos de tu carrito ya no están disponibles.'
+          : inactivos.length > 0 && faltantes.length === 0
+            ? nombres.length > 0
+              ? `Estos productos ya no están disponibles: ${nombres.join(', ')}.`
+              : 'Algunos productos de tu carrito ya no están disponibles.'
+            : 'Algunos productos de tu carrito ya no están disponibles.'
+
       return json(
-        { error: 'Uno o más productos del carrito ya no están disponibles.' },
+        {
+          error,
+          code: 'PRODUCTOS_NO_DISPONIBLES',
+          productos_invalidos: detalles,
+        },
         { status: 409 },
       )
     }

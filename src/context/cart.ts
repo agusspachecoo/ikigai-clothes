@@ -46,6 +46,7 @@ export interface CartContextValue {
     colisiones: Colision[],
   ) => void
   eliminarItem: (productoId: string, talle: string) => void
+  eliminarProductos: (productoIds: string[]) => void
   actualizarCantidad: (productoId: string, talle: string, cantidad: number) => void
   removerOutfitCompleto: (outfitId: string) => void
   vaciar: () => void

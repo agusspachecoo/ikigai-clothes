@@ -11,6 +11,27 @@ import {
 import { useCierreModal } from '../../hooks/useCierreModal'
 import { IMAGEN_FALLBACK, obtenerUrlImagen } from '../../lib/imagenes'
 
+type DestinoCotizacion = {
+  city?: string | null
+  state?: string | null
+  provincia?: string | null
+} | null
+
+type CotizacionEnvio = {
+  destino?: DestinoCotizacion
+  provincia?: string | null
+} | null
+
+type EnvioDetalle = {
+  metodo?: string
+  carrier?: string | null
+  servicio?: string | null
+  tiempo?: string | null
+  mock?: boolean
+  cotizacion?: CotizacionEnvio
+  seleccion?: unknown
+}
+
 const BADGE: Record<EstadoOrden, string> = {
   pendiente: 'badge-error',
   pendiente_verificacion: 'badge-warning',
@@ -247,7 +268,9 @@ function PedidoDetalle({
     setMostrarComprobante(true)
   }
 
-  const esRetiro = orden.envio_detalle?.metodo === 'retiro' || orden.direccion === 'Retiro en showroom'
+  const envioDetalle = orden.envio_detalle as EnvioDetalle | null | undefined
+  const esRetiro = envioDetalle?.metodo === 'retiro' || orden.direccion === 'Retiro en showroom'
+  const [copiado, setCopiado] = useState(false)
 
   async function guardarEstado() {
     setGuardando(true)
@@ -256,6 +279,37 @@ function PedidoDetalle({
     setGuardando(false)
     if (error) setErrorMsg(error)
     else onActualizado()
+  }
+
+  function datosParaMicorreo() {
+    const destino = envioDetalle?.cotizacion?.destino ?? null
+    const localidad = destino?.city?.trim() || ''
+    const provincia =
+      destino?.state?.trim() || envioDetalle?.cotizacion?.provincia?.trim() || destino?.provincia?.trim() || ''
+    const lineas = [
+      `Pedido: ${orden.id.slice(0, 8).toUpperCase()}`,
+      `Nombre: ${orden.cliente_nombre || ''}`,
+      `DNI/CUIT: ${orden.cliente_dni || ''}`,
+      `Teléfono: ${orden.cliente_telefono || ''}`,
+      `Email: ${orden.cliente_email || ''}`,
+      `Dirección: ${esRetiro ? 'Retiro en showroom' : (orden.direccion || '')}`,
+      `Código Postal: ${esRetiro ? '' : (orden.codigo_postal || '')}`,
+      `Localidad: ${localidad}`,
+      `Provincia: ${provincia}`,
+      `Transporte: ${esRetiro ? 'Retiro en showroom' : [envioDetalle?.carrier, envioDetalle?.servicio].filter(Boolean).join(' - ')}`,
+      `Observaciones: Pedido ${orden.id.slice(0, 8).toUpperCase()}`,
+    ]
+    return lineas.filter((l) => !l.endsWith(': ')).join('\n')
+  }
+
+  async function copiarDatosMicorreo() {
+    try {
+      await navigator.clipboard.writeText(datosParaMicorreo())
+      setCopiado(true)
+      window.setTimeout(() => setCopiado(false), 2000)
+    } catch {
+      setErrorMsg('No se pudieron copiar los datos. Copialos manualmente.')
+    }
   }
 
   const items = orden.orden_items ?? []
@@ -304,46 +358,57 @@ function PedidoDetalle({
             {/* Envío */}
             <section>
               <h3 className="font-semibold text-sm mb-2 text-gray-900">Entrega</h3>
-              <div className="bg-base-200 rounded-xl p-4 text-sm space-y-1.5">
+              <div className="bg-base-200 rounded-xl p-4 text-sm space-y-3">
                 {esRetiro ? (
-                  <p>Retiro en showroom (sin envío).</p>
+                  <p className="font-medium">Retiro en showroom (sin envío).</p>
                 ) : (
                   <>
-                    <p className="font-medium">{orden.direccion}</p>
-                    <p className="opacity-60">CP destino: {orden.codigo_postal}</p>
-                    {orden.envio_detalle?.carrier && (
-                      <p className="opacity-60">
-                        Transporte: {orden.envio_detalle.carrier}
-                        {orden.envio_detalle.servicio ? ` — ${orden.envio_detalle.servicio}` : ''}
-                      </p>
-                    )}
-                    {orden.envio_detalle?.tiempo && (
-                      <p className="opacity-60">Tiempo estimado: {orden.envio_detalle.tiempo}</p>
-                    )}
-                    {orden.envio_detalle?.mock && (
+                    <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2">
+                      <div className="sm:col-span-2">
+                        <dt className="opacity-50 text-xs">Dirección</dt>
+                        <dd className="font-medium">{orden.direccion || '—'}</dd>
+                      </div>
+                      <div>
+                        <dt className="opacity-50 text-xs">Código Postal</dt>
+                        <dd className="font-medium">{orden.codigo_postal || '—'}</dd>
+                      </div>
+                      <div>
+                        <dt className="opacity-50 text-xs">Localidad</dt>
+                        <dd className="font-medium">{(envioDetalle?.cotizacion?.destino?.city as string | undefined) || '—'}</dd>
+                      </div>
+                      <div>
+                        <dt className="opacity-50 text-xs">Provincia</dt>
+                        <dd className="font-medium">{envioDetalle?.cotizacion?.destino?.state || envioDetalle?.cotizacion?.provincia || envioDetalle?.cotizacion?.destino?.provincia || '—'}</dd>
+                      </div>
+                      <div>
+                        <dt className="opacity-50 text-xs">Transporte</dt>
+                        <dd className="font-medium">{[envioDetalle?.carrier, envioDetalle?.servicio].filter(Boolean).join(' — ') || '—'}</dd>
+                      </div>
+                      {envioDetalle?.tiempo && (
+                        <div>
+                          <dt className="opacity-50 text-xs">Tiempo estimado</dt>
+                          <dd>{envioDetalle.tiempo}</dd>
+                        </div>
+                      )}
+                    </dl>
+                    <div className="text-xs opacity-60 space-y-0.5 pt-1 border-t border-base-300">
+                      <p><span className="font-medium">Destinatario:</span> {orden.cliente_nombre} · DNI {orden.cliente_dni}</p>
+                      <p><span className="font-medium">Contacto:</span> {orden.cliente_telefono} · {orden.cliente_email}</p>
+                    </div>
+                    {envioDetalle?.mock && (
                       <span className="badge badge-warning text-xs">Cotización de prueba (mock)</span>
                     )}
+                    <div className="pt-1">
+                      <button type="button" className="btn btn-sm btn-primary" onClick={copiarDatosMicorreo}>
+                        {copiado ? 'Datos copiados' : 'Copiar datos para MiCorreo'}
+                      </button>
+                      <p className="text-[11px] opacity-50 mt-2">
+                        Copia los datos de entrega y contacto para cargarlos manualmente en MiCorreo/Correo Argentino.
+                      </p>
+                    </div>
                   </>
                 )}
                 <p className="opacity-60">Costo de envío: ${Number(orden.costo_envio).toLocaleString('es-AR')}</p>
-
-                {!esRetiro && (Boolean(orden.envio_detalle?.cotizacion) || Boolean(orden.envio_detalle?.seleccion)) && (
-                  <details className="mt-2">
-                    <summary className="text-xs opacity-50 cursor-pointer hover:opacity-80">
-                      Payload completo (para etiqueta)
-                    </summary>
-                    <pre className="mt-2 p-3 bg-base-300 rounded-lg text-[11px] overflow-x-auto whitespace-pre-wrap">
-                      {JSON.stringify(
-                        {
-                          seleccion: orden.envio_detalle?.seleccion,
-                          cotizacion_completa: orden.envio_detalle?.cotizacion,
-                        },
-                        null,
-                        2,
-                      )}
-                    </pre>
-                  </details>
-                )}
               </div>
             </section>
 
