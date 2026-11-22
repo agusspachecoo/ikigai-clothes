@@ -40,7 +40,7 @@ describe('PromocionBanner', () => {
     vi.mocked(promocionDestacada).mockReset()
   })
 
-  it('muestra la promoción destacada con el CTA al catálogo', () => {
+  it('muestra la promoción destacada con el CTA a ofertas', () => {
     vi.mocked(promocionDestacada).mockReturnValue(PROMOCION)
     vi.mocked(useCart).mockReturnValue({ promociones: [PROMOCION], items: [] } as never)
 
@@ -50,7 +50,7 @@ describe('PromocionBanner', () => {
     expect(screen.getByText('Pack exclusivo · Llevá 2 unidades con beneficio')).toBeInTheDocument()
 
     const cta = screen.getByRole('link', { name: /ver productos/i })
-    expect(cta).toHaveAttribute('href', '/catalogo?promo=promo-1')
+    expect(cta).toHaveAttribute('href', '/ofertas?promo=promo-1')
   })
 
   it('no renderiza el banner cuando no hay promoción destacada', () => {

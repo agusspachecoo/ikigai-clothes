@@ -13,6 +13,9 @@ export interface Producto {
   drop_id: string | null
   created_at: string
   sku?: string | null
+  grupo_modelo?: string | null
+  color_hex?: string | null
+  color_nombre?: string | null
 }
 
 export interface Categoria {

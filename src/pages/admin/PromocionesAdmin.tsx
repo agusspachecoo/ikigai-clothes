@@ -9,7 +9,7 @@ import {
 } from '../../lib/adminApi'
 import type { Promocion } from '../../lib/promociones'
 import type { ProductoConStock } from '../../types/database'
-import { formatearPrecio } from '../../lib/precios'
+import { formatearPrecio, precioConDescuento } from '../../lib/precios'
 import { useCierreModal } from '../../hooks/useCierreModal'
 
 interface EstadoModal {
@@ -651,7 +651,15 @@ function SelectorProductos({
                 <span className="min-w-0 flex-1">
                   <span className="block truncate">{producto.nombre}</span>
                   <span className="block text-xs opacity-60">
-                    {producto.categoria} · ${formatearPrecio(producto.precio)}
+                    {producto.categoria} ·{' '}
+                    {Number(producto.discount_percent) > 0 && (
+                      <span className="line-through mr-1">
+                        ${formatearPrecio(producto.precio)}
+                      </span>
+                    )}
+                    ${formatearPrecio(
+                      precioConDescuento(producto.precio, producto.discount_percent),
+                    )}
                   </span>
                 </span>
                 {!producto.activo && <span className="badge badge-xs badge-neutral">Inactivo</span>}

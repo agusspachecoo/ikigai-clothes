@@ -42,6 +42,7 @@ export function QuickshopModal({
     precio,
     descuento_transferencia,
     producto.precio_transferencia,
+    producto.discount_percent,
   )
   const descuentoTransferenciaMostrado = porcentajeAhorroTransferencia(
     precio,

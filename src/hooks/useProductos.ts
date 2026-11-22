@@ -1,7 +1,15 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { DROP_EMBED, esDropFuturo, filtrarDropsFuturos } from '../lib/drops'
-import type { ProductoConStock } from '../types/database'
+import type { DropResumen, ProductoConStock } from '../types/database'
+
+export interface VarianteColorProducto {
+  id: string
+  nombre: string
+  imagenes: string[]
+  color_hex: string | null
+  color_nombre: string | null
+}
 
 type ProductoProximo = Omit<ProductoConStock, 'variaciones_stock' | 'bloqueado'>
 
@@ -145,4 +153,73 @@ export function useProducto(id: string | null) {
   }, [id])
 
   return { producto, loading, error }
+}
+
+interface FilaVariante extends VarianteColorProducto {
+  drop?: DropResumen | DropResumen[] | null
+}
+
+interface EstadoVariantes {
+  clave: string
+  variantes: VarianteColorProducto[]
+}
+
+/**
+ * Devuelve los demás productos activos que comparten `grupo_modelo` con el
+ * producto actual. No incluye al propio producto: la ficha ya lo tiene y lo
+ * marca como seleccionado en el selector de colores.
+ */
+export function useVariantesColor(
+  grupoModelo: string | null | undefined,
+  productoId: string | null,
+) {
+  const grupo = grupoModelo?.trim() ?? ''
+  const clave = grupo && productoId ? `${grupo}|${productoId}` : ''
+  const [estado, setEstado] = useState<EstadoVariantes>({ clave: '', variantes: [] })
+
+  useEffect(() => {
+    if (!clave || !productoId) return
+
+    let cancelled = false
+
+    async function fetchVariantes() {
+      const { data, error } = await supabase
+        .from('productos')
+        .select(`id, nombre, imagenes, color_hex, color_nombre, ${DROP_EMBED}`)
+        .eq('activo', true)
+        .eq('grupo_modelo', grupo)
+
+      if (cancelled) return
+
+      if (error) {
+        setEstado({ clave, variantes: [] })
+        return
+      }
+
+      const filas = (data ?? []) as FilaVariante[]
+      const visibles = filas.filter((fila) => {
+        const drop = Array.isArray(fila.drop) ? fila.drop[0] : fila.drop
+        return !esDropFuturo({ drop: drop ?? null })
+      })
+
+      setEstado({
+        clave,
+        variantes: visibles
+          .filter((p) => p.id !== productoId)
+          .map((p) => ({
+            id: p.id,
+            nombre: p.nombre,
+            imagenes: p.imagenes ?? [],
+            color_hex: p.color_hex ?? null,
+            color_nombre: p.color_nombre ?? null,
+          })),
+      })
+    }
+
+    fetchVariantes()
+    return () => { cancelled = true }
+  }, [clave, grupo, productoId])
+
+  const actual = estado.clave === clave ? estado.variantes : []
+  return { variantes: actual, loading: Boolean(clave) && estado.clave !== clave }
 }

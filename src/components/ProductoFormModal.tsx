@@ -2,14 +2,19 @@ import { useState } from 'react'
 import { Link } from 'react-router'
 import { guardarProducto } from '../lib/adminApi'
 import { ImageUploader } from './ImageUploader'
+import { ImagenSegura } from './ImagenSegura'
 import { ordenarTalles } from '../lib/talles'
 import { useCierreModal } from '../hooks/useCierreModal'
 import { useTienda } from '../context/tienda'
 import {
   formatearPrecio,
+  porcentajeAhorroTransferencia,
   porcentajeDesdeDescuentoTransferencia,
+  precioBaseDesdeFinal,
+  precioConDescuento,
   precioListaDesdeTransferencia,
   precioTransferencia,
+  precioTransferenciaProducto,
   tienePrecioTransferenciaPropio,
 } from '../lib/precios'
 import type { ProductoConStock } from '../types/database'
@@ -32,6 +37,17 @@ function SeccionForm({ titulo, children }: { titulo: string; children: React.Rea
   )
 }
 
+function colorHexValido(hex: string | null | undefined): string {
+  const valor = hex?.trim() ?? ''
+  return /^#[0-9a-fA-F]{6}$/.test(valor) ? valor : '#000000'
+}
+
+function clampDescuento(valor: string | number): number {
+  const numero = Number(valor)
+  if (!Number.isFinite(numero)) return 0
+  return Math.min(99.99, Math.max(0, numero))
+}
+
 interface TalleRow {
   talle: string
   stock_disponible: string
@@ -43,12 +59,16 @@ interface FormState {
   sku: string
   categoria: string
   precio_transferencia: string
+  precio_lista: string
   discount_percent: string
   descripcion: string
   imagenes: string[]
   activo: boolean
   drop_id: string | null
   talles: TalleRow[]
+  grupo_modelo: string
+  color_hex: string
+  color_nombre: string
 }
 
 function crearForm(
@@ -63,29 +83,42 @@ function crearForm(
       sku: '',
       categoria: '',
       precio_transferencia: '',
+      precio_lista: '',
       discount_percent: '0',
       descripcion: '',
-      imagenes: [''],
+      imagenes: [],
       activo: true,
       drop_id: dropId ?? null,
       talles: ['S', 'M', 'L', 'XL'].map((t) => ({ talle: t, stock_disponible: '0' })),
+      grupo_modelo: '',
+      color_hex: '#000000',
+      color_nombre: '',
     }
   }
 
-  const precioGuardado = Number(producto.precio) || 0
-  const transferenciaPropia = tienePrecioTransferenciaPropio(producto.precio_transferencia)
+  const descuento = clampDescuento(producto.discount_percent ?? 0)
+  const precioListaBase = Number(producto.precio) || 0
+  const transferenciaBase = tienePrecioTransferenciaPropio(producto.precio_transferencia)
     ? Number(producto.precio_transferencia)
-    : precioTransferencia(precioGuardado, descuentoTransferencia)
+    : precioTransferencia(precioListaBase, descuentoTransferencia)
+  const precioListaFinal = precioConDescuento(precioListaBase, descuento)
+  const transferenciaFinal = precioTransferenciaProducto(
+    precioListaFinal,
+    descuentoTransferencia,
+    transferenciaBase,
+    descuento,
+  )
 
   return {
     id: producto.id,
     nombre: producto.nombre,
     sku: producto.sku ?? '',
     categoria: producto.categoria,
-    precio_transferencia: transferenciaPropia > 0 ? String(transferenciaPropia) : '',
-    discount_percent: producto.discount_percent ? String(producto.discount_percent) : '0',
+    precio_transferencia: transferenciaFinal > 0 ? String(transferenciaFinal) : '',
+    precio_lista: precioListaFinal > 0 ? String(precioListaFinal) : '',
+    discount_percent: descuento > 0 ? String(descuento) : '0',
     descripcion: producto.descripcion ?? '',
-    imagenes: producto.imagenes.length > 0 ? [...producto.imagenes] : [''],
+    imagenes: producto.imagenes.filter(Boolean),
     activo: producto.activo,
     drop_id: producto.drop_id ?? dropId ?? null,
     talles: ordenarTalles(producto.variaciones_stock.map((v) => v.talle), ordenTalles).map(
@@ -94,6 +127,9 @@ function crearForm(
         return { talle, stock_disponible: String(v?.stock_disponible ?? 0) }
       },
     ),
+    grupo_modelo: producto.grupo_modelo ?? '',
+    color_hex: colorHexValido(producto.color_hex),
+    color_nombre: producto.color_nombre ?? '',
   }
 }
 
@@ -101,6 +137,7 @@ interface ProductoFormModalProps {
   producto: ProductoConStock | null
   categorias: string[]
   tallesSugeridos: string[]
+  gruposModelo?: string[]
   dropId?: string | null
   onCerrar: () => void
   onGuardado: (mensaje: string) => void
@@ -110,6 +147,7 @@ export function ProductoFormModal({
   producto,
   categorias,
   tallesSugeridos,
+  gruposModelo = [],
   dropId,
   onCerrar,
   onGuardado,
@@ -123,33 +161,101 @@ export function ProductoFormModal({
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
   useCierreModal(true, onCerrar)
 
+  const descuentoPromocional = clampDescuento(form.discount_percent)
   const precioTransferenciaNum = Number(form.precio_transferencia) || 0
-  const precioListaCalculado = precioListaDesdeTransferencia(
+  const precioListaNum = Number(form.precio_lista) || 0
+  const precioTransferenciaBase = precioBaseDesdeFinal(
     precioTransferenciaNum,
-    descuento_transferencia,
+    descuentoPromocional,
   )
-  const precioListaMostrado = precioListaCalculado > 0 ? String(precioListaCalculado) : ''
+  const precioListaBase = precioBaseDesdeFinal(precioListaNum, descuentoPromocional)
+  const ahorroPromocional = Math.max(0, precioListaBase - precioListaNum)
+  const ahorroTransferencia = Math.max(0, precioListaNum - precioTransferenciaNum)
+  const porcentajeTransferenciaMostrado = porcentajeAhorroTransferencia(
+    precioListaNum,
+    precioTransferenciaNum,
+  )
 
   function setField<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((f) => ({ ...f, [key]: value }))
   }
 
-  function addImagen() {
-    setField('imagenes', [...form.imagenes, ''])
+  function setPrecioTransferencia(valor: string) {
+    setForm((f) => {
+      const transferencia = Number(valor) || 0
+      const lista = precioListaDesdeTransferencia(transferencia, descuento_transferencia)
+      return {
+        ...f,
+        precio_transferencia: valor,
+        precio_lista: lista > 0 ? String(lista) : '',
+      }
+    })
   }
 
-  function setImagen(i: number, value: string) {
-    const imagenes = [...form.imagenes]
-    imagenes[i] = value
-    setField('imagenes', imagenes)
+  function setPrecioLista(valor: string) {
+    setForm((f) => {
+      const lista = Number(valor) || 0
+      const transferencia = precioTransferencia(lista, descuento_transferencia)
+      return {
+        ...f,
+        precio_lista: valor,
+        precio_transferencia: transferencia > 0 ? String(transferencia) : '',
+      }
+    })
+  }
+
+  function setDescuento(valor: string) {
+    setForm((f) => {
+      const descuentoAnterior = clampDescuento(f.discount_percent)
+      const descuentoNuevo = clampDescuento(valor)
+      const transferencia = precioConDescuento(
+        precioBaseDesdeFinal(Number(f.precio_transferencia), descuentoAnterior),
+        descuentoNuevo,
+      )
+      const lista = precioConDescuento(
+        precioBaseDesdeFinal(Number(f.precio_lista), descuentoAnterior),
+        descuentoNuevo,
+      )
+      return {
+        ...f,
+        discount_percent: valor,
+        precio_transferencia: transferencia > 0 ? String(transferencia) : '',
+        precio_lista: lista > 0 ? String(lista) : '',
+      }
+    })
+  }
+
+  function agregarImagenes(urls: string[], cantidadArchivos = urls.length) {
+    if (!urls.length) return
+    setForm((f) => {
+      const actuales = f.imagenes.filter(Boolean)
+      if (cantidadArchivos === 1) {
+        const url = urls[0]
+        const imagenes = actuales.filter((img) => img !== url && img !== actuales[0])
+        return { ...f, imagenes: [url, ...imagenes] }
+      }
+      const vistos = new Set(actuales)
+      const nuevas = urls.filter((url) => {
+        if (vistos.has(url)) return false
+        vistos.add(url)
+        return true
+      })
+      return { ...f, imagenes: [...actuales, ...nuevas] }
+    })
   }
 
   function removeImagen(i: number) {
-    setField('imagenes', form.imagenes.filter((_, idx) => idx !== i))
+    setForm((f) => ({ ...f, imagenes: f.imagenes.filter((_, idx) => idx !== i) }))
   }
 
-  function agregarImagenes(urls: string[]) {
-    setField('imagenes', [...form.imagenes, ...urls])
+  function moverImagen(i: number, direccion: -1 | 1) {
+    setForm((f) => {
+      const destino = i + direccion
+      if (destino < 0 || destino >= f.imagenes.length) return f
+      const imagenes = [...f.imagenes]
+      ;[imagenes[i], imagenes[destino]] = [imagenes[destino], imagenes[i]]
+      return { ...f, imagenes }
+    })
   }
 
   function addTalleSugerido(t: string) {
@@ -171,15 +277,14 @@ export function ProductoFormModal({
     e.preventDefault()
     setErrorMsg(null)
 
-    const precioTransf = Number(form.precio_transferencia)
+    const descuento = clampDescuento(form.discount_percent)
+    const precioTransfBase = precioBaseDesdeFinal(Number(form.precio_transferencia), descuento)
+    const precioListaBase = precioBaseDesdeFinal(Number(form.precio_lista), descuento)
 
-    if (!form.nombre.trim() || !(precioTransf > 0)) {
-      setErrorMsg('El nombre y el precio de transferencia son obligatorios.')
+    if (!form.nombre.trim() || !(precioTransfBase > 0) || !(precioListaBase > 0)) {
+      setErrorMsg('El nombre, el precio de transferencia y el precio de lista son obligatorios.')
       return
     }
-
-    const precioLista = precioListaDesdeTransferencia(precioTransf, descuento_transferencia)
-    const discount_percent = Math.max(0, Math.min(100, Number(form.discount_percent) || 0))
 
     setGuardando(true)
     const res = await guardarProducto({
@@ -188,12 +293,15 @@ export function ProductoFormModal({
       sku: form.sku.trim() || null,
       descripcion: form.descripcion || null,
       categoria: form.categoria.trim() || 'Otros',
-      precio: precioLista,
-      precio_transferencia: precioTransf,
-      discount_percent,
+      precio: precioListaBase,
+      precio_transferencia: precioTransfBase,
+      discount_percent: descuento,
       imagenes: form.imagenes,
       activo: form.activo,
       drop_id: form.drop_id,
+      grupo_modelo: form.grupo_modelo,
+      color_hex: form.color_hex,
+      color_nombre: form.color_nombre,
       talles: form.talles.map((t) => ({
         talle: t.talle,
         stock_disponible: Number(t.stock_disponible) || 0,
@@ -295,8 +403,57 @@ export function ProductoFormModal({
             </div>
           </SeccionForm>
 
-          {/* Bloque 2: Precios. El precio de lista se deriva del de
-              transferencia invirtiendo el descuento global de la tienda. */}
+          {/* Bloque 2: Agrupación por color/modelo. Cada color es un producto
+              independiente; el grupo solo los enlaza en la ficha. */}
+          <SeccionForm titulo="Variante de color / Modelo agrupado (opcional)">
+            <p className="text-xs text-neutral-600 font-medium mb-3">
+              Usá el mismo grupo en todas las variantes para que se muestren como
+              colores en la ficha del producto. Los datos de color se guardan
+              solo si se indica un grupo.
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-4 items-end">
+              <label className={LABEL_CLS}>
+                Grupo / Modelo
+                <input
+                  type="text"
+                  list="grupos-modelo"
+                  className={INPUT_CLS}
+                  placeholder="Ej: Remera Oversize Ikigai"
+                  value={form.grupo_modelo}
+                  onChange={(e) => setField('grupo_modelo', e.target.value)}
+                />
+                <datalist id="grupos-modelo">
+                  {gruposModelo.map((g) => (
+                    <option key={g} value={g} />
+                  ))}
+                </datalist>
+              </label>
+
+              <label className={LABEL_CLS}>
+                Color
+                <input
+                  type="color"
+                  className="w-full h-[46px] border-2 border-neutral-400 rounded-lg bg-white p-1 cursor-pointer focus:border-black focus:ring-2 focus:ring-black outline-none"
+                  value={form.color_hex}
+                  onChange={(e) => setField('color_hex', e.target.value)}
+                />
+              </label>
+
+              <label className={`${LABEL_CLS} sm:col-span-2`}>
+                Nombre del color
+                <input
+                  type="text"
+                  className={INPUT_CLS}
+                  placeholder="Ej: Negro, Beige, Azul lavado"
+                  value={form.color_nombre}
+                  onChange={(e) => setField('color_nombre', e.target.value)}
+                />
+              </label>
+            </div>
+          </SeccionForm>
+
+          {/* Bloque 3: Precios. Los inputs muestran los importes finales
+              (con el OFF aplicado); al guardar se invierte el OFF. */}
           <SeccionForm titulo="Precios y Descuentos">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-neutral-100 p-4 rounded-xl border-2 border-neutral-300">
               <label className={LABEL_CLS}>
@@ -306,12 +463,14 @@ export function ProductoFormModal({
                   min="0"
                   step="0.01"
                   className={INPUT_CLS}
-                  placeholder="Ej: 40000"
+                  placeholder="Ej: 36000"
                   value={form.precio_transferencia}
-                  onChange={(e) => setField('precio_transferencia', e.target.value)}
+                  onChange={(e) => setPrecioTransferencia(e.target.value)}
                   required
                 />
-                <span className="text-[11px] font-normal text-neutral-600 mt-1 block">Precio base abonando por transferencia.</span>
+                <span className="text-[11px] font-normal text-neutral-600 mt-1 block">
+                  Importe final abonando por transferencia (ya incluye el {porcentajeGlobal}% de la tienda).
+                </span>
               </label>
 
               <label className={LABEL_CLS}>
@@ -332,14 +491,16 @@ export function ProductoFormModal({
                 Precio de Lista / Web ($)
                 <input
                   type="number"
+                  min="0"
+                  step="0.01"
                   className={`${INPUT_CLS} bg-emerald-50 border-emerald-600 font-bold text-emerald-900`}
                   placeholder="Calculado..."
-                  value={precioListaMostrado}
-                  readOnly
-                  disabled
+                  value={form.precio_lista}
+                  onChange={(e) => setPrecioLista(e.target.value)}
+                  required
                 />
                 <span className="text-[11px] font-medium text-emerald-700 mt-1 block">
-                  Calculado automáticamente: transferencia / (1 - {porcentajeGlobal}%).
+                  Se calcula como transferencia / (1 - {porcentajeGlobal}%). Podés editarlo manualmente.
                 </span>
               </label>
 
@@ -349,87 +510,129 @@ export function ProductoFormModal({
                   type="number"
                   min="0"
                   max="100"
+                  step="1"
                   className={`${INPUT_CLS} border-amber-500 bg-amber-50/50`}
                   placeholder="Ej: 10 (0 = sin descuento)"
                   value={form.discount_percent}
-                  onChange={(e) => setField('discount_percent', e.target.value)}
+                  onChange={(e) => setDescuento(e.target.value)}
                 />
-                <span className="text-[11px] font-medium text-amber-800 mt-1 block">Descuento extra opcional para ofertas.</span>
+                <span className="text-[11px] font-medium text-amber-800 mt-1 block">
+                  Al cambiarlo, los precios de arriba se recalculan en vivo.
+                </span>
               </label>
 
               {precioTransferenciaNum > 0 && (
-                <div className="sm:col-span-2 bg-white p-3 rounded-lg border border-neutral-300 text-xs font-bold text-neutral-800 flex flex-col gap-1">
-                  <span>
-                    Transferencia (Base): ${formatearPrecio(precioTransferenciaNum)}
+                <div className="sm:col-span-2 bg-white p-3 rounded-lg border border-neutral-300 text-xs font-bold text-neutral-800 flex flex-col gap-1.5">
+                  <span className="uppercase tracking-wider text-neutral-600">
+                    Vista previa del precio final
                   </span>
-                  <span>
-                    Precio de Lista (Web): ${formatearPrecio(precioListaCalculado)}
-                  </span>
-                  {Number(form.discount_percent) > 0 && (
+                  <div className="flex flex-wrap items-baseline gap-2">
+                    {descuentoPromocional > 0 && (
+                      <span className="text-sm font-medium text-neutral-500 line-through">
+                        ${formatearPrecio(precioListaBase)}
+                      </span>
+                    )}
+                    <span className="text-lg text-emerald-800">
+                      ${formatearPrecio(precioListaNum)}
+                    </span>
+                    {descuentoPromocional > 0 && (
+                      <span className="badge badge-sm badge-error text-white border-0">
+                        -{descuentoPromocional}% off
+                      </span>
+                    )}
+                  </div>
+                  {descuentoPromocional > 0 && (
                     <span className="text-amber-700">
-                      Con Descuento ({Number(form.discount_percent)}% OFF): Final rebajado.
+                      Ahorrás ${formatearPrecio(ahorroPromocional)} con este descuento.
                     </span>
                   )}
+                  <span>
+                    {`Precios guardados antes del OFF: Web $${formatearPrecio(precioListaBase)} · Transferencia $${formatearPrecio(precioTransferenciaBase)}`}
+                  </span>
+                  <span className="text-emerald-800">
+                    {`Pagando por transferencia (${porcentajeTransferenciaMostrado}%): $${formatearPrecio(precioTransferenciaNum)}${ahorroTransferencia > 0 ? ` (Ahorrás $${formatearPrecio(ahorroTransferencia)})` : ''}`}
+                  </span>
                 </div>
               )}
             </div>
           </SeccionForm>
 
-          {/* Bloque 3: Imágenes */}
+          {/* Bloque 4: Imágenes. Un único uploader para 1 o varias; la
+              posición 0 del array sigue siendo la imagen principal. */}
           <SeccionForm titulo="Imágenes">
             <p className="text-xs text-neutral-600 font-medium mb-3">
               Formatos permitidos: JPG, PNG, WEBP, HEIC (iPhone). Recomendado: formato vertical 9:16
               (proporción de historia, 1080×1920), máx 5MB por imagen. Se comprime y convierte
-              a WebP automáticamente (máx 800 KB) antes de subirse.
+              a WebP automáticamente (máx 800 KB) antes de subirse. Si seleccionás una sola imagen
+              reemplaza la principal; si seleccionás varias se agregan a la galería en orden.
             </p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {form.imagenes.map((img, i) => (
-                <div key={i} className="space-y-1">
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="text-xs font-bold text-neutral-700">
-                      Imagen {i + 1}
-                      {i === 0 && <span className="ml-1 text-neutral-500 font-normal">(principal)</span>}
-                    </p>
-                    {form.imagenes.length > 1 && (
-                      <button
-                        type="button"
-                        className="btn btn-ghost btn-xs text-error font-bold"
-                        onClick={() => removeImagen(i)}
-                      >
-                        Quitar
-                      </button>
-                    )}
-                  </div>
-                  <ImageUploader
-                    carpeta="productos"
-                    imagenActual={img}
-                    onUrl={(url) => setImagen(i, url)}
-                    proporcion="vertical"
-                    altoMinimo="h-48"
-                  />
+            <ImageUploader
+              carpeta="productos"
+              multiple
+              onUrls={agregarImagenes}
+              texto="Elegí o arrastrá imágenes"
+              altoMinimo="h-40"
+            />
+            {form.imagenes.length > 0 && (
+              <div className="mt-4 pt-4 border-t-2 border-neutral-200">
+                <p className="text-xs font-extrabold uppercase tracking-wider text-neutral-600 mb-2">
+                  Imágenes del producto ({form.imagenes.length}) · la primera es la principal
+                </p>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  {form.imagenes.map((url, i) => (
+                    <div key={`${url}-${i}`} className="space-y-1">
+                      <div className="relative aspect-[9/16] rounded-lg overflow-hidden border-2 border-neutral-300 bg-neutral-100">
+                        <ImagenSegura
+                          src={url}
+                          carpeta="productos"
+                          alt={`Imagen ${i + 1} del producto`}
+                          className="w-full h-full object-cover"
+                        />
+                        <span className="absolute top-1 left-1 badge badge-sm badge-neutral">
+                          {i + 1}
+                        </span>
+                        {i === 0 && (
+                          <span className="absolute bottom-1 left-1 badge badge-sm badge-success text-white border-0">
+                            principal
+                          </span>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => removeImagen(i)}
+                          aria-label={`Quitar imagen ${i + 1}`}
+                          className="absolute top-1 right-1 btn btn-circle btn-xs text-white bg-black/50 border-0 hover:bg-black/70"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                      <div className="flex gap-1">
+                        <button
+                          type="button"
+                          className="btn btn-ghost btn-xs flex-1"
+                          disabled={i === 0}
+                          onClick={() => moverImagen(i, -1)}
+                          aria-label={`Mover imagen ${i + 1} antes`}
+                        >
+                          ←
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-ghost btn-xs flex-1"
+                          disabled={i === form.imagenes.length - 1}
+                          onClick={() => moverImagen(i, 1)}
+                          aria-label={`Mover imagen ${i + 1} después`}
+                        >
+                          →
+                        </button>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-            <div className="mt-4 pt-4 border-t-2 border-neutral-200">
-              <p className="text-xs text-neutral-600 font-medium mb-2">
-                Cargá varias imágenes de una vez (máximo 10 por tanda). Se
-                comprimen y suben en orden, y se agregan automáticamente al
-                formulario.
-              </p>
-              <ImageUploader
-                carpeta="productos"
-                multiple
-                onUrls={agregarImagenes}
-                texto="Carga masiva de imágenes"
-                altoMinimo="h-32"
-              />
-            </div>
-            <button type="button" className="btn btn-outline btn-sm mt-3 border-2 font-bold" onClick={addImagen}>
-              Agregar imagen
-            </button>
+              </div>
+            )}
           </SeccionForm>
 
-          {/* Bloque 4: Stock y visibilidad */}
+          {/* Bloque 5: Stock y visibilidad */}
           <SeccionForm titulo="Stock por talle y visibilidad">
             <div className="space-y-2">
               {form.talles.map((t, i) => (

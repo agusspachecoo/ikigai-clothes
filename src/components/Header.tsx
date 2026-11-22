@@ -14,7 +14,7 @@ import { formatearPrecio } from '../lib/precios'
 const NAV_ITEMS = [
   { to: '/', label: 'Inicio' },
   { to: '/catalogo', label: 'Productos' },
-  { to: '/catalogo?descuentos=1', label: 'Ofertas' },
+  { to: '/ofertas', label: 'Ofertas' },
   { to: '/outfits', label: 'Comprá el Outfit' },
   { to: '/quienes-somos', label: 'Quienes Somos' },
   { to: '/contacto', label: 'Contacto' },
@@ -68,10 +68,15 @@ export function Header() {
 
   function esActivo(path: string) {
     if (path === '/') return location.pathname === '/'
+    if (path === '/ofertas') {
+      return (
+        location.pathname.startsWith('/ofertas') ||
+        (location.pathname.startsWith('/catalogo') && searchParams.get('descuentos') === '1')
+      )
+    }
     if (path === '/catalogo') {
       return location.pathname.startsWith('/catalogo') && searchParams.get('descuentos') !== '1'
     }
-    if (path.includes('descuentos')) return searchParams.get('descuentos') === '1'
     return location.pathname.startsWith(path)
   }
 

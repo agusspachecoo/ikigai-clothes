@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 import {
   porcentajeAhorroTransferencia,
   porcentajeDesdeDescuentoTransferencia,
+  precioBaseDesdeFinal,
+  precioConDescuento,
   precioListaDesdeTransferencia,
   precioTransferencia,
   precioTransferenciaProducto,
@@ -60,6 +62,29 @@ describe('precioListaDesdeTransferencia', () => {
   })
 })
 
+describe('precioBaseDesdeFinal', () => {
+  it('inverte el descuento promocional para recuperar el precio base', () => {
+    expect(precioBaseDesdeFinal(36000, 10)).toBe(40000)
+    expect(precioBaseDesdeFinal(45000, 10)).toBe(50000)
+    expect(precioBaseDesdeFinal(34000, 15)).toBe(40000)
+  })
+
+  it('devuelve el mismo valor sin descuento', () => {
+    expect(precioBaseDesdeFinal(40000, 0)).toBe(40000)
+  })
+
+  it('hace round-trip con precioConDescuento', () => {
+    expect(precioBaseDesdeFinal(precioConDescuento(50000, 12), 12)).toBe(50000)
+  })
+
+  it('limita el descuento para no dividir por cero y tolera valores invalidos', () => {
+    expect(precioBaseDesdeFinal(1, 100)).toBe(10000)
+    expect(precioBaseDesdeFinal(40000, Number.NaN)).toBe(40000)
+    expect(precioBaseDesdeFinal(0, 10)).toBe(0)
+    expect(precioBaseDesdeFinal(Number.NaN, 10)).toBe(0)
+  })
+})
+
 describe('tienePrecioTransferenciaPropio', () => {
   it('solo acepta valores numéricos mayores a cero', () => {
     expect(tienePrecioTransferenciaPropio(40000)).toBe(true)
@@ -84,6 +109,12 @@ describe('precioTransferenciaProducto', () => {
     expect(precioTransferenciaProducto(48000, 0.2, null)).toBe(38400)
     expect(precioTransferenciaProducto(48000, 0.2, 0)).toBe(38400)
     expect(precioTransferenciaProducto(48000, 0.2, Number.NaN)).toBe(38400)
+  })
+
+  it('aplica la oferta de la prenda al precio de transferencia propio', () => {
+    expect(precioTransferenciaProducto(34000, 0.2, 40000, 15)).toBe(34000)
+    expect(precioTransferenciaProducto(50000, 0.2, 40000, 10)).toBe(36000)
+    expect(precioTransferenciaProducto(40000, 0.2, null, 10)).toBe(32000)
   })
 })
 

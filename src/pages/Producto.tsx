@@ -1,6 +1,6 @@
-import { useParams } from 'react-router-dom'
+import { Link, useParams } from 'react-router-dom'
 import { useState, useEffect, useRef, useMemo } from 'react'
-import { useProducto } from '../hooks/useProductos'
+import { useProducto, useVariantesColor, type VarianteColorProducto } from '../hooks/useProductos'
 import { useSeo, urlAbsoluta } from '../hooks/useSeo'
 import { useResenas } from '../hooks/useResenas'
 import { useCart, type ItemNuevo } from '../context/cart'
@@ -33,6 +33,13 @@ import {
   porcentajeAhorroTransferencia,
   tienePrecioTransferenciaPropio,
 } from '../lib/precios'
+
+const COLOR_FALLBACK = '#e5e5e5'
+
+function colorHexValido(hex: string | null | undefined): string {
+  const valor = hex?.trim() ?? ''
+  return /^#[0-9a-fA-F]{6}$/.test(valor) ? valor : COLOR_FALLBACK
+}
 
 export function Producto() {
   const { id } = useParams<{ id: string }>()
@@ -169,6 +176,10 @@ export function Producto() {
   }, [zoomAbierto, producto?.imagenes.length])
 
   const { resenas, insertarResena } = useResenas(id ?? null)
+  const { variantes: variantesColor, loading: cargandoVariantes } = useVariantesColor(
+    producto?.grupo_modelo,
+    id ?? null,
+  )
 
   // Metadatos por producto. El título y la descripción se calculan siempre
   // (también durante el loading) para que crawlers y previews no queden vacíos.
@@ -241,6 +252,18 @@ export function Producto() {
     )
   }
 
+  const variantesDisponibles: VarianteColorProducto[] = [
+    {
+      id: producto.id,
+      nombre: producto.nombre,
+      imagenes: producto.imagenes,
+      color_hex: producto.color_hex ?? null,
+      color_nombre: producto.color_nombre ?? null,
+    },
+    ...variantesColor,
+  ]
+  const mostrarSelectorColor = !cargandoVariantes && variantesDisponibles.length > 1
+
   const precioOriginal = Number(producto.precio) || 0
   const descuento = Number(producto.discount_percent) || 0
   const precioOferta = precioConDescuento(precioOriginal, descuento)
@@ -249,12 +272,13 @@ export function Producto() {
   const sinStock = talles.length === 0 || talles.every((t) => t.stock === 0)
   const stockTalleSeleccionado =
     talles.find((t) => t.talle === talleSeleccionado)?.stock ?? 0
-  // Si el producto tiene un precio de transferencia propio (> 0), ese valor
-  // manda. El porcentaje global solo se usa como fallback cuando no existe.
+  // El precio propio manda, pero con la oferta aplicada; si no, el precio
+  // transferencia podía quedar por encima del precio ofertado.
   const precioTransferenciaFinal = precioTransferenciaProducto(
     precioOferta,
     descuento_transferencia,
     producto.precio_transferencia,
+    descuento,
   )
   const ahorroTransferencia = Math.max(0, precioOferta - precioTransferenciaFinal)
   const descuentoTransferenciaMostrado = porcentajeAhorroTransferencia(
@@ -643,6 +667,48 @@ export function Producto() {
           </div>
 
           
+
+          {/* Variantes de color del mismo modelo */}
+          {mostrarSelectorColor && (
+            <div className="mt-6">
+              <p className="text-xs uppercase tracking-widest mb-2">
+                Color
+                {producto.color_nombre?.trim() && (
+                  <span className="ml-2 normal-case tracking-normal opacity-60">
+                    · {producto.color_nombre.trim()}
+                  </span>
+                )}
+              </p>
+              <div className="flex flex-wrap items-center gap-3">
+                {variantesDisponibles.map((variante) => {
+                  const seleccionado = variante.id === producto.id
+                  const etiqueta = variante.color_nombre?.trim() || variante.nombre
+                  return (
+                    <Link
+                      key={variante.id}
+                      to={`/producto/${variante.id}`}
+                      title={etiqueta}
+                      aria-label={`Color ${etiqueta}`}
+                      aria-current={seleccionado ? 'page' : undefined}
+                      className={`relative flex h-10 w-10 items-center justify-center rounded-full border-2 transition-colors ${
+                        seleccionado
+                          ? 'border-neutral'
+                          : 'border-transparent hover:border-neutral/50'
+                      }`}
+                    >
+                      <span
+                        className="h-7 w-7 rounded-full border border-black/10"
+                        style={{ backgroundColor: colorHexValido(variante.color_hex) }}
+                      />
+                    </Link>
+                  )
+                })}
+              </div>
+              <p className="text-[11px] opacity-60 mt-2">
+                {variantesDisponibles.length} colores disponibles
+              </p>
+            </div>
+          )}
 
           {/* Selector de talles */}
           {talles.length > 0 && (

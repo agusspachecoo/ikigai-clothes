@@ -74,7 +74,7 @@ export function Home() {
           subtitulo="Ofertas destacadas"
           productos={ofertas}
           loading={loadingOfertas}
-          linkVerTodos="/catalogo?descuentos=1"
+          linkVerTodos="/ofertas"
         />
       )}
 

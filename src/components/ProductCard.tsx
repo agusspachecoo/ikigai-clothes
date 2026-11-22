@@ -61,11 +61,13 @@ export function ProductCard({
   const precio = Number(producto.precio) || 0
   const precioOferta = precioConDescuento(precio, descuento)
 
-  // Igual que en la ficha: el precio propio del producto tiene prioridad.
+  // El precio propio tiene prioridad, pero la oferta de la prenda también se
+  // aplica acá para que el precio destacado nunca quede por encima de la oferta.
   const precioTransferenciaFinal = precioTransferenciaProducto(
     precioOferta,
     descuento_transferencia,
     producto.precio_transferencia,
+    descuento,
   )
   const mostrarPrecioTransferencia =
     precioTransferenciaFinal > 0 &&

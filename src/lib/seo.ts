@@ -53,6 +53,12 @@ export function metaDeRuta(pathname: string): MetaRuta {
         description:
           'Todos los productos de Ikigai Clothes: remeras, buzos, pantalones y accesorios. Filtros por categoría, talle y precio.',
       }
+    case '/ofertas':
+      return {
+        title: `Ofertas y Promociones · ${NOMBRE_TIENDA}`,
+        description:
+          'Prendas con descuento y promociones activas de Ikigai Clothes. Combiná ofertas y pagá por transferencia para ahorrar más.',
+      }
     case '/outfits':
       return {
         title: `Outfits y Combos · ${NOMBRE_TIENDA}`,
@@ -101,6 +107,7 @@ export function metaDeRuta(pathname: string): MetaRuta {
 export const RUTAS_PUBLICAS = [
   '/',
   '/catalogo',
+  '/ofertas',
   '/outfits',
   '/contacto',
   '/quienes-somos',

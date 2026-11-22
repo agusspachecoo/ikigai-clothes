@@ -13,7 +13,7 @@ interface ImageUploaderProps {
   carpeta: CarpetaImagen
   imagenActual?: string
   onUrl?: (url: string) => void
-  onUrls?: (urls: string[]) => void
+  onUrls?: (urls: string[], cantidadArchivos?: number) => void
   multiple?: boolean
   proporcion?: 'cuadrado' | 'retrato' | 'apaisado' | 'vertical'
   altoMinimo?: string
@@ -48,6 +48,7 @@ export function ImageUploader({
   const [info, setInfo] = useState<string | null>(null)
   const [dragActivo, setDragActivo] = useState(false)
   const [progreso, setProgreso] = useState<{ actual: number; total: number } | null>(null)
+  const [previewsLocales, setPreviewsLocales] = useState<string[]>([])
   const inputRef = useRef<HTMLInputElement>(null)
 
   const mostrarImagen = previewLocal ?? imagenActual
@@ -133,6 +134,7 @@ export function ImageUploader({
           const blob = await comprimirImagen(preparado, compresion)
           const archivoFinal = blobToFile(blob, preparado.name)
 
+          setPreviewsLocales((prev) => [...prev, URL.createObjectURL(blob)])
           const { url, error: errUpload } = await subirImagen(archivoFinal, carpeta)
           if (errUpload || !url) {
             errores.push(`No se pudo subir "${archivo.name}": ${errUpload ?? 'error desconocido'}`)
@@ -150,7 +152,7 @@ export function ImageUploader({
       }
 
       if (urls.length) {
-        onUrls?.(urls)
+        onUrls?.(urls, lista.length)
         setInfo(`Subidas ${urls.length} de ${lista.length} imagen(es).`)
       }
 
@@ -162,6 +164,7 @@ export function ImageUploader({
     } finally {
       setSubiendo(false)
       setProgreso(null)
+      setPreviewsLocales([])
     }
   }
 
@@ -281,6 +284,19 @@ export function ImageUploader({
           </button>
         )}
       </div>
+
+      {previewsLocales.length > 0 && (
+        <div className="flex flex-wrap gap-2" aria-label="Vistas previas de las imágenes seleccionadas">
+          {previewsLocales.map((preview, i) => (
+            <img
+              key={`${preview}-${i}`}
+              src={preview}
+              alt={`Vista previa de la imagen ${i + 1}`}
+              className="h-16 w-16 rounded-lg border-2 border-neutral-300 object-cover"
+            />
+          ))}
+        </div>
+      )}
 
       {info && <p className="text-xs text-success">{info}</p>}
       {aviso && <p className="text-xs text-warning">{aviso}</p>}

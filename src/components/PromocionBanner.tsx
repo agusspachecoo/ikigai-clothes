@@ -17,7 +17,7 @@ export function PromocionBanner() {
       ? `Pack exclusivo · Llevá ${cantidad} unidades con beneficio`
       : `Combo especial · ${porcentaje}% OFF aplicado en carrito`
 
-  const href = `/catalogo?promo=${promocion.id}`
+  const href = `/ofertas?promo=${promocion.id}`
 
   return (
     <section className="w-full bg-base-100 py-4 md:py-6" aria-labelledby="promocion-banner-titulo">

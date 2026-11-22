@@ -223,9 +223,15 @@ export interface ProductoInput {
   drop_id?: string | null
   talles: TalleInput[]
   sku?: string | null
+  grupo_modelo?: string | null
+  color_hex?: string | null
+  color_nombre?: string | null
 }
 
 export async function guardarProducto(input: ProductoInput) {
+  // Sin grupo no hay variante: se limpian los campos de color para no dejar
+  // datos huérfanos que después agruparían productos por accidente.
+  const grupoModelo = input.grupo_modelo?.trim() || null
   const payload = {
     nombre: input.nombre,
     descripcion: input.descripcion || null,
@@ -239,6 +245,9 @@ export async function guardarProducto(input: ProductoInput) {
     // Vacío o solo espacios se guarda como NULL: el índice único ignora los
     // NULL, así que varios productos pueden quedarse sin SKU.
     sku: input.sku?.trim() || null,
+    grupo_modelo: grupoModelo,
+    color_hex: grupoModelo ? input.color_hex?.trim() || null : null,
+    color_nombre: grupoModelo ? input.color_nombre?.trim() || null : null,
   }
 
   let productoId = input.id ?? ''

@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Link } from 'react-router'
 import { getProductosAdmin, eliminarProducto, setProductoActivo, getCategoriasAdmin, getTallesAdmin } from '../../lib/adminApi'
 import { ProductoFormModal } from '../../components/ProductoFormModal'
 import { ImagenSegura } from '../../components/ImagenSegura'
 import { CATEGORIAS_FALLBACK } from '../../lib/categorias'
+import { formatearPrecio, precioConDescuento } from '../../lib/precios'
 import type { ProductoConStock } from '../../types/database'
 
 const TALLES_FALLBACK = ['S', 'M', 'L', 'XL', 'XXL', '38', '40', '42', '44', '46', '48']
@@ -63,6 +64,18 @@ export function ProductosAdmin() {
         (p.sku ?? '').toLowerCase().includes(busqueda.toLowerCase()) ||
         p.nombre.toLowerCase().includes(busqueda.toLowerCase()) ||
         p.categoria.toLowerCase().includes(busqueda.toLowerCase())),
+  )
+
+  const gruposModelo = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          productos
+            .map((p) => p.grupo_modelo?.trim())
+            .filter((g): g is string => Boolean(g)),
+        ),
+      ).sort((a, b) => a.localeCompare(b, 'es')),
+    [productos],
   )
 
   async function handleEliminar(p: ProductoConStock) {
@@ -156,6 +169,8 @@ export function ProductosAdmin() {
               <tbody>
                 {filtrados.map((p) => {
                   const stockTotal = p.variaciones_stock.reduce((n, v) => n + v.stock_disponible, 0)
+                  const descuento = Number(p.discount_percent) || 0
+                  const precioFinal = precioConDescuento(p.precio, descuento)
                   return (
                     <tr key={p.id} className={p.activo ? '' : 'opacity-50'}>
                       <td>
@@ -185,10 +200,15 @@ export function ProductosAdmin() {
                         <span className="badge badge-outline">{p.categoria}</span>
                       </td>
                       <td className="font-semibold">
-                        ${Number(p.precio).toLocaleString('es-AR')}
-                        {Number(p.discount_percent) > 0 && (
+                        {descuento > 0 && (
+                          <span className="mr-2 text-xs font-normal opacity-50 line-through">
+                            ${formatearPrecio(p.precio)}
+                          </span>
+                        )}
+                        ${formatearPrecio(precioFinal)}
+                        {descuento > 0 && (
                           <span className="badge badge-error badge-sm ml-2 text-white border-0">
-                            -{p.discount_percent}%
+                            -{descuento}% off
                           </span>
                         )}
                       </td>
@@ -239,6 +259,7 @@ export function ProductosAdmin() {
           producto={modoModal.producto}
           categorias={categorias}
           tallesSugeridos={tallesSugeridos}
+          gruposModelo={gruposModelo}
           onCerrar={() => setModoModal({ abierto: false, producto: null })}
           onGuardado={(mensaje) => {
             setModoModal({ abierto: false, producto: null })

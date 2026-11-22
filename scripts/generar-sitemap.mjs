@@ -20,6 +20,7 @@ const SITE_URL = (
 const RUTAS_FIJAS = [
   { ruta: '/', prioridad: '1.0', freq: 'daily' },
   { ruta: '/catalogo', prioridad: '0.9', freq: 'daily' },
+  { ruta: '/ofertas', prioridad: '0.8', freq: 'daily' },
   { ruta: '/outfits', prioridad: '0.8', freq: 'weekly' },
   { ruta: '/quienes-somos', prioridad: '0.5', freq: 'monthly' },
   { ruta: '/contacto', prioridad: '0.6', freq: 'monthly' },

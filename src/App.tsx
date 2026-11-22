@@ -9,6 +9,7 @@ import { Producto } from './pages/Producto'
 // El bundle inicial se queda con Home y Catalogo; el resto se carga por ruta.
 const Categoria = lazy(() => import('./pages/Categoria').then((m) => ({ default: m.Categoria })))
 const Outfits = lazy(() => import('./pages/Outfits').then((m) => ({ default: m.Outfits })))
+const Ofertas = lazy(() => import('./pages/Ofertas').then((m) => ({ default: m.Ofertas })))
 const Contacto = lazy(() => import('./pages/Contacto').then((m) => ({ default: m.Contacto })))
 const QuienesSomos = lazy(() =>
   import('./pages/QuienesSomos').then((m) => ({ default: m.QuienesSomos })),
@@ -92,6 +93,8 @@ function App() {
           <Route path="/catalogo" element={<Catalogo />} />
           <Route path="/categoria/:slug" element={<Categoria />} />
           <Route path="/productos" element={<Navigate to="/catalogo" replace />} />
+          <Route path="/ofertas" element={<Ofertas />} />
+          <Route path="/promos" element={<Navigate to="/ofertas" replace />} />
           <Route path="/producto/:id" element={<Producto />} />
           <Route path="/outfits" element={<Outfits />} />
           <Route path="/contacto" element={<Contacto />} />

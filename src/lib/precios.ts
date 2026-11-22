@@ -40,6 +40,21 @@ export function precioListaDesdeTransferencia(
   return Math.round((transferencia / (1 - descuento)) * 100) / 100
 }
 
+/**
+ * Invierte un descuento porcentual (0-100) para recuperar el precio base.
+ * El admin muestra los precios finales en los inputs y usa esta función al
+ * guardar para no aplicar dos veces el descuento promocional en la tienda.
+ */
+export function precioBaseDesdeFinal(
+  precioFinal: number | null | undefined,
+  descuentoPercent: number | null | undefined,
+): number {
+  const final = Number(precioFinal) || 0
+  if (final <= 0) return 0
+  const desc = Math.min(99.99, Math.max(0, Number(descuentoPercent) || 0))
+  return Math.round((final / (1 - desc / 100)) * 100) / 100
+}
+
 /** Monto de cada cuota sin interés. */
 export function montoCuota(total: number, cuotas: number): number {
   return Math.round(total / Math.max(1, cuotas))
@@ -64,17 +79,23 @@ export function tienePrecioTransferenciaPropio(
 /**
  * Precio final por transferencia de un producto.
  *
- * Prioriza el valor exacto guardado en `productos.precio_transferencia` cuando
- * existe y es mayor a 0. Solo si el producto no define uno propio se aplica el
- * porcentaje global de la tienda (`config_tienda.descuento_transferencia`).
+ * `precioLista` debe ser el precio ya descontado (`precioConDescuento`).
+ * Prioriza el valor guardado en `productos.precio_transferencia` cuando existe,
+ * pero le aplica el descuento promocional de la prenda: si no, una oferta
+ * quedaba "por debajo" del precio transferencia y el precio más grande de la
+ * tarjeta seguía siendo el de lista.
+ *
+ * Solo si el producto no define uno propio se aplica el porcentaje global de la
+ * tienda (`config_tienda.descuento_transferencia`).
  */
 export function precioTransferenciaProducto(
   precioLista: number,
   descuentoTransferencia: number,
   precioTransferenciaPropio?: number | null,
+  discountPercent?: number | null,
 ): number {
   if (tienePrecioTransferenciaPropio(precioTransferenciaPropio)) {
-    return Number(precioTransferenciaPropio)
+    return precioConDescuento(Number(precioTransferenciaPropio), discountPercent)
   }
   return precioTransferencia(precioLista, descuentoTransferencia)
 }
