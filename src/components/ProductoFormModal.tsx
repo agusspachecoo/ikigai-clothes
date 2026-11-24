@@ -225,21 +225,17 @@ export function ProductoFormModal({
     })
   }
 
-  function agregarImagenes(urls: string[], cantidadArchivos = urls.length) {
+  function agregarImagenes(urls: string[]) {
     if (!urls.length) return
     setForm((f) => {
       const actuales = f.imagenes.filter(Boolean)
-      if (cantidadArchivos === 1) {
-        const url = urls[0]
-        const imagenes = actuales.filter((img) => img !== url && img !== actuales[0])
-        return { ...f, imagenes: [url, ...imagenes] }
-      }
       const vistos = new Set(actuales)
       const nuevas = urls.filter((url) => {
-        if (vistos.has(url)) return false
+        if (!url || vistos.has(url)) return false
         vistos.add(url)
         return true
       })
+      if (!nuevas.length) return f
       return { ...f, imagenes: [...actuales, ...nuevas] }
     })
   }
@@ -563,8 +559,9 @@ export function ProductoFormModal({
             <p className="text-xs text-neutral-600 font-medium mb-3">
               Formatos permitidos: JPG, PNG, WEBP, HEIC (iPhone). Recomendado: formato vertical 9:16
               (proporción de historia, 1080×1920), máx 5MB por imagen. Se comprime y convierte
-              a WebP automáticamente (máx 800 KB) antes de subirse. Si seleccionás una sola imagen
-              reemplaza la principal; si seleccionás varias se agregan a la galería en orden.
+              a WebP automáticamente (máx 800 KB) antes de subirse. Las imágenes nuevas se agregan
+              a la galería en orden, conservando las existentes. La primera sigue siendo la principal
+              hasta que la reordenenes; usá ✕ para quitar una imagen.
             </p>
             <ImageUploader
               carpeta="productos"

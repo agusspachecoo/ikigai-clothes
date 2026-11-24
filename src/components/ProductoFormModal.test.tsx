@@ -141,12 +141,15 @@ describe('ProductoFormModal: precios en vivo', () => {
 })
 
 describe('ProductoFormModal: imágenes', () => {
-  it('una sola imagen reemplaza la principal sin duplicarla', () => {
+  it('una sola imagen se anexa sin reemplazar ni quitar la principal', () => {
     renderModal()
 
-    fireEvent.click(boton( 'subir una'))
+    fireEvent.click(boton('subir una'))
 
-    expect(urlsGaleria()).toEqual(['https://cdn.test/una.webp'])
+    expect(urlsGaleria()).toEqual([
+      'https://cdn.test/principal.webp',
+      'https://cdn.test/una.webp',
+    ])
   })
 
   it('varias imágenes se anexan en orden sin duplicados', () => {
@@ -160,6 +163,20 @@ describe('ProductoFormModal: imágenes', () => {
       'https://cdn.test/dos.webp',
       'https://cdn.test/tres.webp',
     ])
+  })
+
+  it('guarda las imágenes existentes junto con las nuevas en orden', async () => {
+    renderModal()
+
+    fireEvent.click(boton('subir una'))
+    fireEvent.click(boton('Guardar producto'))
+
+    await vi.waitFor(() => expect(mocks.guardarProducto).toHaveBeenCalledTimes(1))
+    expect(mocks.guardarProducto).toHaveBeenCalledWith(
+      expect.objectContaining({
+        imagenes: ['https://cdn.test/principal.webp', 'https://cdn.test/una.webp'],
+      }),
+    )
   })
 
   it('permite reordenar, quitar y guarda el array resultante', async () => {

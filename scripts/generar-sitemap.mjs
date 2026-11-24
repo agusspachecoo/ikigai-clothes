@@ -26,6 +26,7 @@ const RUTAS_FIJAS = [
   { ruta: '/contacto', prioridad: '0.6', freq: 'monthly' },
   { ruta: '/preguntas-frecuentes', prioridad: '0.5', freq: 'monthly' },
   { ruta: '/devoluciones', prioridad: '0.4', freq: 'monthly' },
+  { ruta: '/politica-de-envios', prioridad: '0.4', freq: 'monthly' },
   { ruta: '/politica-de-privacidad', prioridad: '0.3', freq: 'yearly' },
   { ruta: '/terminos-y-condiciones', prioridad: '0.3', freq: 'yearly' },
 ]

@@ -17,6 +17,9 @@ const QuienesSomos = lazy(() =>
 const Devoluciones = lazy(() =>
   import('./pages/Devoluciones').then((m) => ({ default: m.Devoluciones })),
 )
+const PoliticaEnvios = lazy(() =>
+  import('./pages/PoliticaEnvios').then((m) => ({ default: m.PoliticaEnvios })),
+)
 const PoliticaPrivacidad = lazy(() =>
   import('./pages/PoliticaPrivacidad').then((m) => ({ default: m.PoliticaPrivacidad })),
 )
@@ -100,6 +103,7 @@ function App() {
           <Route path="/contacto" element={<Contacto />} />
           <Route path="/quienes-somos" element={<QuienesSomos />} />
           <Route path="/devoluciones" element={<Devoluciones />} />
+          <Route path="/politica-de-envios" element={<PoliticaEnvios />} />
           <Route path="/preguntas-frecuentes" element={<PreguntasFrecuentes />} />
           <Route path="/politica-de-privacidad" element={<PoliticaPrivacidad />} />
           <Route path="/terminos-y-condiciones" element={<TerminosCondiciones />} />

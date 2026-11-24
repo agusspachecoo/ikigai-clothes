@@ -1,4 +1,5 @@
 import { createContext, useContext } from 'react'
+import { SHOWROOM } from '../lib/contacto'
 
 export interface ConfigTienda {
   /** Monto mínimo para obtener envío gratis (0 = deshabilitado) */
@@ -11,6 +12,13 @@ export interface ConfigTienda {
   email_contacto: string
   instagram: string
   nombre_tienda: string
+  /** Datos de contacto y dirección que se muestran en el pie de página */
+  direccion: string
+  horario_atencion: string
+  /** Identidad comercial y bloque de Data Fiscal del pie de página */
+  razon_social: string
+  cuit: string
+  data_fiscal_url: string
   /** URL de la imagen del bloque de showroom (subida desde el panel) */
   imagen_showroom: string
 }
@@ -24,6 +32,11 @@ export const CONFIG_POR_DEFECTO: ConfigTienda = {
   email_contacto: 'ikigaiclothes.contacto@gmail.com',
   instagram: 'https://www.instagram.com/ikigai_clothess/',
   nombre_tienda: 'IKIGAI CLOTHES',
+  direccion: SHOWROOM.direccion,
+  horario_atencion: SHOWROOM.horario,
+  razon_social: 'IKIGAI CLOTHES',
+  cuit: '',
+  data_fiscal_url: '',
   imagen_showroom: '',
 }
 

@@ -235,3 +235,9 @@
     animation-play-state: paused;
   }
 }
+
+@media (max-width: 767px) {
+  body.con-barra-compra .whatsapp-flotante {
+    bottom: calc(9rem + env(safe-area-inset-bottom));
+  }
+}

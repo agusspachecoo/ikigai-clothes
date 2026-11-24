@@ -10,6 +10,14 @@ export const CONTACTO = {
 
 export const WHATSAPP_URL = `${CONTACTO.whatsapp}?text=${encodeURIComponent('Hola Ikigai Clothes!')}`
 
+export function urlWhatsapp(destino: string, mensaje?: string) {
+  const base = /^https?:\/\//.test(destino)
+    ? destino
+    : `https://wa.me/${destino.replace(/\D/g, '')}`
+  if (!mensaje) return base
+  return `${base}${base.includes('?') ? '&' : '?'}text=${encodeURIComponent(mensaje)}`
+}
+
 /** Datos del showroom físico. La imagen se configura por VITE_SHOWROOM_IMAGE_URL. */
 export const SHOWROOM = {
   titulo: 'Visitanos en el showroom',

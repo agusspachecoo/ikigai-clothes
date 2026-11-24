@@ -13,6 +13,11 @@ const CLAVES = [
   'email_contacto',
   'instagram',
   'nombre_tienda',
+  'direccion',
+  'horario_atencion',
+  'razon_social',
+  'cuit',
+  'data_fiscal_url',
   'imagen_showroom',
 ] as const
 
@@ -71,6 +76,11 @@ export function TiendaProvider({ children }: { children: ReactNode }) {
         email_contacto: valores.email_contacto ?? CONFIG_POR_DEFECTO.email_contacto,
         instagram: valores.instagram ?? CONFIG_POR_DEFECTO.instagram,
         nombre_tienda: valores.nombre_tienda ?? CONFIG_POR_DEFECTO.nombre_tienda,
+        direccion: valores.direccion ?? CONFIG_POR_DEFECTO.direccion,
+        horario_atencion: valores.horario_atencion ?? CONFIG_POR_DEFECTO.horario_atencion,
+        razon_social: valores.razon_social ?? CONFIG_POR_DEFECTO.razon_social,
+        cuit: valores.cuit ?? CONFIG_POR_DEFECTO.cuit,
+        data_fiscal_url: valores.data_fiscal_url ?? CONFIG_POR_DEFECTO.data_fiscal_url,
         imagen_showroom: valores.imagen_showroom ?? CONFIG_POR_DEFECTO.imagen_showroom,
       })
     }

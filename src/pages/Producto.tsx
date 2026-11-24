@@ -25,12 +25,12 @@ import { tallesDisponibles } from '../lib/talles'
 import { useTalles } from '../hooks/useTalles'
 import { slugify } from '../lib/categorias'
 import { ImagenSegura } from '../components/ImagenSegura'
+import { MediosPagoBadges } from '../components/MediosPagoBadges'
 import {
   formatearPrecio,
   montoCuota,
   precioConDescuento,
   precioTransferenciaProducto,
-  porcentajeAhorroTransferencia,
   tienePrecioTransferenciaPropio,
 } from '../lib/precios'
 
@@ -66,7 +66,10 @@ export function Producto() {
   const [zoomScale, setZoomScale] = useState(1)
   const [zoomPos, setZoomPos] = useState({ x: 0, y: 0 })
   const [arrastrando, setArrastrando] = useState(false)
+  const [barraCompraVisible, setBarraCompraVisible] = useState(true)
+  const hayProducto = Boolean(producto)
   const arrastreRef = useRef({ startX: 0, startY: 0, posX: 0, posY: 0 })
+  const finPaginaRef = useRef<HTMLDivElement>(null)
   const { descuento_transferencia, cuotas_sin_interes, umbral_envio_gratis, envio_gratis_activo } =
     useTienda()
   useCierreModal(Boolean(lightboxResena), () => setLightboxResena(null))
@@ -75,6 +78,25 @@ export function Producto() {
     setZoomScale(1)
     setZoomPos({ x: 0, y: 0 })
   })
+
+  useEffect(() => {
+    const nodo = finPaginaRef.current
+    if (!nodo || typeof IntersectionObserver === 'undefined') return
+
+    const observador = new IntersectionObserver(([entrada]) => {
+      setBarraCompraVisible(!entrada.isIntersecting)
+    })
+    observador.observe(nodo)
+
+    return () => observador.disconnect()
+  }, [producto?.id])
+
+  useEffect(() => {
+    if (!hayProducto || !barraCompraVisible) return
+
+    document.body.classList.add('con-barra-compra')
+    return () => document.body.classList.remove('con-barra-compra')
+  }, [hayProducto, barraCompraVisible])
 
   const totalImagenes = producto?.imagenes.length ?? 0
 
@@ -280,11 +302,6 @@ export function Producto() {
     producto.precio_transferencia,
     descuento,
   )
-  const ahorroTransferencia = Math.max(0, precioOferta - precioTransferenciaFinal)
-  const descuentoTransferenciaMostrado = porcentajeAhorroTransferencia(
-    precioOferta,
-    precioTransferenciaFinal,
-  )
   const mostrarPrecioTransferencia =
     precioTransferenciaFinal > 0 &&
     (tienePrecioTransferenciaPropio(producto.precio_transferencia) ||
@@ -392,7 +409,7 @@ export function Producto() {
   }
 
   return (
-    <div className="max-w-[1600px] mx-auto px-3 sm:px-5 py-6">
+    <div className="max-w-[1600px] mx-auto px-3 sm:px-5 pt-6 pb-28 md:py-6">
       <Breadcrumbs
         items={[
           { label: 'Inicio', to: '/' },
@@ -621,46 +638,37 @@ export function Producto() {
             {producto.categoria}
           </p>
 
-          {/* Precio */}
-          <div className="mt-5 space-y-1">
+          {/* Precio: descuento y precio final arriba, transferencia y cuotas a la vista */}
+          <div className="mt-5">
             {descuento > 0 && (
-              <span className="inline-block bg-oferta text-white text-[10px] font-semibold uppercase tracking-widest px-2 py-1">
-                -{descuento}% off
-              </span>
-            )}
-
-            <div className="flex items-baseline gap-2 mt-2">
-              {descuento > 0 && (
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="inline-block bg-oferta text-white text-[10px] font-semibold uppercase tracking-widest px-2 py-1">
+                  -{descuento}% off
+                </span>
                 <span className="text-sm opacity-50 line-through">
                   ${formatearPrecio(precioOriginal)}
                 </span>
-              )}
-              <span className="text-base opacity-70">${formatearPrecio(precioOferta)}</span>
-            </div>
-
-            {descuento > 0 && (
-              <p className="text-xs text-success">
-                Ahorrás ${formatearPrecio(precioOriginal - precioOferta)}
-              </p>
+              </div>
             )}
 
+            <p className="font-display text-3xl sm:text-4xl leading-tight mt-2">
+              ${formatearPrecio(precioOferta)}
+            </p>
+
             {mostrarPrecioTransferencia && (
-              <div className="border-2 border-emerald-600 bg-emerald-50 px-4 py-3 mt-4 rounded-lg shadow-sm">
-                <p className="text-xl font-semibold text-emerald-700 mb-1">
-                  Precio por transferencia ${formatearPrecio(precioTransferenciaFinal)}
+              <div className="border-2 border-emerald-600 bg-emerald-50 px-4 py-3 mt-4 rounded-lg">
+                <p className="text-[10px] font-semibold uppercase tracking-widest text-emerald-700">
+                  Pagando por transferencia
                 </p>
-                {ahorroTransferencia > 0 && (
-                  <p className="text-sm text-emerald-700 mt-1">
-                    Ahorrás ${formatearPrecio(ahorroTransferencia)} (
-                    {descuentoTransferenciaMostrado}% off)
-                  </p>
-                )}
+                <p className="text-2xl font-semibold text-emerald-700">
+                  ${formatearPrecio(precioTransferenciaFinal)}
+                </p>
               </div>
             )}
 
             {cuotas_sin_interes > 1 && (
-              <p className="text-xs opacity-70">
-                {cuotas_sin_interes} cuotas sin interés de $
+              <p className="mt-3 text-sm font-medium text-base-content">
+                Hasta {cuotas_sin_interes} cuotas sin interés de $
                 {formatearPrecio(montoCuota(precioOferta, cuotas_sin_interes))}
               </p>
             )}
@@ -712,7 +720,7 @@ export function Producto() {
 
           {/* Selector de talles */}
           {talles.length > 0 && (
-            <div className="mt-6">
+            <div id="selector-talles" className="mt-6">
               <p className="text-xs uppercase tracking-widest mb-2">
                 Talle
                 {sinStock && (
@@ -777,6 +785,10 @@ export function Producto() {
                   ? `Gratis desde $${formatearPrecio(umbral_envio_gratis)}`
                   : 'A todo el país'}
               </span>
+            </li>
+            <li className="flex flex-wrap items-center justify-between gap-2 py-3">
+              <span className="opacity-60">Pago</span>
+              <MediosPagoBadges />
             </li>
           </ul>
 
@@ -1205,6 +1217,55 @@ export function Producto() {
             setConflictos([])
           }}
         />
+      )}
+
+      <div ref={finPaginaRef} aria-hidden="true" />
+
+      {barraCompraVisible && (
+        <div className="fixed inset-x-0 bottom-14 z-30 border-t border-line bg-base-100/95 backdrop-blur-sm md:hidden">
+          <div className="mx-auto flex max-w-[1600px] items-center gap-3 px-3 py-2.5 pb-[calc(0.625rem+env(safe-area-inset-bottom))] sm:px-5">
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-[11px] leading-tight opacity-60">
+                Precio de lista
+                {descuento > 0 && <span className="ml-1.5 text-oferta">· -{descuento}% off</span>}
+              </p>
+              <p className="text-lg font-semibold leading-tight">
+                ${formatearPrecio(precioOferta)}
+              </p>
+              {mostrarPrecioTransferencia && (
+                <p className="truncate text-[11px] font-medium leading-tight text-success">
+                  ${formatearPrecio(precioTransferenciaFinal)} por transferencia
+                </p>
+              )}
+            </div>
+            <button
+              type="button"
+              disabled={sinStock}
+              className="btn btn-primary rounded-none px-4 shrink-0 sm:px-5"
+              onClick={() => {
+                if (talles.length > 0 && !talleSeleccionado) {
+                  document.getElementById('selector-talles')?.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'center',
+                  })
+                  return
+                }
+                agregarAlCarrito()
+              }}
+            >
+              {sinStock
+                ? 'Sin Stock'
+                : talles.length > 0 && !talleSeleccionado
+                  ? 'Elegí un talle'
+                  : (
+                    <>
+                      <span className="sm:hidden">Agregar</span>
+                      <span className="hidden sm:inline">Agregar al carrito</span>
+                    </>
+                  )}
+            </button>
+          </div>
+        </div>
       )}
     </div>
   )
